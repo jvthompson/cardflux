@@ -5,6 +5,14 @@ import 'package:flutter/material.dart';
 import 'card_back_widget.dart';
 import 'card_face_widget.dart';
 
+/// Extra room (beyond the card's own [cardWidth]/[cardHeight]) [PileWidget]
+/// reserves on each axis so its count badge and shuffle button can overflow
+/// slightly past the card's edges. Callers positioning a [PileWidget] by its
+/// center (see table_screen.dart) must offset by half of `cardWidth +
+/// pileWidgetExtra`/`cardHeight + pileWidgetExtra`, not half of the bare
+/// card dimensions, or the whole widget renders off-center.
+const double pileWidgetExtra = 24;
+
 /// A stack of 2+ cards rendered as a single back-face with a count badge.
 /// Tap draws the top card into the local hand; the shuffle button
 /// randomizes stacking order and plays a brief decaying wiggle (M6) so the
@@ -46,8 +54,8 @@ class _PileWidgetState extends State<PileWidget> with SingleTickerProviderStateM
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: cardWidth + 24,
-      height: cardHeight + 24,
+      width: cardWidth + pileWidgetExtra,
+      height: cardHeight + pileWidgetExtra,
       child: Stack(
         clipBehavior: Clip.none,
         alignment: Alignment.center,

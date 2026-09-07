@@ -169,9 +169,14 @@ class _TableScreenState extends State<TableScreen> {
                               final top = _stackUtils.topOf(cards);
                               final pos = _toScreenPixel(top.x, top.y);
                               if (cards.length > 1) {
+                                // PileWidget's own box is larger than a bare
+                                // card (room for its badge/shuffle button to
+                                // overflow) -- center on that actual size, or
+                                // the pile renders shifted off its true
+                                // canonical position (see pileWidgetExtra).
                                 return Positioned(
-                                  left: pos.dx - cardWidth / 2,
-                                  top: pos.dy - cardHeight / 2,
+                                  left: pos.dx - (cardWidth + pileWidgetExtra) / 2,
+                                  top: pos.dy - (cardHeight + pileWidgetExtra) / 2,
                                   child: PileWidget(
                                     count: cards.length,
                                     onDraw: () => widget.controller.drawCard(group.key),
