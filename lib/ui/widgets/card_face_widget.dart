@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:math' show pi;
 
 import 'package:flutter/material.dart';
@@ -27,10 +28,12 @@ Color _parseHexColor(String hex) {
   return Color(int.parse('FF$cleaned', radix: 16));
 }
 
-/// The front face of a card, code-drawn from its [CardDefinition] — no image
-/// assets required. Suited cards (standard deck) get a corner rank + suit
-/// glyph and a large center suit glyph, matching a real playing card;
-/// suitless custom cards fall back to a plain rank label.
+/// The front face of a card. If [CardDefinition.imagePath] is set, renders
+/// the real scanned/art image (falling back to the code-drawn face below if
+/// the file can't be loaded); otherwise code-draws it from the definition's
+/// label/suit/rank -- no image required. Suited cards (standard deck) get a
+/// corner rank + suit glyph and a large center suit glyph, matching a real
+/// playing card; suitless custom cards fall back to a plain rank label.
 class CardFaceWidget extends StatelessWidget {
   const CardFaceWidget({super.key, required this.definition});
 
@@ -50,8 +53,7 @@ class CardFaceWidget extends StatelessWidget {
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
+  Widget _codeDrawnFace() {
     final color = _parseHexColor(definition.colorHex ?? _defaultColorHex);
     final glyph = _suitGlyphFor(definition.suit);
     return Container(
@@ -79,6 +81,31 @@ class CardFaceWidget extends StatelessWidget {
             child: Transform.rotate(angle: pi, child: _corner(color, glyph)),
           ),
         ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final imagePath = definition.imagePath;
+    if (imagePath == null) return _codeDrawnFace();
+    return Container(
+      width: cardWidth,
+      height: cardHeight,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(6),
+        boxShadow: const [BoxShadow(color: Colors.black38, blurRadius: 3, offset: Offset(1, 1))],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(6),
+        child: DecoratedBox(
+          decoration: BoxDecoration(border: Border.all(color: Colors.black26)),
+          child: Image.file(
+            File(imagePath),
+            fit: BoxFit.cover,
+            errorBuilder: (context, error, stackTrace) => _codeDrawnFace(),
+          ),
+        ),
       ),
     );
   }

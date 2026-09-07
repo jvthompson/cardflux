@@ -14,12 +14,14 @@ class HandZoneWidget extends StatelessWidget {
     required this.definitionsById,
     required this.onTapFlip,
     required this.onDragEnd,
+    this.onHoverCard,
   });
 
   final List<CardInstance> cards;
   final Map<String, CardDefinition> definitionsById;
   final void Function(String instanceId) onTapFlip;
   final void Function(String instanceId, Offset globalPosition) onDragEnd;
+  final void Function(String? instanceId)? onHoverCard;
 
   @override
   Widget build(BuildContext context) {
@@ -40,6 +42,7 @@ class HandZoneWidget extends StatelessWidget {
                   definition: definitionsById[card.definitionId],
                   onTapFlip: () => onTapFlip(card.instanceId),
                   onDragEnd: (offset) => onDragEnd(card.instanceId, offset),
+                  onHover: onHoverCard == null ? null : (hovering) => onHoverCard!(hovering ? card.instanceId : null),
                 );
               },
             ),

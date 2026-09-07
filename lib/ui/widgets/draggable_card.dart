@@ -16,6 +16,9 @@ import 'card_face_widget.dart';
 /// cards on a mirrored seat's view (see table_screen.dart's
 /// `TableScreen.isMirrored`); defaults to false since a player's own hand
 /// (rendered via `HandZoneWidget`) is never mirrored regardless of seat.
+///
+/// [onHover], if given, is notified when the mouse enters/exits this card --
+/// used by [TableScreen] to drive the Alt+hover full-size preview.
 class DraggableCard extends StatelessWidget {
   const DraggableCard({
     super.key,
@@ -24,6 +27,7 @@ class DraggableCard extends StatelessWidget {
     required this.onTapFlip,
     required this.onDragEnd,
     this.isMirrored = false,
+    this.onHover,
   });
 
   final CardInstance instance;
@@ -31,6 +35,7 @@ class DraggableCard extends StatelessWidget {
   final VoidCallback onTapFlip;
   final void Function(Offset globalPosition) onDragEnd;
   final bool isMirrored;
+  final ValueChanged<bool>? onHover;
 
   Widget _face() {
     final content = instance.faceUp && definition != null ? CardFaceWidget(definition: definition!) : const CardBackWidget();
@@ -39,14 +44,18 @@ class DraggableCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTapFlip,
-      child: Draggable<String>(
-        data: instance.instanceId,
-        feedback: Material(type: MaterialType.transparency, child: _face()),
-        childWhenDragging: Opacity(opacity: 0.3, child: _face()),
-        onDragEnd: (details) => onDragEnd(details.offset),
-        child: _face(),
+    return MouseRegion(
+      onEnter: (_) => onHover?.call(true),
+      onExit: (_) => onHover?.call(false),
+      child: GestureDetector(
+        onTap: onTapFlip,
+        child: Draggable<String>(
+          data: instance.instanceId,
+          feedback: Material(type: MaterialType.transparency, child: _face()),
+          childWhenDragging: Opacity(opacity: 0.3, child: _face()),
+          onDragEnd: (details) => onDragEnd(details.offset),
+          child: _face(),
+        ),
       ),
     );
   }

@@ -40,6 +40,24 @@ void main() {
     expect(games.single.cards.single.cardTitle, 'One');
   });
 
+  test('loadFromFolder resolves a card imagePath to an absolute path alongside the JSON', () async {
+    final tempDir = await Directory.systemTemp.createTemp('flutter_deck_test_games_');
+    addTearDown(() => tempDir.delete(recursive: true));
+
+    final gameFile = File('${tempDir.path}/my_game.json');
+    await gameFile.writeAsString(jsonEncode({
+      'id': 'my_game',
+      'name': 'My Custom Game',
+      'cards': [
+        {'id': 'c1', 'cardTitle': 'One', 'imagePath': 'one.jpg'},
+      ],
+    }));
+
+    final games = await GameLoader().loadFromFolder(tempDir.path);
+    final resolved = games.single.cards.single.imagePath;
+    expect(resolved, '${tempDir.path}${Platform.pathSeparator}one.jpg');
+  });
+
   test('loadFromFolder returns empty list for a missing folder', () async {
     final games = await GameLoader().loadFromFolder('C:/definitely/not/a/real/path/xyz');
     expect(games, isEmpty);
