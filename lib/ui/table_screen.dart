@@ -24,12 +24,15 @@ const double _stackHitRadius = cardWidth * 0.6;
 /// Every action goes through [controller] -- the host applies it directly,
 /// a client sends it to the host and waits for the next state broadcast.
 ///
-/// [isMirrored] renders the shared table area (not the hand zones, which
-/// always keep their own fixed top/bottom layout) as if viewed from the
-/// opposite seat -- both axes flipped and cards rotated 180° -- so a card
-/// dragged near one player's own hand appears near the *other* player's,
-/// matching a physical table where the two seats face each other. The host
-/// is always the canonical/unmirrored seat; the client is always mirrored.
+/// [isMirrored] renders the shared table area's *positions* (not the hand
+/// zones, which always keep their own fixed top/bottom layout) as if viewed
+/// from the opposite seat -- both axes flipped -- so a card dragged near one
+/// player's own hand appears near the *other* player's, matching a physical
+/// table where the two seats face each other. The host is always the
+/// canonical/unmirrored seat; the client is always mirrored. Each card's
+/// *rotation* is separate from this and is decided per-card in [build] by
+/// who last held it (`CardInstance.ownerId`), not by seat -- so a card
+/// always faces upright for whichever player played it, on both screens.
 class TableScreen extends StatefulWidget {
   const TableScreen({super.key, required this.definitionsById, required this.controller, required this.isMirrored});
 
@@ -182,7 +185,15 @@ class _TableScreenState extends State<TableScreen> {
                                 child: DraggableCard(
                                   instance: top,
                                   definition: widget.definitionsById[top.definitionId],
-                                  isMirrored: widget.isMirrored,
+                                  // A card faces whichever player last held it
+                                  // (moveCard/stackCard never clear ownerId),
+                                  // not whichever seat is viewing it -- so it
+                                  // stays upright for its own player on both
+                                  // screens and only appears rotated to the
+                                  // other player. A never-held card (still in
+                                  // the shared pile) has no owner and stays
+                                  // neutral/unrotated for everyone.
+                                  isMirrored: top.ownerId != null && top.ownerId != session.localPlayerId,
                                   onTapFlip: () => widget.controller.flipCard(top.instanceId),
                                   onDragEnd: (offset) => _handleDragEnd(tops, top.instanceId, offset),
                                 ),
