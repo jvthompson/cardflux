@@ -118,6 +118,21 @@ void main() {
       expect(roundTripped.entries, hasLength(1));
       expect(roundTripped.entries.first.quantity, 1);
     });
+
+    test('DeckConfig.full includes one entry per game card at quantity 1', () {
+      const game = GameDefinition(
+        id: 'g1',
+        name: 'G',
+        cards: [
+          CardDefinition(id: 'a', label: 'A', colorHex: '#000000'),
+          CardDefinition(id: 'b', label: 'B', colorHex: '#000000'),
+        ],
+      );
+      final deck = DeckConfig.full(game);
+      expect(deck.gameId, 'g1');
+      expect(deck.entries.map((e) => e.definitionId).toSet(), {'a', 'b'});
+      expect(deck.entries.every((e) => e.quantity == 1), isTrue);
+    });
   });
 
   group('TableState', () {

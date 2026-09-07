@@ -1,3 +1,5 @@
+import 'game_definition.dart';
+
 /// How many copies of one [CardDefinition] (by id) a player is bringing to
 /// the session.
 class DeckEntry {
@@ -20,6 +22,15 @@ class DeckConfig {
 
   final String gameId;
   final List<DeckEntry> entries;
+
+  /// One copy of every card in [game] -- the default "use the whole deck"
+  /// starting point offered on [DeckBuildScreen].
+  factory DeckConfig.full(GameDefinition game) {
+    return DeckConfig(
+      gameId: game.id,
+      entries: [for (final c in game.cards) DeckEntry(definitionId: c.id, quantity: 1)],
+    );
+  }
 
   factory DeckConfig.fromJson(Map<String, dynamic> json) {
     return DeckConfig(

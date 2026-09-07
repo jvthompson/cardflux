@@ -8,6 +8,7 @@ const int defaultGamePort = 51234;
 enum NetMessageType {
   hello,
   welcome,
+  gameData,
   fullState,
   requestMove,
   requestFlip,

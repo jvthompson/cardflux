@@ -1,23 +1,35 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../data/game_loader.dart';
 import '../game/game_session.dart';
 import '../game/host_game_engine.dart';
 import '../game/table_controller.dart';
 import '../models/card_definition.dart';
+import '../models/deck_config.dart';
+import '../models/game_definition.dart';
 import '../networking/host_server.dart';
+import '../networking/net_message.dart';
 import 'table_screen.dart';
 
-/// Builds the host's authoritative [GameSession] once the opponent has
-/// connected, starts the [HostGameEngine] broadcast loop, and renders the
-/// shared [TableScreen]. Built exactly once (in [initState]) so the session
-/// -- and the game state it holds -- survives unrelated rebuilds.
+/// Deals [game]/[deckConfig] (chosen on [GameSelectScreen]/[DeckBuildScreen])
+/// into the host's authoritative [GameSession], sends the client the full
+/// [GameDefinition] it'll need to render cards, starts the [HostGameEngine]
+/// broadcast loop, and renders the shared [TableScreen]. Built exactly once
+/// (in [initState]) so the session -- and the game state it holds -- survives
+/// unrelated rebuilds.
 class HostGameScreen extends StatefulWidget {
-  const HostGameScreen({super.key, required this.hostServer, required this.hostPlayerId});
+  const HostGameScreen({
+    super.key,
+    required this.hostServer,
+    required this.hostPlayerId,
+    required this.game,
+    required this.deckConfig,
+  });
 
   final HostServer hostServer;
   final String hostPlayerId;
+  final GameDefinition game;
+  final DeckConfig deckConfig;
 
   @override
   State<HostGameScreen> createState() => _HostGameScreenState();
@@ -34,19 +46,21 @@ class _HostGameScreenState extends State<HostGameScreen> {
     _init();
   }
 
-  Future<void> _init() async {
-    final game = await GameLoader().loadStandardDeck();
-    final session = GameSession.localSandbox(game: game, localPlayerId: widget.hostPlayerId);
+  void _init() {
+    final session = GameSession.dealDeck(
+      game: widget.game,
+      deckConfig: widget.deckConfig,
+      localPlayerId: widget.hostPlayerId,
+    );
     final engine = HostGameEngine(session: session, hostServer: widget.hostServer, hostPlayerId: widget.hostPlayerId);
+    // Sent before the engine's first broadcast so the client can resolve
+    // definitionIds in the fullState snapshot that follows.
+    widget.hostServer.send(NetMessage(type: NetMessageType.gameData, payload: widget.game.toJson()));
     engine.start();
-    if (!mounted) {
-      engine.dispose();
-      return;
-    }
     setState(() {
       _session = session;
       _engine = engine;
-      _definitionsById = {for (final c in game.cards) c.id: c};
+      _definitionsById = {for (final c in widget.game.cards) c.id: c};
     });
   }
 

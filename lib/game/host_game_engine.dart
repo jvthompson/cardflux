@@ -72,6 +72,7 @@ class HostGameEngine {
         break;
       case NetMessageType.hello:
       case NetMessageType.welcome:
+      case NetMessageType.gameData:
       case NetMessageType.fullState:
       case NetMessageType.ping:
       case NetMessageType.pong:

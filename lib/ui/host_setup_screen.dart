@@ -5,7 +5,7 @@ import 'package:uuid/uuid.dart';
 
 import '../networking/host_server.dart';
 import '../networking/network_info.dart';
-import 'host_game_screen.dart';
+import 'game_select_screen.dart';
 
 const _uuid = Uuid();
 
@@ -58,15 +58,16 @@ class _HostSetupScreenState extends State<HostSetupScreen> {
     if (_navigated || !mounted) return;
     _navigated = true;
     Navigator.of(context).pushReplacement(MaterialPageRoute(
-      builder: (_) => HostGameScreen(hostServer: _server, hostPlayerId: _hostPlayerId),
+      builder: (_) => GameSelectScreen(hostServer: _server, hostPlayerId: _hostPlayerId),
     ));
   }
 
   @override
   void dispose() {
     _navSub?.cancel();
-    // The HostGameScreen we navigated to owns the server's lifecycle from
-    // here on -- only stop it here if we're leaving without ever getting there.
+    // GameSelectScreen/DeckBuildScreen/HostGameScreen own the server's
+    // lifecycle from here on -- only stop it here if we're leaving without
+    // ever getting there.
     if (!_navigated) _server.stop();
     super.dispose();
   }
