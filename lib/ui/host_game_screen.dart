@@ -9,30 +9,36 @@ import '../game/table_controller.dart';
 import '../models/card_definition.dart';
 import '../models/deck_config.dart';
 import '../models/game_definition.dart';
+import '../models/player.dart';
 import '../networking/host_server.dart';
 import '../networking/net_message.dart';
 import 'home_screen.dart';
 import 'table_screen.dart';
 
-/// Deals [game]/[deckConfig] (chosen on [GameSelectScreen]/[DeckBuildScreen])
-/// into the host's authoritative [GameSession], sends the client the full
-/// [GameDefinition] it'll need to render cards, starts the [HostGameEngine]
-/// broadcast loop, and renders the shared [TableScreen]. Built exactly once
-/// (in [initState]) so the session -- and the game state it holds -- survives
-/// unrelated rebuilds.
+/// Deals [game]/[deckConfigsByPlayerId] into the host's authoritative
+/// [GameSession], starts the [HostGameEngine] broadcast loop, and renders
+/// the shared [TableScreen]. Built exactly once (in [initState]) so the
+/// session -- and the game state it holds -- survives unrelated rebuilds.
+///
+/// For a [GameDeckMode.deckBuilding] game, [deckConfigsByPlayerId] holds each
+/// player's own deck (chosen on [GameSelectScreen]/`HostLoadDeckScreen`,
+/// which already sent the client [game] before either player picked a deck).
+/// For a [GameDeckMode.fixedDeck] game, [GameSelectScreen] skips straight
+/// here with [deckConfigsByPlayerId] null -- nobody built anything, so this
+/// screen sends [game] itself and deals via [GameSession.dealFixedDecks].
 class HostGameScreen extends StatefulWidget {
   const HostGameScreen({
     super.key,
     required this.hostServer,
     required this.hostPlayerId,
     required this.game,
-    required this.deckConfig,
+    required this.deckConfigsByPlayerId,
   });
 
   final HostServer hostServer;
   final String hostPlayerId;
   final GameDefinition game;
-  final DeckConfig deckConfig;
+  final Map<String, DeckConfig>? deckConfigsByPlayerId;
 
   @override
   State<HostGameScreen> createState() => _HostGameScreenState();
@@ -52,15 +58,28 @@ class _HostGameScreenState extends State<HostGameScreen> {
   }
 
   void _init() {
-    final session = GameSession.dealDeck(
-      game: widget.game,
-      deckConfig: widget.deckConfig,
-      localPlayerId: widget.hostPlayerId,
-    );
-    final engine = HostGameEngine(session: session, hostServer: widget.hostServer, hostPlayerId: widget.hostPlayerId);
-    // Sent before the engine's first broadcast so the client can resolve
-    // definitionIds in the fullState snapshot that follows.
+    final clientId = widget.hostServer.opponentPlayerId!;
+    final players = [
+      PlayerInfo(id: widget.hostPlayerId, name: 'You', role: PlayerRole.host),
+      PlayerInfo(id: clientId, name: widget.hostServer.opponentName ?? 'Opponent', role: PlayerRole.client),
+    ];
+    // Harmless to send again for the deckBuilding path -- ClientGameScreen's
+    // gameData handling just overwrites `_game` with an identical value.
     widget.hostServer.send(NetMessage(type: NetMessageType.gameData, payload: widget.game.toJson()));
+    final deckConfigsByPlayerId = widget.deckConfigsByPlayerId;
+    final session = widget.game.deckMode == GameDeckMode.fixedDeck
+        ? GameSession.dealFixedDecks(
+            game: widget.game,
+            players: players,
+            localPlayerId: widget.hostPlayerId,
+          )
+        : GameSession.dealPlayerDecks(
+            game: widget.game,
+            deckConfigsByPlayerId: deckConfigsByPlayerId!,
+            players: players,
+            localPlayerId: widget.hostPlayerId,
+          );
+    final engine = HostGameEngine(session: session, hostServer: widget.hostServer, hostPlayerId: widget.hostPlayerId);
     engine.start();
     _statusSub = widget.hostServer.statusStream.listen((status) {
       if (status == HostConnectionStatus.disconnected) _returnHome();
@@ -104,6 +123,8 @@ class _HostGameScreenState extends State<HostGameScreen> {
         definitionsById: _definitionsById,
         controller: HostTableController(session),
         isMirrored: false,
+        hasPersonalDecks: widget.game.deckMode == GameDeckMode.deckBuilding,
+        cardBackImagePath: widget.game.cardBackImagePath,
       ),
     );
   }

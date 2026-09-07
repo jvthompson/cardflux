@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../../models/card_definition.dart';
 import 'card_back_widget.dart';
 import 'card_face_widget.dart';
 
@@ -13,22 +14,43 @@ import 'card_face_widget.dart';
 /// card dimensions, or the whole widget renders off-center.
 const double pileWidgetExtra = 24;
 
-/// A stack of 2+ cards rendered as a single back-face with a count badge.
-/// Tap draws the top card into the local hand; the shuffle button
-/// randomizes stacking order and plays a brief decaying wiggle (M6) so the
-/// tap reads as having done something, since a face-down pile otherwise
-/// looks identical before and after a shuffle.
+/// A stack of 2+ cards rendered with a count badge, showing either the real
+/// face of the top card (if it's face-up -- e.g. cards played face-up and
+/// stacked into a discard-like pile) or a back (face-down, same as
+/// [topFaceUp] being false, or [topDefinition] missing -- an opponent's
+/// hidden card, mirroring [DraggableCard]'s own fallback). Tap draws the top
+/// card into the local hand -- the same shortcut a deck zone used to offer
+/// before dragging replaced it there (see `DeckZoneWidget`); a table pile
+/// keeps both, since tap-to-hand is still the common case while dragging
+/// lets the top card be placed anywhere (the table, or back onto another
+/// deck to return it) via [onDragEnd], the same drop-handling every other
+/// draggable card already goes through. The shuffle button randomizes
+/// stacking order and flips every card face-down, and plays a brief
+/// decaying wiggle (M6) so the tap reads as having done something even when
+/// the pile was already showing a back.
 class PileWidget extends StatefulWidget {
   const PileWidget({
     super.key,
     required this.count,
+    required this.topInstanceId,
+    required this.topFaceUp,
+    required this.topDefinition,
     required this.onDraw,
+    required this.onDragEnd,
     required this.onShuffle,
+    this.isMirrored = false,
+    this.cardBackImagePath,
   });
 
   final int count;
+  final String topInstanceId;
+  final bool topFaceUp;
+  final CardDefinition? topDefinition;
   final VoidCallback onDraw;
+  final void Function(Offset globalTopLeft) onDragEnd;
   final VoidCallback onShuffle;
+  final bool isMirrored;
+  final String? cardBackImagePath;
 
   @override
   State<PileWidget> createState() => _PileWidgetState();
@@ -51,6 +73,13 @@ class _PileWidgetState extends State<PileWidget> with SingleTickerProviderStateM
     super.dispose();
   }
 
+  Widget _topFace() {
+    final content = widget.topFaceUp && widget.topDefinition != null
+        ? CardFaceWidget(definition: widget.topDefinition!)
+        : CardBackWidget(imagePath: widget.cardBackImagePath);
+    return widget.isMirrored ? Transform.rotate(angle: math.pi, child: content) : content;
+  }
+
   @override
   Widget build(BuildContext context) {
     return SizedBox(
@@ -61,16 +90,25 @@ class _PileWidgetState extends State<PileWidget> with SingleTickerProviderStateM
         alignment: Alignment.center,
         children: [
           GestureDetector(
+            // Claims a zero-movement click for onDraw before Draggable's own
+            // recognizer can resolve it as a zero-distance drag -- mirrors
+            // how DraggableCard/DeckZoneWidget avoid the same footgun.
             onTap: widget.onDraw,
-            child: AnimatedBuilder(
-              animation: _shuffleController,
-              builder: (context, child) {
-                final t = _shuffleController.value;
-                // A few oscillations that decay to zero by the end.
-                final angle = math.sin(t * math.pi * 6) * 0.15 * (1 - t);
-                return Transform.rotate(angle: angle, child: child);
-              },
-              child: const CardBackWidget(),
+            child: Draggable<String>(
+              data: widget.topInstanceId,
+              feedback: Material(type: MaterialType.transparency, child: _topFace()),
+              childWhenDragging: Opacity(opacity: 0.3, child: _topFace()),
+              onDragEnd: (details) => widget.onDragEnd(details.offset),
+              child: AnimatedBuilder(
+                animation: _shuffleController,
+                builder: (context, child) {
+                  final t = _shuffleController.value;
+                  // A few oscillations that decay to zero by the end.
+                  final angle = math.sin(t * math.pi * 6) * 0.15 * (1 - t);
+                  return Transform.rotate(angle: angle, child: child);
+                },
+                child: _topFace(),
+              ),
             ),
           ),
           Positioned(

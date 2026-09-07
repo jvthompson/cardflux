@@ -105,6 +105,51 @@ void main() {
       expect(roundTripped.cards, hasLength(1));
       expect(roundTripped.cards.first.id, 'hearts_A');
     });
+
+    test('deckMode/fixedDecks default to deckBuilding/empty when absent from JSON', () {
+      final json = {
+        'id': 'g1',
+        'name': 'G',
+        'cards': [
+          {'id': 'a', 'cardTitle': 'A', 'colorHex': '#000000'},
+        ],
+      };
+      final game = GameDefinition.fromJson(json);
+      expect(game.deckMode, GameDeckMode.deckBuilding);
+      expect(game.fixedDecks, isEmpty);
+    });
+
+    test('round-trips a fixedDeck game with named decks through JSON', () {
+      const game = GameDefinition(
+        id: 'standard_52',
+        name: 'Standard 52-Card Deck',
+        cards: [CardDefinition(id: 'hearts_A', cardTitle: 'A', colorHex: '#D32F2F')],
+        deckMode: GameDeckMode.fixedDeck,
+        fixedDecks: [
+          FixedDeckDefinition(name: 'Deck'),
+          FixedDeckDefinition(name: 'Fate Deck', entries: [DeckEntry(definitionId: 'hearts_A', quantity: 2)]),
+        ],
+      );
+      final roundTripped = GameDefinition.fromJson(game.toJson());
+      expect(roundTripped.deckMode, GameDeckMode.fixedDeck);
+      expect(roundTripped.fixedDecks, hasLength(2));
+      expect(roundTripped.fixedDecks[0].name, 'Deck');
+      expect(roundTripped.fixedDecks[0].entries, isEmpty);
+      expect(roundTripped.fixedDecks[1].name, 'Fate Deck');
+      expect(roundTripped.fixedDecks[1].entries.single.definitionId, 'hearts_A');
+      expect(roundTripped.fixedDecks[1].entries.single.quantity, 2);
+    });
+
+    test('toJson omits deckMode/fixedDecks for the default deckBuilding game', () {
+      const game = GameDefinition(
+        id: 'g1',
+        name: 'G',
+        cards: [CardDefinition(id: 'a', cardTitle: 'A', colorHex: '#000000')],
+      );
+      final json = game.toJson();
+      expect(json.containsKey('deckMode'), isFalse);
+      expect(json.containsKey('fixedDecks'), isFalse);
+    });
   });
 
   group('DeckConfig', () {
@@ -170,6 +215,27 @@ void main() {
       final next = state.copyWith(cards: [], revision: 2);
       expect(next.revision, 2);
       expect(next.gameId, state.gameId);
+    });
+
+    test('fixedDeckNames defaults to empty and is omitted from JSON when absent', () {
+      final state = TableState(gameId: 'g1', players: const [], cards: const [], revision: 1);
+      expect(state.fixedDeckNames, isEmpty);
+      expect(state.toJson().containsKey('fixedDeckNames'), isFalse);
+    });
+
+    test('fixedDeckNames round-trips through JSON and survives copyWith', () {
+      final state = TableState(
+        gameId: 'g1',
+        players: const [],
+        cards: const [],
+        revision: 1,
+        fixedDeckNames: const {'root1': 'Deck'},
+      );
+      final roundTripped = TableState.fromJson(state.toJson());
+      expect(roundTripped.fixedDeckNames, {'root1': 'Deck'});
+
+      final next = state.copyWith(revision: 2);
+      expect(next.fixedDeckNames, {'root1': 'Deck'});
     });
   });
 }

@@ -1,16 +1,19 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 
 import 'card_face_widget.dart' show cardWidth, cardHeight;
 
 /// The back of a card — used for face-down cards and for any card sitting
-/// in another player's private hand zone. Painted with a diagonal lattice
-/// and a diamond emblem so it reads as an actual card back rather than a
-/// plain rectangle.
+/// in another player's private hand zone. If [imagePath] is set, renders the
+/// game's real card-back art (falling back to the code-drawn pattern below
+/// if the file can't be loaded); otherwise the pattern is used directly.
 class CardBackWidget extends StatelessWidget {
-  const CardBackWidget({super.key});
+  const CardBackWidget({super.key, this.imagePath});
 
-  @override
-  Widget build(BuildContext context) {
+  final String? imagePath;
+
+  Widget _codeDrawnBack() {
     return Container(
       width: cardWidth,
       height: cardHeight,
@@ -29,6 +32,31 @@ class CardBackWidget extends StatelessWidget {
         child: ClipRRect(
           borderRadius: BorderRadius.circular(2),
           child: CustomPaint(size: Size.infinite, painter: _CardBackPatternPainter()),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final path = imagePath;
+    if (path == null) return _codeDrawnBack();
+    return Container(
+      width: cardWidth,
+      height: cardHeight,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(6),
+        boxShadow: const [BoxShadow(color: Colors.black38, blurRadius: 3, offset: Offset(1, 1))],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(6),
+        child: DecoratedBox(
+          decoration: BoxDecoration(border: Border.all(color: Colors.black26)),
+          child: Image.file(
+            File(path),
+            fit: BoxFit.cover,
+            errorBuilder: (context, error, stackTrace) => _codeDrawnBack(),
+          ),
         ),
       ),
     );

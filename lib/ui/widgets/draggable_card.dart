@@ -28,6 +28,7 @@ class DraggableCard extends StatelessWidget {
     required this.onDragEnd,
     this.isMirrored = false,
     this.onHover,
+    this.cardBackImagePath,
   });
 
   final CardInstance instance;
@@ -36,9 +37,12 @@ class DraggableCard extends StatelessWidget {
   final void Function(Offset globalPosition) onDragEnd;
   final bool isMirrored;
   final ValueChanged<bool>? onHover;
+  final String? cardBackImagePath;
 
   Widget _face() {
-    final content = instance.faceUp && definition != null ? CardFaceWidget(definition: definition!) : const CardBackWidget();
+    final content = instance.faceUp && definition != null
+        ? CardFaceWidget(definition: definition!)
+        : CardBackWidget(imagePath: cardBackImagePath);
     return isMirrored ? Transform.rotate(angle: pi, child: content) : content;
   }
 

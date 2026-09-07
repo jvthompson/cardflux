@@ -124,26 +124,22 @@ class _DeckEditorScreenState extends State<DeckEditorScreen> {
   Widget _buildPreviewPanel() {
     final hovered = _hoveredDefinitionId == null ? null : _definitionsById[_hoveredDefinitionId];
     return Container(
-      width: 320,
       color: Colors.black.withValues(alpha: 0.05),
       alignment: Alignment.center,
       child: hovered == null
           ? const Text('Hover a card to preview', style: TextStyle(color: Colors.black45))
           : Padding(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(24),
               child: Column(
-                mainAxisSize: MainAxisSize.min,
                 children: [
-                  SizedBox(
-                    width: 240,
-                    height: 240 * (cardHeight / cardWidth),
+                  Expanded(
                     child: FittedBox(
                       fit: BoxFit.contain,
                       child: SizedBox(width: cardWidth, height: cardHeight, child: CardFaceWidget(definition: hovered)),
                     ),
                   ),
-                  const SizedBox(height: 12),
-                  Text(hovered.cardTitle, style: const TextStyle(fontWeight: FontWeight.bold), textAlign: TextAlign.center),
+                  const SizedBox(height: 16),
+                  Text(hovered.cardTitle, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18), textAlign: TextAlign.center),
                 ],
               ),
             ),
@@ -194,15 +190,22 @@ class _DeckEditorScreenState extends State<DeckEditorScreen> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Expanded(
-            child: ListView.builder(
-              itemCount: widget.game.cards.length,
-              itemBuilder: (context, index) => _buildPoolRow(widget.game.cards[index]),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(
+                  child: ListView.builder(
+                    itemCount: widget.game.cards.length,
+                    itemBuilder: (context, index) => _buildPoolRow(widget.game.cards[index]),
+                  ),
+                ),
+                const VerticalDivider(width: 1),
+                SizedBox(width: 280, child: _buildDeckPanel()),
+              ],
             ),
           ),
           const VerticalDivider(width: 1),
-          _buildPreviewPanel(),
-          const VerticalDivider(width: 1),
-          SizedBox(width: 280, child: _buildDeckPanel()),
+          Expanded(child: _buildPreviewPanel()),
         ],
       ),
     );

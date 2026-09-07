@@ -2,11 +2,14 @@ import 'package:flutter/material.dart';
 
 import '../models/game_definition.dart';
 import '../networking/host_server.dart';
-import 'deck_build_screen.dart';
+import 'host_game_screen.dart';
+import 'host_load_deck_screen.dart';
 import 'widgets/game_picker.dart';
 
-/// Host-only screen (M5): pick the bundled standard deck, or browse a folder
-/// on disk for custom game JSON files, then proceed to [DeckBuildScreen].
+/// Host-only screen: pick the bundled standard deck, or browse a folder on
+/// disk for custom game JSON files, then proceed to [HostLoadDeckScreen] --
+/// unless [game] is [GameDeckMode.fixedDeck], which has no per-player deck to
+/// choose, so it goes straight to [HostGameScreen] instead.
 /// The [hostServer]/[hostPlayerId] are only threaded through to the eventual
 /// [HostGameScreen] -- this screen doesn't touch the connection itself.
 class GameSelectScreen extends StatelessWidget {
@@ -16,8 +19,19 @@ class GameSelectScreen extends StatelessWidget {
   final String hostPlayerId;
 
   void _chooseGame(BuildContext context, GameDefinition game) {
+    if (game.deckMode == GameDeckMode.fixedDeck) {
+      Navigator.of(context).push(MaterialPageRoute(
+        builder: (_) => HostGameScreen(
+          hostServer: hostServer,
+          hostPlayerId: hostPlayerId,
+          game: game,
+          deckConfigsByPlayerId: null,
+        ),
+      ));
+      return;
+    }
     Navigator.of(context).push(MaterialPageRoute(
-      builder: (_) => DeckBuildScreen(
+      builder: (_) => HostLoadDeckScreen(
         hostServer: hostServer,
         hostPlayerId: hostPlayerId,
         game: game,

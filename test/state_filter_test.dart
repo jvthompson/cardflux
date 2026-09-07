@@ -91,5 +91,56 @@ void main() {
       expect(filtered.gameId, trueState.gameId);
       expect(filtered.revision, trueState.revision);
     });
+
+    test("hides an opponent's personal deck card identity and forces it face-down", () {
+      final trueState = TableState(
+        gameId: 'g1',
+        players: const [],
+        cards: [
+          CardInstance(
+            instanceId: 'theirDeckCard',
+            definitionId: 'clubs_5',
+            x: 0,
+            y: 0,
+            zIndex: 0,
+            faceUp: false,
+            zone: CardZone.drawPile,
+            ownerId: 'p2',
+          ),
+          CardInstance(
+            instanceId: 'myDeckCard',
+            definitionId: 'hearts_A',
+            x: 0,
+            y: 0,
+            zIndex: 1,
+            faceUp: false,
+            zone: CardZone.drawPile,
+            ownerId: 'p1',
+          ),
+          CardInstance(
+            instanceId: 'sandboxPileCard',
+            definitionId: 'spades_K',
+            x: 0,
+            y: 0,
+            zIndex: 2,
+            faceUp: false,
+            zone: CardZone.drawPile,
+          ),
+        ],
+        revision: 1,
+      );
+      final filtered = filterForRecipient(trueState, 'p1');
+
+      final theirs = filtered.cards.firstWhere((c) => c.instanceId == 'theirDeckCard');
+      expect(theirs.definitionId, hiddenDefinitionId);
+
+      final mine = filtered.cards.firstWhere((c) => c.instanceId == 'myDeckCard');
+      expect(mine.definitionId, 'hearts_A');
+
+      // An unowned drawPile card (e.g. Practice Mode's shared pile) is never
+      // redacted for anyone -- there's no owner it could belong to instead.
+      final sandbox = filtered.cards.firstWhere((c) => c.instanceId == 'sandboxPileCard');
+      expect(sandbox.definitionId, 'spades_K');
+    });
   });
 }

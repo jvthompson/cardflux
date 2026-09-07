@@ -5,6 +5,7 @@ import '../data/game_loader.dart';
 import '../game/game_session.dart';
 import '../game/table_controller.dart';
 import '../models/card_definition.dart';
+import '../models/game_definition.dart';
 import 'table_screen.dart';
 
 const String _localPlayerId = 'local';
@@ -23,6 +24,8 @@ class PracticeScreen extends StatefulWidget {
 class _PracticeScreenState extends State<PracticeScreen> {
   GameSession? _session;
   Map<String, CardDefinition> _definitionsById = {};
+  String? _cardBackImagePath;
+  bool _hasPersonalDecks = true;
 
   @override
   void initState() {
@@ -36,6 +39,8 @@ class _PracticeScreenState extends State<PracticeScreen> {
     setState(() {
       _session = GameSession.localSandbox(game: game, localPlayerId: _localPlayerId);
       _definitionsById = {for (final c in game.cards) c.id: c};
+      _cardBackImagePath = game.cardBackImagePath;
+      _hasPersonalDecks = game.deckMode == GameDeckMode.deckBuilding;
     });
   }
 
@@ -51,6 +56,8 @@ class _PracticeScreenState extends State<PracticeScreen> {
         definitionsById: _definitionsById,
         controller: HostTableController(session),
         isMirrored: false,
+        hasPersonalDecks: _hasPersonalDecks,
+        cardBackImagePath: _cardBackImagePath,
       ),
     );
   }

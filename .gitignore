@@ -52,5 +52,5 @@ app.*.map.json
 
 # Custom game card art -- large scanned-card image sets kept local only,
 # not committed (the game JSON that references them still is)
-assets/games/metw/**/*.jpg
-assets/games/metw/*.jpg
+game_library/metw/**/*.jpg
+game_library/metw/*.jpg

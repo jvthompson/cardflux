@@ -8,9 +8,10 @@ import 'card_face_widget.dart';
 /// of another player's hand cards (see state_filter.dart), so this widget
 /// has nothing more to render even if it wanted to.
 class OpponentHandZoneWidget extends StatelessWidget {
-  const OpponentHandZoneWidget({super.key, required this.count});
+  const OpponentHandZoneWidget({super.key, required this.count, this.cardBackImagePath});
 
   final int count;
+  final String? cardBackImagePath;
 
   @override
   Widget build(BuildContext context) {
@@ -24,7 +25,7 @@ class OpponentHandZoneWidget extends StatelessWidget {
               scrollDirection: Axis.horizontal,
               itemCount: count,
               separatorBuilder: (_, _) => const SizedBox(width: 6),
-              itemBuilder: (context, index) => const CardBackWidget(),
+              itemBuilder: (context, index) => CardBackWidget(imagePath: cardBackImagePath),
             ),
     );
   }

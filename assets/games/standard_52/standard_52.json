@@ -1,6 +1,8 @@
 {
   "id": "standard_52",
   "name": "Standard 52-Card Deck",
+  "deckMode": "fixedDeck",
+  "fixedDecks": [{ "name": "Deck" }],
   "cards": [
     { "id": "hearts_A", "cardTitle": "A", "suit": "hearts", "rank": "A", "colorHex": "#D32F2F" },
     { "id": "hearts_2", "cardTitle": "2", "suit": "hearts", "rank": "2", "colorHex": "#D32F2F" },

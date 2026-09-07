@@ -6,20 +6,23 @@ import 'package:provider/provider.dart';
 import '../game/game_session.dart';
 import '../game/table_controller.dart';
 import '../models/card_definition.dart';
+import '../models/deck_config.dart';
 import '../models/game_definition.dart';
 import '../models/table_state.dart';
 import '../networking/game_client.dart';
 import '../networking/net_message.dart';
 import 'home_screen.dart';
 import 'table_screen.dart';
+import 'widgets/load_deck_screen.dart';
 
-/// Waits for the host's `gameData` (the [GameDefinition] it's dealing from)
-/// followed by its first `fullState` broadcast to construct the client's
-/// [GameSession] (a client has no local copy of the game until the host
-/// sends one -- including custom, non-bundled games loaded from the host's
-/// own disk), applies every later snapshot to it via
-/// [GameSession.applyRemoteState], and renders the shared [TableScreen] once
-/// a session exists.
+/// Waits for the host's `gameData` (the [GameDefinition] it's dealing from),
+/// shows [LoadDeckScreen] so the local player can pick their own deck file
+/// (sent to the host as `requestDeckChosen`), then waits for the first
+/// `fullState` broadcast to construct the client's [GameSession] (a client
+/// has no local copy of the game until the host sends one -- including
+/// custom, non-bundled games loaded from the host's own disk), applies every
+/// later snapshot to it via [GameSession.applyRemoteState], and renders the
+/// shared [TableScreen] once a session exists.
 class ClientGameScreen extends StatefulWidget {
   const ClientGameScreen({super.key, required this.gameClient, required this.localPlayerId});
 
@@ -36,6 +39,7 @@ class _ClientGameScreenState extends State<ClientGameScreen> {
   StreamSubscription<NetMessage>? _sub;
   StreamSubscription<ClientConnectionStatus>? _statusSub;
   GameDefinition? _game;
+  DeckConfig? _localDeck;
   bool _navigatedHome = false;
 
   @override
@@ -61,7 +65,9 @@ class _ClientGameScreenState extends State<ClientGameScreen> {
 
   void _handleMessage(NetMessage msg) {
     if (msg.type == NetMessageType.gameData) {
-      _game = GameDefinition.fromJson(msg.payload);
+      // Triggers a rebuild so `build()` can switch from the waiting spinner
+      // to LoadDeckScreen now that a GameDefinition is available.
+      setState(() => _game = GameDefinition.fromJson(msg.payload));
       return;
     }
     if (msg.type != NetMessageType.fullState) return;
@@ -82,6 +88,11 @@ class _ClientGameScreenState extends State<ClientGameScreen> {
     }
   }
 
+  void _chooseDeck(DeckConfig deck) {
+    setState(() => _localDeck = deck);
+    widget.gameClient.send(NetMessage(type: NetMessageType.requestDeckChosen, payload: deck.toJson()));
+  }
+
   @override
   void dispose() {
     _sub?.cancel();
@@ -94,6 +105,13 @@ class _ClientGameScreenState extends State<ClientGameScreen> {
   Widget build(BuildContext context) {
     final session = _session;
     if (session == null) {
+      final game = _game;
+      if (game != null && game.deckMode == GameDeckMode.deckBuilding && _localDeck == null) {
+        return Scaffold(
+          appBar: AppBar(title: Text('Load Deck -- ${game.name}')),
+          body: LoadDeckScreen(game: game, onDeckChosen: _chooseDeck),
+        );
+      }
       return const Scaffold(
         body: Center(
           child: Column(
@@ -113,6 +131,8 @@ class _ClientGameScreenState extends State<ClientGameScreen> {
         definitionsById: _definitionsById,
         controller: ClientTableController(widget.gameClient),
         isMirrored: true,
+        hasPersonalDecks: _game?.deckMode != GameDeckMode.fixedDeck,
+        cardBackImagePath: _game?.cardBackImagePath,
       ),
     );
   }

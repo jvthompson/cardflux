@@ -7,11 +7,14 @@ import 'game_session.dart';
 /// differ in what happens next, not in the shape of the action.
 abstract class TableController {
   void moveCard(String instanceId, double x, double y);
+  void moveStack(String rootInstanceId, double x, double y);
   void flipCard(String instanceId);
   void stackCard(String instanceId, String ontoInstanceId);
   void moveToHand(String instanceId);
+  void reorderHand(String instanceId, int targetIndex);
   void drawCard(String pileInstanceId);
   void shufflePile(String pileRootInstanceId);
+  void returnToDeck(String instanceId, String? deckRootInstanceId, {bool toBottom});
 }
 
 /// The host applies actions directly to its own authoritative [GameSession]
@@ -25,6 +28,9 @@ class HostTableController implements TableController {
   void moveCard(String instanceId, double x, double y) => _session.moveCard(instanceId, x, y);
 
   @override
+  void moveStack(String rootInstanceId, double x, double y) => _session.moveStack(rootInstanceId, x, y);
+
+  @override
   void flipCard(String instanceId) => _session.flipCard(instanceId);
 
   @override
@@ -34,10 +40,17 @@ class HostTableController implements TableController {
   void moveToHand(String instanceId) => _session.moveToHand(instanceId);
 
   @override
+  void reorderHand(String instanceId, int targetIndex) => _session.reorderHand(instanceId, targetIndex);
+
+  @override
   void drawCard(String pileInstanceId) => _session.drawCard(pileInstanceId);
 
   @override
   void shufflePile(String pileRootInstanceId) => _session.shufflePile(pileRootInstanceId);
+
+  @override
+  void returnToDeck(String instanceId, String? deckRootInstanceId, {bool toBottom = false}) =>
+      _session.returnToDeck(instanceId, deckRootInstanceId, toBottom: toBottom);
 }
 
 /// A client never mutates its local [GameSession] directly from a gesture
@@ -51,6 +64,14 @@ class ClientTableController implements TableController {
   @override
   void moveCard(String instanceId, double x, double y) {
     _client.send(NetMessage(type: NetMessageType.requestMove, payload: {'instanceId': instanceId, 'x': x, 'y': y}));
+  }
+
+  @override
+  void moveStack(String rootInstanceId, double x, double y) {
+    _client.send(NetMessage(
+      type: NetMessageType.requestMoveStack,
+      payload: {'rootInstanceId': rootInstanceId, 'x': x, 'y': y},
+    ));
   }
 
   @override
@@ -72,6 +93,14 @@ class ClientTableController implements TableController {
   }
 
   @override
+  void reorderHand(String instanceId, int targetIndex) {
+    _client.send(NetMessage(
+      type: NetMessageType.requestReorderHand,
+      payload: {'instanceId': instanceId, 'targetIndex': targetIndex},
+    ));
+  }
+
+  @override
   void drawCard(String pileInstanceId) {
     _client.send(NetMessage(type: NetMessageType.requestDraw, payload: {'pileInstanceId': pileInstanceId}));
   }
@@ -81,6 +110,18 @@ class ClientTableController implements TableController {
     _client.send(NetMessage(
       type: NetMessageType.requestShuffle,
       payload: {'pileRootInstanceId': pileRootInstanceId},
+    ));
+  }
+
+  @override
+  void returnToDeck(String instanceId, String? deckRootInstanceId, {bool toBottom = false}) {
+    _client.send(NetMessage(
+      type: NetMessageType.requestReturnToDeck,
+      payload: {
+        'instanceId': instanceId,
+        if (deckRootInstanceId != null) 'deckRootInstanceId': deckRootInstanceId,
+        'toBottom': toBottom,
+      },
     ));
   }
 }

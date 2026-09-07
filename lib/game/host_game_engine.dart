@@ -5,6 +5,7 @@ import '../networking/host_server.dart';
 import '../networking/net_message.dart';
 import '../networking/state_filter.dart';
 import 'game_session.dart';
+import 'stack_utils.dart';
 
 /// Owns the host's authoritative [GameSession] in a networked match: applies
 /// incoming client requests to it (structural validation only -- no rules
@@ -16,6 +17,8 @@ class HostGameEngine {
   final GameSession session;
   final HostServer hostServer;
   final String hostPlayerId;
+
+  static const StackUtils _stacks = StackUtils();
 
   StreamSubscription<NetMessage>? _incomingSub;
   int _lastBroadcastRevision = -1;
@@ -51,6 +54,16 @@ class HostGameEngine {
           session.moveCard(instanceId, (msg.payload['x'] as num).toDouble(), (msg.payload['y'] as num).toDouble());
         }
         break;
+      case NetMessageType.requestMoveStack:
+        final rootInstanceId = msg.payload['rootInstanceId'] as String;
+        if (_isAllowedToActOn(rootInstanceId, clientId)) {
+          session.moveStack(
+            rootInstanceId,
+            (msg.payload['x'] as num).toDouble(),
+            (msg.payload['y'] as num).toDouble(),
+          );
+        }
+        break;
       case NetMessageType.requestFlip:
         final instanceId = msg.payload['instanceId'] as String;
         if (_isAllowedToActOn(instanceId, clientId)) {
@@ -70,19 +83,46 @@ class HostGameEngine {
           session.moveToHand(instanceId, ownerId: clientId);
         }
         break;
+      case NetMessageType.requestReorderHand:
+        final instanceId = msg.payload['instanceId'] as String;
+        final targetIndex = msg.payload['targetIndex'] as int;
+        if (_isAllowedToActOn(instanceId, clientId)) {
+          session.reorderHand(instanceId, targetIndex, ownerId: clientId);
+        }
+        break;
       case NetMessageType.requestDraw:
-        session.drawCard(msg.payload['pileInstanceId'] as String, ownerId: clientId);
+        final pileInstanceId = msg.payload['pileInstanceId'] as String;
+        if (_isAllowedToDrawOrShuffle(pileInstanceId, clientId)) {
+          session.drawCard(pileInstanceId, ownerId: clientId);
+        }
         break;
       case NetMessageType.requestShuffle:
-        session.shufflePile(msg.payload['pileRootInstanceId'] as String);
+        final pileRootInstanceId = msg.payload['pileRootInstanceId'] as String;
+        if (_isAllowedToDrawOrShuffle(pileRootInstanceId, clientId)) {
+          session.shufflePile(pileRootInstanceId);
+        }
+        break;
+      case NetMessageType.requestReturnToDeck:
+        final instanceId = msg.payload['instanceId'] as String;
+        final deckRootInstanceId = msg.payload['deckRootInstanceId'] as String?;
+        final toBottom = msg.payload['toBottom'] as bool? ?? false;
+        if (_isAllowedToActOn(instanceId, clientId) &&
+            (deckRootInstanceId == null || _isAllowedToDrawOrShuffle(deckRootInstanceId, clientId))) {
+          session.returnToDeck(instanceId, deckRootInstanceId, ownerId: clientId, toBottom: toBottom);
+        }
         break;
       case NetMessageType.hello:
       case NetMessageType.welcome:
       case NetMessageType.gameData:
       case NetMessageType.fullState:
+      case NetMessageType.requestDeckChosen:
       case NetMessageType.ping:
       case NetMessageType.pong:
       case NetMessageType.disconnect:
+        // requestDeckChosen is only meaningful before this engine exists
+        // (see HostLoadDeckScreen, which subscribes to hostServer.incoming
+        // directly during deck selection) -- a late/duplicate one here is a
+        // no-op.
         break;
     }
   }
@@ -90,7 +130,8 @@ class HostGameEngine {
   bool _cardExists(String instanceId) => session.state.cards.any((c) => c.instanceId == instanceId);
 
   /// Structural + privacy guard: the card must exist, and a client may
-  /// never act on a card sitting in another player's private hand.
+  /// never act on a card sitting in another player's private hand or
+  /// personal deck.
   bool _isAllowedToActOn(String instanceId, String requesterPlayerId) {
     CardInstance? card;
     for (final c in session.state.cards) {
@@ -100,8 +141,21 @@ class HostGameEngine {
       }
     }
     if (card == null) return false;
-    if (card.zone == CardZone.hand && card.ownerId != null && card.ownerId != requesterPlayerId) {
+    if (card.ownerId != null &&
+        card.ownerId != requesterPlayerId &&
+        (card.zone == CardZone.hand || card.zone == CardZone.drawPile)) {
       return false;
+    }
+    return true;
+  }
+
+  /// A client may draw from or shuffle any unowned pile (e.g. a shared
+  /// sandbox pile), but only their *own* personal deck -- never another
+  /// player's.
+  bool _isAllowedToDrawOrShuffle(String pileInstanceId, String requesterPlayerId) {
+    final stack = _stacks.stackOf(session.state.cards, pileInstanceId);
+    for (final c in stack) {
+      if (c.ownerId != null && c.ownerId != requesterPlayerId) return false;
     }
     return true;
   }
