@@ -6,6 +6,7 @@ import '../game/game_session.dart';
 import '../game/table_controller.dart';
 import '../models/card_definition.dart';
 import '../models/game_definition.dart';
+import '../models/zone_definition.dart';
 import 'table_screen.dart';
 
 const String _localPlayerId = 'local';
@@ -25,7 +26,8 @@ class _PracticeScreenState extends State<PracticeScreen> {
   GameSession? _session;
   Map<String, CardDefinition> _definitionsById = {};
   String? _cardBackImagePath;
-  bool _hasPersonalDecks = true;
+  List<ZoneDefinition> _zones = const [];
+  String _opponentCardBorderColor = defaultOpponentCardBorderColor;
 
   @override
   void initState() {
@@ -40,7 +42,8 @@ class _PracticeScreenState extends State<PracticeScreen> {
       _session = GameSession.localSandbox(game: game, localPlayerId: _localPlayerId);
       _definitionsById = {for (final c in game.cards) c.id: c};
       _cardBackImagePath = game.cardBackImagePath;
-      _hasPersonalDecks = game.deckMode == GameDeckMode.deckBuilding;
+      _zones = game.zones;
+      _opponentCardBorderColor = game.opponentCardBorderColor;
     });
   }
 
@@ -56,7 +59,8 @@ class _PracticeScreenState extends State<PracticeScreen> {
         definitionsById: _definitionsById,
         controller: HostTableController(session),
         isMirrored: false,
-        hasPersonalDecks: _hasPersonalDecks,
+        zones: _zones,
+        opponentCardBorderColor: _opponentCardBorderColor,
         cardBackImagePath: _cardBackImagePath,
       ),
     );

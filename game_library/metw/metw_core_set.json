@@ -2,6 +2,10 @@
   "id": "metw_core_set",
   "name": "Middle-earth: The Wizards -- Core Set",
   "cardBackImagePath": "cardback.jpg",
+  "zones": [
+    { "id": "draw_deck", "name": "Draw Deck", "dealsBuiltDeck": true },
+    { "id": "discard_pile", "name": "Discard Pile", "faceUp": true, "shuffleable": false, "visibleToAll": true, "isDiscardPile": true }
+  ],
   "cards": [
     {
       "id": "a_chance_meeting",

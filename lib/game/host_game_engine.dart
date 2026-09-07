@@ -39,7 +39,8 @@ class HostGameEngine {
     if (clientId == null) return;
     if (session.state.revision == _lastBroadcastRevision) return;
     _lastBroadcastRevision = session.state.revision;
-    final filtered = filterForRecipient(session.state, clientId);
+    final visibleZoneIds = {for (final z in session.game.zones) if (z.visibleToAll) z.id};
+    final filtered = filterForRecipient(session.state, clientId, visibleZoneIds: visibleZoneIds);
     hostServer.send(NetMessage(type: NetMessageType.fullState, payload: filtered.toJson()));
   }
 
@@ -62,6 +63,12 @@ class HostGameEngine {
             (msg.payload['x'] as num).toDouble(),
             (msg.payload['y'] as num).toDouble(),
           );
+        }
+        break;
+      case NetMessageType.requestRotateStack:
+        final rootInstanceId = msg.payload['rootInstanceId'] as String;
+        if (_isAllowedToActOn(rootInstanceId, clientId)) {
+          session.rotateStack(rootInstanceId, clockwise: msg.payload['clockwise'] as bool);
         }
         break;
       case NetMessageType.requestFlip:
@@ -102,14 +109,21 @@ class HostGameEngine {
           session.shufflePile(pileRootInstanceId);
         }
         break;
-      case NetMessageType.requestReturnToDeck:
+      case NetMessageType.requestDrawFromZone:
+        final zoneId = msg.payload['zoneId'] as String;
+        session.drawFromZone(zoneId, zoneOwnerId: _zoneOwnerId(zoneId, clientId), toOwnerId: clientId);
+        break;
+      case NetMessageType.requestReturnToZone:
         final instanceId = msg.payload['instanceId'] as String;
-        final deckRootInstanceId = msg.payload['deckRootInstanceId'] as String?;
+        final zoneId = msg.payload['zoneId'] as String;
         final toBottom = msg.payload['toBottom'] as bool? ?? false;
-        if (_isAllowedToActOn(instanceId, clientId) &&
-            (deckRootInstanceId == null || _isAllowedToDrawOrShuffle(deckRootInstanceId, clientId))) {
-          session.returnToDeck(instanceId, deckRootInstanceId, ownerId: clientId, toBottom: toBottom);
+        if (_isAllowedToActOn(instanceId, clientId)) {
+          session.returnToZone(instanceId, zoneId, zoneOwnerId: _zoneOwnerId(zoneId, clientId), toBottom: toBottom);
         }
+        break;
+      case NetMessageType.requestShuffleZone:
+        final zoneId = msg.payload['zoneId'] as String;
+        session.shuffleZone(zoneId, zoneOwnerId: _zoneOwnerId(zoneId, clientId));
         break;
       case NetMessageType.hello:
       case NetMessageType.welcome:
@@ -129,9 +143,19 @@ class HostGameEngine {
 
   bool _cardExists(String instanceId) => session.state.cards.any((c) => c.instanceId == instanceId);
 
-  /// Structural + privacy guard: the card must exist, and a client may
-  /// never act on a card sitting in another player's private hand or
-  /// personal deck.
+  /// A zone request never carries an owner -- it always means "the
+  /// requester's own instance of this zone, or the shared one" -- resolved
+  /// here from the game's own [ZoneDefinition]s rather than trusted from the
+  /// client, so a client can never claim to act on another player's zone.
+  String? _zoneOwnerId(String zoneId, String requesterPlayerId) {
+    final zone = session.game.zones.firstWhere((z) => z.id == zoneId);
+    return zone.shared ? null : requesterPlayerId;
+  }
+
+  /// Structural + ownership guard: the card must exist, and a client may
+  /// never act on a card owned by someone else -- in a hand, a personal
+  /// zone, or sitting out on the free table. An unowned card (`ownerId ==
+  /// null`, e.g. one never drawn from a shared pile) is always fair game.
   bool _isAllowedToActOn(String instanceId, String requesterPlayerId) {
     CardInstance? card;
     for (final c in session.state.cards) {
@@ -141,12 +165,7 @@ class HostGameEngine {
       }
     }
     if (card == null) return false;
-    if (card.ownerId != null &&
-        card.ownerId != requesterPlayerId &&
-        (card.zone == CardZone.hand || card.zone == CardZone.drawPile)) {
-      return false;
-    }
-    return true;
+    return card.ownerId == null || card.ownerId == requesterPlayerId;
   }
 
   /// A client may draw from or shuffle any unowned pile (e.g. a shared

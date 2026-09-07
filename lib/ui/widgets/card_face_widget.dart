@@ -23,7 +23,9 @@ String? _suitGlyphFor(String? suit) => suit == null ? null : _suitGlyphs[suit.to
 /// (e.g. one with no natural single-color-per-card scheme).
 const String _defaultColorHex = '#9E9E9E';
 
-Color _parseHexColor(String hex) {
+/// Parses a `#RRGGBB` string (the `colorHex`-style format used throughout
+/// this app's JSON, e.g. [CardDefinition.colorHex]) into a [Color].
+Color parseHexColor(String hex) {
   final cleaned = hex.replaceFirst('#', '');
   return Color(int.parse('FF$cleaned', radix: 16));
 }
@@ -54,7 +56,7 @@ class CardFaceWidget extends StatelessWidget {
   }
 
   Widget _codeDrawnFace() {
-    final color = _parseHexColor(definition.colorHex ?? _defaultColorHex);
+    final color = parseHexColor(definition.colorHex ?? _defaultColorHex);
     final glyph = _suitGlyphFor(definition.suit);
     return Container(
       width: cardWidth,

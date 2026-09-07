@@ -80,7 +80,7 @@ class _ClientGameScreenState extends State<ClientGameScreen> {
       // definitions to render.
       if (game == null) return;
       setState(() {
-        _session = GameSession(localPlayerId: widget.localPlayerId, initialState: remoteState);
+        _session = GameSession(game: game, localPlayerId: widget.localPlayerId, initialState: remoteState);
         _definitionsById = {for (final c in game.cards) c.id: c};
       });
     } else {
@@ -106,7 +106,7 @@ class _ClientGameScreenState extends State<ClientGameScreen> {
     final session = _session;
     if (session == null) {
       final game = _game;
-      if (game != null && game.deckMode == GameDeckMode.deckBuilding && _localDeck == null) {
+      if (game != null && game.needsDeckBuilding && _localDeck == null) {
         return Scaffold(
           appBar: AppBar(title: Text('Load Deck -- ${game.name}')),
           body: LoadDeckScreen(game: game, onDeckChosen: _chooseDeck),
@@ -131,7 +131,8 @@ class _ClientGameScreenState extends State<ClientGameScreen> {
         definitionsById: _definitionsById,
         controller: ClientTableController(widget.gameClient),
         isMirrored: true,
-        hasPersonalDecks: _game?.deckMode != GameDeckMode.fixedDeck,
+        zones: _game?.zones ?? const [],
+        opponentCardBorderColor: _game?.opponentCardBorderColor ?? defaultOpponentCardBorderColor,
         cardBackImagePath: _game?.cardBackImagePath,
       ),
     );

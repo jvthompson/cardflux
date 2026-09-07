@@ -1,16 +1,9 @@
 import 'card_definition.dart';
-import 'deck_config.dart';
+import 'zone_definition.dart';
 
-/// Whether a game's decks are player-built ([deckBuilding], the default --
-/// see the Load Deck screen) or pre-authored by the game itself
-/// ([fixedDeck] -- see [GameDefinition.fixedDecks]), dealt automatically
-/// with no per-player choice.
-enum GameDeckMode {
-  deckBuilding,
-  fixedDeck;
-
-  static GameDeckMode fromName(String name) => GameDeckMode.values.byName(name);
-}
+/// Default for [GameDefinition.opponentCardBorderColor] when a game's JSON
+/// doesn't specify one -- plain red.
+const String defaultOpponentCardBorderColor = '#FF0000';
 
 /// A loaded "game": a named pool of card definitions players can build decks
 /// from. Sourced either from a bundled asset (the default standard 52-card
@@ -21,8 +14,8 @@ class GameDefinition {
     required this.name,
     required this.cards,
     this.cardBackImagePath,
-    this.deckMode = GameDeckMode.deckBuilding,
-    this.fixedDecks = const [],
+    this.zones = const [],
+    this.opponentCardBorderColor = defaultOpponentCardBorderColor,
   });
 
   final String id;
@@ -34,12 +27,23 @@ class GameDefinition {
   /// Falls back to a code-drawn back (see `CardBackWidget`) when null.
   final String? cardBackImagePath;
 
-  final GameDeckMode deckMode;
+  /// This game's non-hand zones (draw deck, discard pile, a shared deck,
+  /// etc.) -- see [ZoneDefinition]. The hand zone is automatic and never
+  /// listed here.
+  final List<ZoneDefinition> zones;
 
-  /// The named decks a [deckMode] of [GameDeckMode.fixedDeck] deals
-  /// automatically -- empty (and unused) for a [GameDeckMode.deckBuilding]
-  /// game.
-  final List<FixedDeckDefinition> fixedDecks;
+  /// `#RRGGBB` color for the thin border `TableScreen` draws around any
+  /// free-table card owned by someone other than the local player, so an
+  /// opponent's played card is easy to pick out at a glance. Defaults to
+  /// red; a game's JSON can override it.
+  final String opponentCardBorderColor;
+
+  /// Whether starting this game requires each player to pick their own deck
+  /// on the Load Deck screen first -- true iff some owned zone is marked
+  /// [ZoneDefinition.dealsBuiltDeck]. A game with no such zone (e.g.
+  /// Standard 52, whose only zone is a shared deck) deals automatically
+  /// with no per-player choice.
+  bool get needsDeckBuilding => zones.any((z) => !z.shared && z.dealsBuiltDeck);
 
   factory GameDefinition.fromJson(Map<String, dynamic> json) {
     return GameDefinition(
@@ -49,11 +53,11 @@ class GameDefinition {
           .map((e) => CardDefinition.fromJson((e as Map).cast<String, dynamic>()))
           .toList(),
       cardBackImagePath: json['cardBackImagePath'] as String?,
-      deckMode: json['deckMode'] == null ? GameDeckMode.deckBuilding : GameDeckMode.fromName(json['deckMode'] as String),
-      fixedDecks: (json['fixedDecks'] as List?)
-              ?.map((e) => FixedDeckDefinition.fromJson((e as Map).cast<String, dynamic>()))
+      zones: (json['zones'] as List?)
+              ?.map((e) => ZoneDefinition.fromJson((e as Map).cast<String, dynamic>()))
               .toList() ??
           const [],
+      opponentCardBorderColor: json['opponentCardBorderColor'] as String? ?? defaultOpponentCardBorderColor,
     );
   }
 
@@ -63,8 +67,8 @@ class GameDefinition {
       'name': name,
       'cards': cards.map((c) => c.toJson()).toList(),
       if (cardBackImagePath != null) 'cardBackImagePath': cardBackImagePath,
-      if (deckMode != GameDeckMode.deckBuilding) 'deckMode': deckMode.name,
-      if (fixedDecks.isNotEmpty) 'fixedDecks': fixedDecks.map((d) => d.toJson()).toList(),
+      if (zones.isNotEmpty) 'zones': zones.map((z) => z.toJson()).toList(),
+      if (opponentCardBorderColor != defaultOpponentCardBorderColor) 'opponentCardBorderColor': opponentCardBorderColor,
     };
   }
 }

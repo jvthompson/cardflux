@@ -2,8 +2,13 @@
 enum CardZone {
   table,
   hand,
-  drawPile,
-  discardPile;
+
+  /// Sitting in some `ZoneDefinition` -- see [CardInstance.zoneId] for
+  /// which one, and [CardInstance.ownerId] for whether it's a shared
+  /// (null) or a specific player's own instance of it. Covers what used to
+  /// be a single hardcoded "draw pile" -- a zone can be a draw deck, a
+  /// discard pile, or anything else a game's JSON names it.
+  zone;
 
   static CardZone fromName(String name) => CardZone.values.byName(name);
 }
@@ -26,6 +31,8 @@ class CardInstance {
     required this.zone,
     this.ownerId,
     this.stackParentId,
+    this.zoneId,
+    this.rotationTurns = 0,
   });
 
   final String instanceId;
@@ -43,7 +50,22 @@ class CardInstance {
   final bool faceUp;
   final CardZone zone;
   final String? ownerId;
+
+  /// Only meaningful for a `CardZone.table` card stacked into a pile (see
+  /// `StackUtils`) -- unrelated to [zoneId]/[CardZone.zone], which
+  /// identifies zone membership directly rather than via a stack chain.
   final String? stackParentId;
+
+  /// Only set when [zone] is [CardZone.zone] -- which `ZoneDefinition.id`
+  /// this card belongs to.
+  final String? zoneId;
+
+  /// Quarter-turns (0-3, i.e. 0/90/180/270°) applied on top of the
+  /// ownership-driven 180° mirror flip -- see `DraggableCard`/`PileWidget`'s
+  /// `AnimatedRotation`. A table-only concept: every transition off the
+  /// table (`moveToHand`, `drawCard`, `drawFromZone`, `returnToZone`) resets
+  /// this to 0 so a card never shows up sideways in a hand or a deck.
+  final int rotationTurns;
 
   CardInstance copyWith({
     String? definitionId,
@@ -54,6 +76,8 @@ class CardInstance {
     CardZone? zone,
     Object? ownerId = _unset,
     Object? stackParentId = _unset,
+    Object? zoneId = _unset,
+    int? rotationTurns,
   }) {
     return CardInstance(
       instanceId: instanceId,
@@ -67,6 +91,8 @@ class CardInstance {
       stackParentId: identical(stackParentId, _unset)
           ? this.stackParentId
           : stackParentId as String?,
+      zoneId: identical(zoneId, _unset) ? this.zoneId : zoneId as String?,
+      rotationTurns: rotationTurns ?? this.rotationTurns,
     );
   }
 
@@ -81,6 +107,8 @@ class CardInstance {
       zone: CardZone.fromName(json['zone'] as String),
       ownerId: json['ownerId'] as String?,
       stackParentId: json['stackParentId'] as String?,
+      zoneId: json['zoneId'] as String?,
+      rotationTurns: json['rotationTurns'] as int? ?? 0,
     );
   }
 
@@ -95,6 +123,8 @@ class CardInstance {
       'zone': zone.name,
       if (ownerId != null) 'ownerId': ownerId,
       if (stackParentId != null) 'stackParentId': stackParentId,
+      if (zoneId != null) 'zoneId': zoneId,
+      if (rotationTurns != 0) 'rotationTurns': rotationTurns,
     };
   }
 }

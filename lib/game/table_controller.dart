@@ -1,3 +1,4 @@
+import '../models/card_instance.dart';
 import '../networking/game_client.dart';
 import '../networking/net_message.dart';
 import 'game_session.dart';
@@ -8,13 +9,16 @@ import 'game_session.dart';
 abstract class TableController {
   void moveCard(String instanceId, double x, double y);
   void moveStack(String rootInstanceId, double x, double y);
+  void rotateStack(String rootInstanceId, {required bool clockwise});
   void flipCard(String instanceId);
   void stackCard(String instanceId, String ontoInstanceId);
   void moveToHand(String instanceId);
   void reorderHand(String instanceId, int targetIndex);
   void drawCard(String pileInstanceId);
   void shufflePile(String pileRootInstanceId);
-  void returnToDeck(String instanceId, String? deckRootInstanceId, {bool toBottom});
+  void drawFromZone(String zoneId);
+  void returnToZone(String instanceId, String zoneId, {bool toBottom});
+  void shuffleZone(String zoneId);
 }
 
 /// The host applies actions directly to its own authoritative [GameSession]
@@ -24,17 +28,41 @@ class HostTableController implements TableController {
 
   final GameSession _session;
 
-  @override
-  void moveCard(String instanceId, double x, double y) => _session.moveCard(instanceId, x, y);
+  /// Mirrors `HostGameEngine._isAllowedToActOn` for the host's own local
+  /// actions, which (unlike a client's) never go through that network guard
+  /// at all -- true for an unowned card or one the host owns, false for one
+  /// owned by the other player.
+  bool _isOwnedOrUnowned(String instanceId) {
+    for (final CardInstance c in _session.state.cards) {
+      if (c.instanceId == instanceId) return c.ownerId == null || c.ownerId == _session.localPlayerId;
+    }
+    return false;
+  }
 
   @override
-  void moveStack(String rootInstanceId, double x, double y) => _session.moveStack(rootInstanceId, x, y);
+  void moveCard(String instanceId, double x, double y) {
+    if (_isOwnedOrUnowned(instanceId)) _session.moveCard(instanceId, x, y);
+  }
 
   @override
-  void flipCard(String instanceId) => _session.flipCard(instanceId);
+  void moveStack(String rootInstanceId, double x, double y) {
+    if (_isOwnedOrUnowned(rootInstanceId)) _session.moveStack(rootInstanceId, x, y);
+  }
 
   @override
-  void stackCard(String instanceId, String ontoInstanceId) => _session.stackCard(instanceId, ontoInstanceId);
+  void rotateStack(String rootInstanceId, {required bool clockwise}) {
+    if (_isOwnedOrUnowned(rootInstanceId)) _session.rotateStack(rootInstanceId, clockwise: clockwise);
+  }
+
+  @override
+  void flipCard(String instanceId) {
+    if (_isOwnedOrUnowned(instanceId)) _session.flipCard(instanceId);
+  }
+
+  @override
+  void stackCard(String instanceId, String ontoInstanceId) {
+    if (_isOwnedOrUnowned(instanceId)) _session.stackCard(instanceId, ontoInstanceId);
+  }
 
   @override
   void moveToHand(String instanceId) => _session.moveToHand(instanceId);
@@ -48,9 +76,24 @@ class HostTableController implements TableController {
   @override
   void shufflePile(String pileRootInstanceId) => _session.shufflePile(pileRootInstanceId);
 
+  /// A zone request never carries an owner -- it always means "my own
+  /// instance of this zone, or the shared one," resolved here from the
+  /// session's own [GameDefinition.zones] exactly like [HostGameEngine]
+  /// resolves it for a networked client's request.
+  String? _zoneOwnerId(String zoneId) {
+    final zone = _session.game.zones.firstWhere((z) => z.id == zoneId);
+    return zone.shared ? null : _session.localPlayerId;
+  }
+
   @override
-  void returnToDeck(String instanceId, String? deckRootInstanceId, {bool toBottom = false}) =>
-      _session.returnToDeck(instanceId, deckRootInstanceId, toBottom: toBottom);
+  void drawFromZone(String zoneId) => _session.drawFromZone(zoneId, zoneOwnerId: _zoneOwnerId(zoneId));
+
+  @override
+  void returnToZone(String instanceId, String zoneId, {bool toBottom = false}) =>
+      _session.returnToZone(instanceId, zoneId, zoneOwnerId: _zoneOwnerId(zoneId), toBottom: toBottom);
+
+  @override
+  void shuffleZone(String zoneId) => _session.shuffleZone(zoneId, zoneOwnerId: _zoneOwnerId(zoneId));
 }
 
 /// A client never mutates its local [GameSession] directly from a gesture
@@ -71,6 +114,14 @@ class ClientTableController implements TableController {
     _client.send(NetMessage(
       type: NetMessageType.requestMoveStack,
       payload: {'rootInstanceId': rootInstanceId, 'x': x, 'y': y},
+    ));
+  }
+
+  @override
+  void rotateStack(String rootInstanceId, {required bool clockwise}) {
+    _client.send(NetMessage(
+      type: NetMessageType.requestRotateStack,
+      payload: {'rootInstanceId': rootInstanceId, 'clockwise': clockwise},
     ));
   }
 
@@ -114,14 +165,20 @@ class ClientTableController implements TableController {
   }
 
   @override
-  void returnToDeck(String instanceId, String? deckRootInstanceId, {bool toBottom = false}) {
+  void drawFromZone(String zoneId) {
+    _client.send(NetMessage(type: NetMessageType.requestDrawFromZone, payload: {'zoneId': zoneId}));
+  }
+
+  @override
+  void returnToZone(String instanceId, String zoneId, {bool toBottom = false}) {
     _client.send(NetMessage(
-      type: NetMessageType.requestReturnToDeck,
-      payload: {
-        'instanceId': instanceId,
-        if (deckRootInstanceId != null) 'deckRootInstanceId': deckRootInstanceId,
-        'toBottom': toBottom,
-      },
+      type: NetMessageType.requestReturnToZone,
+      payload: {'instanceId': instanceId, 'zoneId': zoneId, 'toBottom': toBottom},
     ));
+  }
+
+  @override
+  void shuffleZone(String zoneId) {
+    _client.send(NetMessage(type: NetMessageType.requestShuffleZone, payload: {'zoneId': zoneId}));
   }
 }

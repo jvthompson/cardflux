@@ -5,6 +5,7 @@ import 'package:flutter_deck/models/deck_config.dart';
 import 'package:flutter_deck/models/game_definition.dart';
 import 'package:flutter_deck/models/player.dart';
 import 'package:flutter_deck/models/table_state.dart';
+import 'package:flutter_deck/models/zone_definition.dart';
 
 void main() {
   group('CardDefinition', () {
@@ -48,6 +49,24 @@ void main() {
       expect(roundTripped.zone, CardZone.hand);
       expect(roundTripped.ownerId, 'p1');
       expect(roundTripped.stackParentId, isNull);
+      expect(roundTripped.zoneId, isNull);
+    });
+
+    test('zoneId round-trips through JSON', () {
+      final instance = CardInstance(
+        instanceId: 'i1',
+        definitionId: 'hearts_A',
+        x: 0,
+        y: 0,
+        zIndex: 0,
+        faceUp: false,
+        zone: CardZone.zone,
+        zoneId: 'draw_deck',
+        ownerId: 'p1',
+      );
+      final roundTripped = CardInstance.fromJson(instance.toJson());
+      expect(roundTripped.zone, CardZone.zone);
+      expect(roundTripped.zoneId, 'draw_deck');
     });
 
     test('copyWith updates only requested fields', () {
@@ -77,9 +96,29 @@ void main() {
         faceUp: false,
         zone: CardZone.table,
         stackParentId: 'i0',
+        zoneId: 'draw_deck',
       );
-      final unstacked = instance.copyWith(stackParentId: null);
+      final unstacked = instance.copyWith(stackParentId: null, zoneId: null);
       expect(unstacked.stackParentId, isNull);
+      expect(unstacked.zoneId, isNull);
+    });
+
+    test('rotationTurns defaults to 0 and round-trips a nonzero value through JSON', () {
+      final instance = CardInstance(
+        instanceId: 'i1',
+        definitionId: 'hearts_A',
+        x: 0,
+        y: 0,
+        zIndex: 0,
+        faceUp: false,
+        zone: CardZone.table,
+      );
+      expect(instance.rotationTurns, 0);
+      expect(instance.toJson().containsKey('rotationTurns'), isFalse);
+
+      final rotated = instance.copyWith(rotationTurns: 3);
+      final roundTripped = CardInstance.fromJson(rotated.toJson());
+      expect(roundTripped.rotationTurns, 3);
     });
   });
 
@@ -90,6 +129,71 @@ void main() {
       expect(roundTripped.id, 'p1');
       expect(roundTripped.name, 'Alice');
       expect(roundTripped.role, PlayerRole.host);
+    });
+  });
+
+  group('ZoneDefinition', () {
+    test('round-trips through JSON', () {
+      const zone = ZoneDefinition(
+        id: 'discard_pile',
+        name: 'Discard Pile',
+        entries: [DeckEntry(definitionId: 'hearts_A', quantity: 2)],
+      );
+      final roundTripped = ZoneDefinition.fromJson(zone.toJson());
+      expect(roundTripped.id, 'discard_pile');
+      expect(roundTripped.name, 'Discard Pile');
+      expect(roundTripped.shared, isFalse);
+      expect(roundTripped.dealsBuiltDeck, isFalse);
+      expect(roundTripped.entries.single.definitionId, 'hearts_A');
+      expect(roundTripped.entries.single.quantity, 2);
+    });
+
+    test('shared/dealsBuiltDeck/faceUp/visibleToAll default to false, shuffleable to true, entries to empty when absent from JSON', () {
+      final zone = ZoneDefinition.fromJson({'id': 'deck', 'name': 'Deck'});
+      expect(zone.shared, isFalse);
+      expect(zone.dealsBuiltDeck, isFalse);
+      expect(zone.entries, isEmpty);
+      expect(zone.faceUp, isFalse);
+      expect(zone.shuffleable, isTrue);
+      expect(zone.visibleToAll, isFalse);
+    });
+
+    test('faceUp/shuffleable/visibleToAll round-trip through JSON', () {
+      final zone = ZoneDefinition.fromJson({
+        'id': 'discard_pile',
+        'name': 'Discard Pile',
+        'faceUp': true,
+        'shuffleable': false,
+        'visibleToAll': true,
+      });
+      expect(zone.faceUp, isTrue);
+      expect(zone.shuffleable, isFalse);
+      expect(zone.visibleToAll, isTrue);
+      final roundTripped = ZoneDefinition.fromJson(zone.toJson());
+      expect(roundTripped.faceUp, isTrue);
+      expect(roundTripped.shuffleable, isFalse);
+      expect(roundTripped.visibleToAll, isTrue);
+    });
+
+    test('toJson omits false flags, true shuffleable, and empty entries', () {
+      const zone = ZoneDefinition(id: 'deck', name: 'Deck');
+      final json = zone.toJson();
+      expect(json.containsKey('shared'), isFalse);
+      expect(json.containsKey('dealsBuiltDeck'), isFalse);
+      expect(json.containsKey('entries'), isFalse);
+      expect(json.containsKey('faceUp'), isFalse);
+      expect(json.containsKey('shuffleable'), isFalse);
+      expect(json.containsKey('visibleToAll'), isFalse);
+      expect(json.containsKey('isDiscardPile'), isFalse);
+    });
+
+    test('isDiscardPile defaults to false and round-trips true through JSON', () {
+      final zone = ZoneDefinition.fromJson({'id': 'discard_pile', 'name': 'Discard Pile'});
+      expect(zone.isDiscardPile, isFalse);
+
+      const marked = ZoneDefinition(id: 'discard_pile', name: 'Discard Pile', isDiscardPile: true);
+      final roundTripped = ZoneDefinition.fromJson(marked.toJson());
+      expect(roundTripped.isDiscardPile, isTrue);
     });
   });
 
@@ -106,7 +210,7 @@ void main() {
       expect(roundTripped.cards.first.id, 'hearts_A');
     });
 
-    test('deckMode/fixedDecks default to deckBuilding/empty when absent from JSON', () {
+    test('zones defaults to empty when absent from JSON', () {
       final json = {
         'id': 'g1',
         'name': 'G',
@@ -115,40 +219,88 @@ void main() {
         ],
       };
       final game = GameDefinition.fromJson(json);
-      expect(game.deckMode, GameDeckMode.deckBuilding);
-      expect(game.fixedDecks, isEmpty);
+      expect(game.zones, isEmpty);
+      expect(game.needsDeckBuilding, isFalse);
     });
 
-    test('round-trips a fixedDeck game with named decks through JSON', () {
+    test('opponentCardBorderColor defaults to red when absent from JSON', () {
+      final json = {
+        'id': 'g1',
+        'name': 'G',
+        'cards': [
+          {'id': 'a', 'cardTitle': 'A', 'colorHex': '#000000'},
+        ],
+      };
+      final game = GameDefinition.fromJson(json);
+      expect(game.opponentCardBorderColor, defaultOpponentCardBorderColor);
+      expect(game.toJson().containsKey('opponentCardBorderColor'), isFalse);
+    });
+
+    test('opponentCardBorderColor round-trips a custom color through JSON', () {
       const game = GameDefinition(
-        id: 'standard_52',
-        name: 'Standard 52-Card Deck',
-        cards: [CardDefinition(id: 'hearts_A', cardTitle: 'A', colorHex: '#D32F2F')],
-        deckMode: GameDeckMode.fixedDeck,
-        fixedDecks: [
-          FixedDeckDefinition(name: 'Deck'),
-          FixedDeckDefinition(name: 'Fate Deck', entries: [DeckEntry(definitionId: 'hearts_A', quantity: 2)]),
+        id: 'g1',
+        name: 'G',
+        cards: [CardDefinition(id: 'a', cardTitle: 'A', colorHex: '#000000')],
+        opponentCardBorderColor: '#00FF00',
+      );
+      final roundTripped = GameDefinition.fromJson(game.toJson());
+      expect(roundTripped.opponentCardBorderColor, '#00FF00');
+      expect(game.toJson()['opponentCardBorderColor'], '#00FF00');
+    });
+
+    test('round-trips zones through JSON', () {
+      const game = GameDefinition(
+        id: 'metw',
+        name: 'METW',
+        cards: [CardDefinition(id: 'a', cardTitle: 'A', colorHex: '#000000')],
+        zones: [
+          ZoneDefinition(id: 'draw_deck', name: 'Draw Deck', dealsBuiltDeck: true),
+          ZoneDefinition(id: 'discard_pile', name: 'Discard Pile'),
         ],
       );
       final roundTripped = GameDefinition.fromJson(game.toJson());
-      expect(roundTripped.deckMode, GameDeckMode.fixedDeck);
-      expect(roundTripped.fixedDecks, hasLength(2));
-      expect(roundTripped.fixedDecks[0].name, 'Deck');
-      expect(roundTripped.fixedDecks[0].entries, isEmpty);
-      expect(roundTripped.fixedDecks[1].name, 'Fate Deck');
-      expect(roundTripped.fixedDecks[1].entries.single.definitionId, 'hearts_A');
-      expect(roundTripped.fixedDecks[1].entries.single.quantity, 2);
+      expect(roundTripped.zones, hasLength(2));
+      expect(roundTripped.zones[0].id, 'draw_deck');
+      expect(roundTripped.zones[0].dealsBuiltDeck, isTrue);
+      expect(roundTripped.zones[1].id, 'discard_pile');
+      expect(roundTripped.zones[1].dealsBuiltDeck, isFalse);
     });
 
-    test('toJson omits deckMode/fixedDecks for the default deckBuilding game', () {
+    test('needsDeckBuilding is true iff some owned zone deals a built deck', () {
+      const deckBuilding = GameDefinition(
+        id: 'g1',
+        name: 'G',
+        cards: [],
+        zones: [ZoneDefinition(id: 'draw_deck', name: 'Draw Deck', dealsBuiltDeck: true)],
+      );
+      expect(deckBuilding.needsDeckBuilding, isTrue);
+
+      const fixedOnly = GameDefinition(
+        id: 'g2',
+        name: 'G',
+        cards: [],
+        zones: [ZoneDefinition(id: 'deck', name: 'Deck', shared: true)],
+      );
+      expect(fixedOnly.needsDeckBuilding, isFalse);
+
+      // A shared zone marked dealsBuiltDeck doesn't count -- only an owned
+      // zone can receive a per-player Load Deck selection.
+      const sharedBuiltFlag = GameDefinition(
+        id: 'g3',
+        name: 'G',
+        cards: [],
+        zones: [ZoneDefinition(id: 'deck', name: 'Deck', shared: true, dealsBuiltDeck: true)],
+      );
+      expect(sharedBuiltFlag.needsDeckBuilding, isFalse);
+    });
+
+    test('toJson omits zones when empty', () {
       const game = GameDefinition(
         id: 'g1',
         name: 'G',
         cards: [CardDefinition(id: 'a', cardTitle: 'A', colorHex: '#000000')],
       );
-      final json = game.toJson();
-      expect(json.containsKey('deckMode'), isFalse);
-      expect(json.containsKey('fixedDecks'), isFalse);
+      expect(game.toJson().containsKey('zones'), isFalse);
     });
   });
 
@@ -193,7 +345,8 @@ void main() {
             y: 0,
             zIndex: 0,
             faceUp: false,
-            zone: CardZone.drawPile,
+            zone: CardZone.zone,
+            zoneId: 'deck',
           ),
         ],
         revision: 1,
@@ -202,6 +355,7 @@ void main() {
       expect(roundTripped.gameId, 'standard_52');
       expect(roundTripped.players, hasLength(1));
       expect(roundTripped.cards, hasLength(1));
+      expect(roundTripped.cards.single.zoneId, 'deck');
       expect(roundTripped.revision, 1);
     });
 
@@ -215,27 +369,6 @@ void main() {
       final next = state.copyWith(cards: [], revision: 2);
       expect(next.revision, 2);
       expect(next.gameId, state.gameId);
-    });
-
-    test('fixedDeckNames defaults to empty and is omitted from JSON when absent', () {
-      final state = TableState(gameId: 'g1', players: const [], cards: const [], revision: 1);
-      expect(state.fixedDeckNames, isEmpty);
-      expect(state.toJson().containsKey('fixedDeckNames'), isFalse);
-    });
-
-    test('fixedDeckNames round-trips through JSON and survives copyWith', () {
-      final state = TableState(
-        gameId: 'g1',
-        players: const [],
-        cards: const [],
-        revision: 1,
-        fixedDeckNames: const {'root1': 'Deck'},
-      );
-      final roundTripped = TableState.fromJson(state.toJson());
-      expect(roundTripped.fixedDeckNames, {'root1': 'Deck'});
-
-      final next = state.copyWith(revision: 2);
-      expect(next.fixedDeckNames, {'root1': 'Deck'});
     });
   });
 }

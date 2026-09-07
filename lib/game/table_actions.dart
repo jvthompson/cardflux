@@ -25,27 +25,68 @@ class TableActions {
     return null;
   }
 
-  /// Moves a card to a free table position, detaching it from any stack.
+  /// Moves a card to a free table position, detaching it from any stack or
+  /// zone (clearing [CardInstance.zoneId] -- leaving it stale would make the
+  /// card linger in its old zone's grouping even though [CardZone.table]
+  /// says it's no longer there).
   TableState moveCard(TableState state, {required String instanceId, required double x, required double y}) {
     final nextZ = _nextZIndex(state);
     final cards = state.cards.map((c) {
       if (c.instanceId != instanceId) return c;
-      return c.copyWith(x: x, y: y, zone: CardZone.table, stackParentId: null, zIndex: nextZ);
+      return c.copyWith(x: x, y: y, zone: CardZone.table, stackParentId: null, zoneId: null, zIndex: nextZ);
     }).toList();
     return state.copyWith(cards: cards, revision: state.revision + 1);
   }
 
   /// Repositions every card in the stack rooted at [rootInstanceId] to
   /// [x]/[y] as a unit -- unlike [moveCard], nothing is detached: zone,
-  /// stackParentId, and zIndex ordering all stay exactly as they were, only
-  /// the shared position changes. Used to drag an entire pile around
-  /// (Alt+drag on a [PileWidget]) rather than pulling just its top card out.
+  /// stackParentId, and each member's zIndex *relative to the rest of the
+  /// stack* stay exactly as they were, only the shared position changes.
+  /// Used to drag an entire pile around (Alt+drag on a [PileWidget]) rather
+  /// than pulling just its top card out.
+  ///
+  /// The stack's current top card (per [StackUtils.topOf]) additionally gets
+  /// bumped to the table's new running-max zIndex -- since cross-pile
+  /// render order is driven by each pile's top card, this brings the whole
+  /// pile to the front of every other free-table pile/card without
+  /// disturbing the internal draw order this stack's own members keep among
+  /// themselves.
   TableState moveStack(TableState state, {required String rootInstanceId, required double x, required double y}) {
-    final stackIds = _stacks.stackOf(state.cards, rootInstanceId).map((c) => c.instanceId).toSet();
-    if (stackIds.isEmpty) return state;
+    final stack = _stacks.stackOf(state.cards, rootInstanceId);
+    if (stack.isEmpty) return state;
+    final stackIds = stack.map((c) => c.instanceId).toSet();
+    final currentTopId = _stacks.topOf(stack).instanceId;
+    final nextZ = _nextZIndex(state);
     final cards = state.cards.map((c) {
       if (!stackIds.contains(c.instanceId)) return c;
-      return c.copyWith(x: x, y: y);
+      final zIndex = c.instanceId == currentTopId ? nextZ : c.zIndex;
+      return c.copyWith(x: x, y: y, zIndex: zIndex);
+    }).toList();
+    return state.copyWith(cards: cards, revision: state.revision + 1);
+  }
+
+  /// Rotates every card in the stack rooted at [rootInstanceId] by one
+  /// quarter-turn in the same direction -- a lone table card is already "a
+  /// stack of one" under [StackUtils.stackOf], so this handles both a single
+  /// card and a whole pile with the same call. Only `CardZone.table` cards
+  /// are affected (defensive -- nothing outside `TableScreen`'s own
+  /// table-only Q/E handling should ever reach this with anything else).
+  ///
+  /// Also bumps the stack's current top card to the table's new
+  /// running-max zIndex -- see [moveStack]'s doc for why this is enough to
+  /// bring the whole pile to the front without touching every member's
+  /// zIndex.
+  TableState rotateStack(TableState state, {required String rootInstanceId, required bool clockwise}) {
+    final stack = _stacks.stackOf(state.cards, rootInstanceId);
+    if (stack.isEmpty) return state;
+    final stackIds = stack.map((c) => c.instanceId).toSet();
+    final currentTopId = _stacks.topOf(stack).instanceId;
+    final nextZ = _nextZIndex(state);
+    final delta = clockwise ? 1 : -1;
+    final cards = state.cards.map((c) {
+      if (!stackIds.contains(c.instanceId) || c.zone != CardZone.table) return c;
+      final zIndex = c.instanceId == currentTopId ? nextZ : c.zIndex;
+      return c.copyWith(rotationTurns: ((c.rotationTurns + delta) % 4 + 4) % 4, zIndex: zIndex);
     }).toList();
     return state.copyWith(cards: cards, revision: state.revision + 1);
   }
@@ -58,7 +99,15 @@ class TableActions {
     final nextZ = _nextZIndex(state);
     final cards = state.cards.map((c) {
       if (c.instanceId != instanceId) return c;
-      return c.copyWith(zone: CardZone.hand, ownerId: ownerId, faceUp: true, stackParentId: null, zIndex: nextZ);
+      return c.copyWith(
+        zone: CardZone.hand,
+        ownerId: ownerId,
+        faceUp: true,
+        stackParentId: null,
+        zoneId: null,
+        rotationTurns: 0,
+        zIndex: nextZ,
+      );
     }).toList();
     return state.copyWith(cards: cards, revision: state.revision + 1);
   }
@@ -94,18 +143,24 @@ class TableActions {
     return state.copyWith(cards: cards, revision: state.revision + 1);
   }
 
-  /// Toggles a card's face-up/down state in place.
+  /// Toggles a card's face-up/down state in place, and brings it to the
+  /// front (see [moveStack]'s doc for why a top-card zIndex bump is enough
+  /// to bring its whole pile forward).
   TableState flipCard(TableState state, {required String instanceId}) {
+    final nextZ = _nextZIndex(state);
     final cards = state.cards.map((c) {
       if (c.instanceId != instanceId) return c;
-      return c.copyWith(faceUp: !c.faceUp);
+      return c.copyWith(faceUp: !c.faceUp, zIndex: nextZ);
     }).toList();
     return state.copyWith(cards: cards, revision: state.revision + 1);
   }
 
   /// Stacks [instanceId] on top of [ontoInstanceId], snapping its position
   /// and zone to match, and placing it above every existing card in the
-  /// stack.
+  /// stack. Only ever called with a free-table pile as the target (see
+  /// table_screen.dart -- a zone target goes through [TableActions] via
+  /// `returnToZone` instead), so [zoneId] is always cleared: any zone
+  /// membership the dragged card had is left behind, not carried over.
   TableState stackCard(TableState state, {required String instanceId, required String ontoInstanceId}) {
     if (instanceId == ontoInstanceId) return state;
     final target = _findById(state, ontoInstanceId);
@@ -119,14 +174,16 @@ class TableActions {
         y: target.y,
         zone: target.zone,
         stackParentId: ontoInstanceId,
+        zoneId: null,
         zIndex: nextZ,
       );
     }).toList();
     return state.copyWith(cards: cards, revision: state.revision + 1);
   }
 
-  /// Moves the topmost card of the stack rooted at [pileInstanceId] into
-  /// [ownerId]'s hand, face-up, detached from the pile.
+  /// Moves the topmost card of the free-table pile rooted at [pileInstanceId]
+  /// into [ownerId]'s hand, face-up, detached from the pile. For a zone
+  /// (draw deck, discard pile, etc.), see [drawFromZone] instead.
   ///
   /// [pileInstanceId] is the stack's root/anchor card — every other card in
   /// the pile identifies the pile via a stackParentId chain leading back to
@@ -148,67 +205,114 @@ class TableActions {
         ownerId: ownerId,
         faceUp: true,
         stackParentId: null,
+        rotationTurns: 0,
         zIndex: nextZ,
       );
     }).toList();
     return state.copyWith(cards: cards, revision: state.revision + 1);
   }
 
-  /// Returns [instanceId] to the deck rooted at [deckRootInstanceId] --
-  /// face-down, detached from wherever it was (hand, table, another stack).
-  /// [deckRootInstanceId] is null for a currently-empty deck, in which case
-  /// [instanceId] becomes its new root, owned by [ownerId] (e.g. the local
-  /// player claiming their own emptied-out personal deck) and keeps its own
-  /// current `x`/`y` (nothing to snap to yet).
-  ///
-  /// A deck that already has a root keeps that root's own existing ownerId
-  /// (null for a shared/unowned deck, like a fixed-deck game's table pile or
-  /// Practice Mode's original pile; a specific player for a personal deck) --
-  /// [ownerId] is ignored in that case, so returning a card to *any* deck
-  /// (yours or a shared one) always lands it back with the deck's own
-  /// identity rather than the acting player's. The returned card also snaps
-  /// to the root's `x`/`y` (mirroring [stackCard]), not wherever it happened
-  /// to be dragged from -- a free-table deck (unlike a personal deck's own
-  /// fixed-position zone widget) renders at its topmost card's canonical
-  /// position, so without this a return-to-top would visibly relocate the
-  /// whole pile to the returned card's old spot.
-  ///
-  /// New cards always attach directly to the root (a flat star, same shape
-  /// [GameSession.dealPlayerDecks]/[GameSession.dealFixedDecks] already
-  /// deal) rather than chaining onto whatever the current top/bottom happens
-  /// to be -- simpler, and equivalent for [StackUtils.stackOf]/
-  /// [StackUtils.rootIdOf] purposes. By default the card becomes the new top
-  /// (drawn next, via the global max-zIndex convention every other "put on
-  /// top" action already uses); [toBottom] instead gives it a zIndex below
-  /// every other card currently in the deck, so it's drawn last (the root
-  /// itself is still always drawn truly last, per [drawCard]'s own anchor
-  /// rule).
-  TableState returnToDeck(
+  /// Every card currently in the zone [zoneId] owned by [zoneOwnerId] (null
+  /// for a shared zone) -- a static lookup by identity, not a
+  /// `stackParentId`-chain walk, since a zone (unlike a free-table pile)
+  /// doesn't need a stable "root card" to exist: it's found by `zone`/
+  /// `zoneId`/`ownerId` alone, even when empty.
+  List<CardInstance> _zoneCards(TableState state, {required String zoneId, required String? zoneOwnerId}) {
+    return state.cards
+        .where((c) => c.zone == CardZone.zone && c.zoneId == zoneId && c.ownerId == zoneOwnerId)
+        .toList();
+  }
+
+  /// Moves the topmost card of the zone [zoneId] (owned by [zoneOwnerId],
+  /// null for a shared zone) into [toOwnerId]'s hand, face-up. A no-op if
+  /// the zone is currently empty.
+  TableState drawFromZone(
+    TableState state, {
+    required String zoneId,
+    required String? zoneOwnerId,
+    required String toOwnerId,
+  }) {
+    final zoneCards = _zoneCards(state, zoneId: zoneId, zoneOwnerId: zoneOwnerId);
+    if (zoneCards.isEmpty) return state;
+    final top = _stacks.topOf(zoneCards);
+
+    final nextZ = _nextZIndex(state);
+    final cards = state.cards.map((c) {
+      if (c.instanceId != top.instanceId) return c;
+      return c.copyWith(
+        zone: CardZone.hand,
+        ownerId: toOwnerId,
+        faceUp: true,
+        zoneId: null,
+        rotationTurns: 0,
+        zIndex: nextZ,
+      );
+    }).toList();
+    return state.copyWith(cards: cards, revision: state.revision + 1);
+  }
+
+  /// Returns [instanceId] to the zone [zoneId] (owned by [zoneOwnerId], null
+  /// for a shared zone) -- detached from wherever it was (hand, table,
+  /// another zone), landing with the zone's own ownership ([zoneOwnerId])
+  /// rather than whichever player happened to drop it there, and showing
+  /// its face according to [faceUp] (a zone's own `ZoneDefinition.faceUp` --
+  /// false for a face-down deck, true for a discard pile-style zone meant to
+  /// stay visible). Snaps to the `x`/`y` any other card already in that zone
+  /// shares (an owned zone ignores this -- it always renders at a fixed
+  /// screen position, never canonical coordinates -- but a shared zone
+  /// renders on the open table at its topmost card's position, so without
+  /// this a return-to-top would visibly relocate the whole pile to the
+  /// returned card's old spot, same reasoning the old personal-deck
+  /// return-to-top fix needed). By default the card becomes the new top
+  /// (drawn next); [toBottom] instead gives it a zIndex below every other
+  /// card in the zone, so it's drawn last.
+  TableState returnToZone(
     TableState state, {
     required String instanceId,
-    required String? deckRootInstanceId,
-    required String ownerId,
+    required String zoneId,
+    required String? zoneOwnerId,
+    required bool faceUp,
     bool toBottom = false,
   }) {
-    if (instanceId == deckRootInstanceId) return state;
-    final stack = deckRootInstanceId == null ? const <CardInstance>[] : _stacks.stackOf(state.cards, deckRootInstanceId);
-    final newZ = toBottom && stack.isNotEmpty
-        ? stack.map((c) => c.zIndex).reduce((a, b) => a < b ? a : b) - 1
+    final zoneCards = _zoneCards(state, zoneId: zoneId, zoneOwnerId: zoneOwnerId);
+    if (zoneCards.any((c) => c.instanceId == instanceId)) return state;
+    final newZ = toBottom && zoneCards.isNotEmpty
+        ? zoneCards.map((c) => c.zIndex).reduce((a, b) => a < b ? a : b) - 1
         : _nextZIndex(state);
-    final root = deckRootInstanceId == null ? null : _findById(state, deckRootInstanceId);
-    final resolvedOwnerId = deckRootInstanceId == null ? ownerId : root?.ownerId;
+    final anchor = zoneCards.isEmpty ? null : zoneCards.first;
 
     final cards = state.cards.map((c) {
       if (c.instanceId != instanceId) return c;
       return c.copyWith(
-        x: root?.x ?? c.x,
-        y: root?.y ?? c.y,
-        zone: CardZone.drawPile,
-        ownerId: resolvedOwnerId,
-        faceUp: false,
-        stackParentId: deckRootInstanceId,
+        x: anchor?.x ?? c.x,
+        y: anchor?.y ?? c.y,
+        zone: CardZone.zone,
+        zoneId: zoneId,
+        ownerId: zoneOwnerId,
+        faceUp: faceUp,
+        stackParentId: null,
+        rotationTurns: 0,
         zIndex: newZ,
       );
+    }).toList();
+    return state.copyWith(cards: cards, revision: state.revision + 1);
+  }
+
+  /// Randomizes the stacking order (zIndex) of every card in the zone
+  /// [zoneId] (owned by [zoneOwnerId], null for a shared zone), and flips
+  /// them all face-down.
+  TableState shuffleZone(TableState state, {required String zoneId, required String? zoneOwnerId, int? seed}) {
+    final zoneCards = _zoneCards(state, zoneId: zoneId, zoneOwnerId: zoneOwnerId);
+    if (zoneCards.length < 2) return state;
+
+    final ids = zoneCards.map((c) => c.instanceId).toList()..shuffle(seed != null ? Random(seed) : null);
+    final baseZ = _nextZIndex(state);
+    final newZByInstanceId = <String, int>{for (var i = 0; i < ids.length; i++) ids[i]: baseZ + i};
+
+    final cards = state.cards.map((c) {
+      final newZ = newZByInstanceId[c.instanceId];
+      if (newZ == null) return c;
+      return c.copyWith(zIndex: newZ, faceUp: false);
     }).toList();
     return state.copyWith(cards: cards, revision: state.revision + 1);
   }

@@ -6,14 +6,28 @@ import 'package:flutter_deck/models/table_state.dart';
 const _actions = TableActions();
 
 TableState _threeCardPile() {
-  // root <- a, root <- b (star topology, matching GameSession.localSandbox).
+  // root <- a, root <- b (star topology, matching a free-table pile built
+  // via stackCard).
   return TableState(
     gameId: 'g',
     players: const [],
     cards: [
-      CardInstance(instanceId: 'root', definitionId: 'd1', x: 0, y: 0, zIndex: 0, faceUp: false, zone: CardZone.drawPile),
-      CardInstance(instanceId: 'a', definitionId: 'd2', x: 0, y: 0, zIndex: 1, faceUp: false, zone: CardZone.drawPile, stackParentId: 'root'),
-      CardInstance(instanceId: 'b', definitionId: 'd3', x: 0, y: 0, zIndex: 2, faceUp: false, zone: CardZone.drawPile, stackParentId: 'root'),
+      CardInstance(instanceId: 'root', definitionId: 'd1', x: 0, y: 0, zIndex: 0, faceUp: false, zone: CardZone.table),
+      CardInstance(instanceId: 'a', definitionId: 'd2', x: 0, y: 0, zIndex: 1, faceUp: false, zone: CardZone.table, stackParentId: 'root'),
+      CardInstance(instanceId: 'b', definitionId: 'd3', x: 0, y: 0, zIndex: 2, faceUp: false, zone: CardZone.table, stackParentId: 'root'),
+    ],
+    revision: 0,
+  );
+}
+
+TableState _threeCardZone({required String zoneId, String? ownerId}) {
+  return TableState(
+    gameId: 'g',
+    players: const [],
+    cards: [
+      CardInstance(instanceId: 'z1', definitionId: 'd1', x: 0, y: 0, zIndex: 0, faceUp: false, zone: CardZone.zone, zoneId: zoneId, ownerId: ownerId),
+      CardInstance(instanceId: 'z2', definitionId: 'd2', x: 0, y: 0, zIndex: 1, faceUp: false, zone: CardZone.zone, zoneId: zoneId, ownerId: ownerId),
+      CardInstance(instanceId: 'z3', definitionId: 'd3', x: 0, y: 0, zIndex: 2, faceUp: false, zone: CardZone.zone, zoneId: zoneId, ownerId: ownerId),
     ],
     revision: 0,
   );
@@ -31,28 +45,122 @@ void main() {
       expect(moved.stackParentId, isNull);
       expect(next.revision, state.revision + 1);
     });
+
+    test('clears zoneId when dragging a card off a zone -- it must not linger in that zone group', () {
+      final state = _threeCardZone(zoneId: 'deck');
+      final next = _actions.moveCard(state, instanceId: 'z1', x: 0.5, y: 0.5);
+      final moved = next.cards.firstWhere((c) => c.instanceId == 'z1');
+      expect(moved.zone, CardZone.table);
+      expect(moved.zoneId, isNull);
+    });
   });
 
   group('moveStack', () {
-    test('repositions every card in the stack, keeping zone/stackParentId/zIndex intact', () {
+    test('repositions every card in the stack, keeping zone/stackParentId intact', () {
       final state = _threeCardPile();
       final next = _actions.moveStack(state, rootInstanceId: 'root', x: 0.3, y: 0.4);
       for (final id in ['root', 'a', 'b']) {
         final c = next.cards.firstWhere((c) => c.instanceId == id);
         expect(c.x, 0.3);
         expect(c.y, 0.4);
-        expect(c.zone, CardZone.drawPile);
+        expect(c.zone, CardZone.table);
       }
-      final before = {for (final c in state.cards) c.instanceId: (c.stackParentId, c.zIndex)};
-      final after = {for (final c in next.cards) c.instanceId: (c.stackParentId, c.zIndex)};
+      final before = {for (final c in state.cards) c.instanceId: c.stackParentId};
+      final after = {for (final c in next.cards) c.instanceId: c.stackParentId};
       expect(after, before);
       expect(next.revision, state.revision + 1);
+    });
+
+    test('bumps only the current top-of-stack member to the new running-max zIndex', () {
+      // 'b' (zIndex 2) is already the stack's top -- moving the stack should
+      // push it even higher (to 3, the new global max) while leaving 'root'
+      // and 'a' exactly where they were, so the pile's own internal draw
+      // order is unaffected but its cross-pile rank moves to the front.
+      final state = _threeCardPile();
+      final next = _actions.moveStack(state, rootInstanceId: 'root', x: 0.3, y: 0.4);
+      expect(next.cards.firstWhere((c) => c.instanceId == 'root').zIndex, 0);
+      expect(next.cards.firstWhere((c) => c.instanceId == 'a').zIndex, 1);
+      expect(next.cards.firstWhere((c) => c.instanceId == 'b').zIndex, 3);
     });
 
     test('is a no-op for an unknown root', () {
       final state = _threeCardPile();
       final next = _actions.moveStack(state, rootInstanceId: 'nonexistent', x: 0.3, y: 0.4);
       expect(next, same(state));
+    });
+  });
+
+  group('rotateStack', () {
+    test('a lone card (a stack of one) rotates clockwise and wraps 3 -> 0', () {
+      final state = TableState(
+        gameId: 'g',
+        players: const [],
+        cards: [CardInstance(instanceId: 'solo', definitionId: 'd1', x: 0, y: 0, zIndex: 0, faceUp: false, zone: CardZone.table, rotationTurns: 3)],
+        revision: 0,
+      );
+      final next = _actions.rotateStack(state, rootInstanceId: 'solo', clockwise: true);
+      expect(next.cards.single.rotationTurns, 0);
+    });
+
+    test('counter-clockwise wraps 0 -> 3', () {
+      final state = TableState(
+        gameId: 'g',
+        players: const [],
+        cards: [CardInstance(instanceId: 'solo', definitionId: 'd1', x: 0, y: 0, zIndex: 0, faceUp: false, zone: CardZone.table)],
+        revision: 0,
+      );
+      final next = _actions.rotateStack(state, rootInstanceId: 'solo', clockwise: false);
+      expect(next.cards.single.rotationTurns, 3);
+    });
+
+    test('rotates every card in a multi-card pile by the same delta', () {
+      final state = _threeCardPile();
+      final next = _actions.rotateStack(state, rootInstanceId: 'root', clockwise: true);
+      for (final id in ['root', 'a', 'b']) {
+        expect(next.cards.firstWhere((c) => c.instanceId == id).rotationTurns, 1);
+      }
+      expect(next.revision, state.revision + 1);
+    });
+
+    test('does not rotate a card outside the requested stack', () {
+      final state = TableState(
+        gameId: 'g',
+        players: const [],
+        cards: [
+          CardInstance(instanceId: 'a', definitionId: 'd1', x: 0, y: 0, zIndex: 0, faceUp: false, zone: CardZone.table),
+          CardInstance(instanceId: 'b', definitionId: 'd2', x: 0, y: 0, zIndex: 1, faceUp: false, zone: CardZone.table),
+        ],
+        revision: 0,
+      );
+      final next = _actions.rotateStack(state, rootInstanceId: 'a', clockwise: true);
+      expect(next.cards.firstWhere((c) => c.instanceId == 'b').rotationTurns, 0);
+    });
+
+    test('is a no-op for an unknown root', () {
+      final state = _threeCardPile();
+      final next = _actions.rotateStack(state, rootInstanceId: 'nonexistent', clockwise: true);
+      expect(next, same(state));
+    });
+
+    test('never rotates a card outside CardZone.table, even if named in the stack', () {
+      // A zone card can't really be "in a stackParentId chain" today, but the
+      // action still defensively ignores anything not on the table.
+      final state = TableState(
+        gameId: 'g',
+        players: const [],
+        cards: [CardInstance(instanceId: 'z1', definitionId: 'd1', x: 0, y: 0, zIndex: 0, faceUp: false, zone: CardZone.zone, zoneId: 'deck')],
+        revision: 0,
+      );
+      final next = _actions.rotateStack(state, rootInstanceId: 'z1', clockwise: true);
+      expect(next.cards.single.rotationTurns, 0);
+    });
+
+    test('bumps only the current top-of-stack member to the new running-max zIndex', () {
+      final state = _threeCardPile();
+      final next = _actions.rotateStack(state, rootInstanceId: 'root', clockwise: true);
+      expect(next.cards.firstWhere((c) => c.instanceId == 'root').zIndex, 0);
+      expect(next.cards.firstWhere((c) => c.instanceId == 'a').zIndex, 1);
+      expect(next.cards.firstWhere((c) => c.instanceId == 'b').zIndex, 3);
     });
   });
 
@@ -63,6 +171,14 @@ void main() {
       expect(next.cards.firstWhere((c) => c.instanceId == 'a').faceUp, isTrue);
       final flippedBack = _actions.flipCard(next, instanceId: 'a');
       expect(flippedBack.cards.firstWhere((c) => c.instanceId == 'a').faceUp, isFalse);
+    });
+
+    test('bumps the flipped card to the new running-max zIndex', () {
+      final state = _threeCardPile();
+      final next = _actions.flipCard(state, instanceId: 'a');
+      expect(next.cards.firstWhere((c) => c.instanceId == 'a').zIndex, 3);
+      expect(next.cards.firstWhere((c) => c.instanceId == 'root').zIndex, 0);
+      expect(next.cards.firstWhere((c) => c.instanceId == 'b').zIndex, 2);
     });
   });
 
@@ -82,6 +198,20 @@ void main() {
       expect(stacked.x, 10);
       expect(stacked.y, 10);
       expect(stacked.stackParentId, 'x');
+    });
+
+    test('clears zoneId when stacking a zone card onto a free-table pile', () {
+      final state = TableState(
+        gameId: 'g',
+        players: const [],
+        cards: [
+          CardInstance(instanceId: 'x', definitionId: 'd1', x: 10, y: 10, zIndex: 0, faceUp: false, zone: CardZone.table),
+          CardInstance(instanceId: 'y', definitionId: 'd2', x: 99, y: 99, zIndex: 1, faceUp: false, zone: CardZone.zone, zoneId: 'discard_pile', ownerId: 'p1'),
+        ],
+        revision: 0,
+      );
+      final next = _actions.stackCard(state, instanceId: 'y', ontoInstanceId: 'x');
+      expect(next.cards.firstWhere((c) => c.instanceId == 'y').zoneId, isNull);
     });
 
     test('is a no-op when stacking a card onto itself', () {
@@ -106,10 +236,28 @@ void main() {
       expect(moved.ownerId, 'p1');
       expect(moved.faceUp, isTrue);
       expect(moved.stackParentId, isNull);
+      expect(moved.rotationTurns, 0);
       // Untouched cards remain exactly as they were.
       final root = next.cards.firstWhere((c) => c.instanceId == 'root');
-      expect(root.zone, CardZone.drawPile);
+      expect(root.zone, CardZone.table);
       expect(next.revision, state.revision + 1);
+    });
+
+    test('clears zoneId when dragging a zone card straight into the hand', () {
+      final state = _threeCardZone(zoneId: 'deck');
+      final next = _actions.moveToHand(state, instanceId: 'z1', ownerId: 'p1');
+      expect(next.cards.firstWhere((c) => c.instanceId == 'z1').zoneId, isNull);
+    });
+
+    test('resets a nonzero rotation -- a card never shows up sideways in a hand', () {
+      final state = TableState(
+        gameId: 'g',
+        players: const [],
+        cards: [CardInstance(instanceId: 'a', definitionId: 'd1', x: 0, y: 0, zIndex: 0, faceUp: false, zone: CardZone.table, rotationTurns: 2)],
+        revision: 0,
+      );
+      final next = _actions.moveToHand(state, instanceId: 'a', ownerId: 'p1');
+      expect(next.cards.single.rotationTurns, 0);
     });
   });
 
@@ -180,7 +328,7 @@ void main() {
       expect(drawn.stackParentId, isNull);
       // The pile anchor itself must not be the one drawn while others remain.
       final root = next.cards.firstWhere((c) => c.instanceId == 'root');
-      expect(root.zone, CardZone.drawPile);
+      expect(root.zone, CardZone.table);
     });
 
     test('the anchor card is only drawn once it is the last card in the pile', () {
@@ -199,78 +347,113 @@ void main() {
       final next = _actions.drawCard(state, pileInstanceId: 'does-not-exist', ownerId: 'p1');
       expect(next, same(state));
     });
+
+    test('resets a nonzero rotation -- a card never shows up sideways in a hand', () {
+      final state = TableState(
+        gameId: 'g',
+        players: const [],
+        cards: [CardInstance(instanceId: 'solo', definitionId: 'd1', x: 0, y: 0, zIndex: 0, faceUp: false, zone: CardZone.table, rotationTurns: 1)],
+        revision: 0,
+      );
+      final next = _actions.drawCard(state, pileInstanceId: 'solo', ownerId: 'p1');
+      expect(next.cards.single.rotationTurns, 0);
+    });
   });
 
-  group('returnToDeck', () {
-    test('places the card on top (drawn next) by default, face-down, owned by ownerId', () {
+  group('drawFromZone', () {
+    test('moves the top card of the zone into the given owner hand, face-up, detached', () {
+      final state = _threeCardZone(zoneId: 'draw_deck', ownerId: 'p1');
+      final next = _actions.drawFromZone(state, zoneId: 'draw_deck', zoneOwnerId: 'p1', toOwnerId: 'p1');
+      // Highest zIndex in the zone is 'z3'.
+      final drawn = next.cards.firstWhere((c) => c.instanceId == 'z3');
+      expect(drawn.zone, CardZone.hand);
+      expect(drawn.ownerId, 'p1');
+      expect(drawn.faceUp, isTrue);
+      expect(drawn.zoneId, isNull);
+    });
+
+    test('a shared zone (null owner) is drawable by anyone', () {
+      final state = _threeCardZone(zoneId: 'deck');
+      final next = _actions.drawFromZone(state, zoneId: 'deck', zoneOwnerId: null, toOwnerId: 'p2');
+      final drawn = next.cards.firstWhere((c) => c.instanceId == 'z3');
+      expect(drawn.zone, CardZone.hand);
+      expect(drawn.ownerId, 'p2');
+    });
+
+    test('is a no-op on an empty/nonexistent zone', () {
+      final state = _threeCardZone(zoneId: 'draw_deck', ownerId: 'p1');
+      final next = _actions.drawFromZone(state, zoneId: 'discard_pile', zoneOwnerId: 'p1', toOwnerId: 'p1');
+      expect(next, same(state));
+    });
+
+    test('resets a nonzero rotation -- a card never shows up sideways in a hand', () {
+      final state = TableState(
+        gameId: 'g',
+        players: const [],
+        cards: [CardInstance(instanceId: 'z1', definitionId: 'd1', x: 0, y: 0, zIndex: 0, faceUp: false, zone: CardZone.zone, zoneId: 'draw_deck', ownerId: 'p1', rotationTurns: 2)],
+        revision: 0,
+      );
+      final next = _actions.drawFromZone(state, zoneId: 'draw_deck', zoneOwnerId: 'p1', toOwnerId: 'p1');
+      expect(next.cards.single.rotationTurns, 0);
+    });
+  });
+
+  group('returnToZone', () {
+    test('places the card on top (drawn next) by default, face-down, owned by the zone', () {
       final state = TableState(
         gameId: 'g',
         players: const [],
         cards: [
-          CardInstance(instanceId: 'root', definitionId: 'd1', x: 0, y: 0, zIndex: 0, faceUp: false, zone: CardZone.drawPile, ownerId: 'p1'),
+          CardInstance(instanceId: 'z1', definitionId: 'd1', x: 0, y: 0, zIndex: 0, faceUp: false, zone: CardZone.zone, zoneId: 'draw_deck', ownerId: 'p1'),
           CardInstance(instanceId: 'inHand', definitionId: 'd2', x: 0, y: 0, zIndex: 5, faceUp: true, zone: CardZone.hand, ownerId: 'p1'),
         ],
         revision: 0,
       );
-      final next = _actions.returnToDeck(state, instanceId: 'inHand', deckRootInstanceId: 'root', ownerId: 'p1');
+      final next = _actions.returnToZone(state, instanceId: 'inHand', zoneId: 'draw_deck', zoneOwnerId: 'p1', faceUp: false);
       final returned = next.cards.firstWhere((c) => c.instanceId == 'inHand');
-      expect(returned.zone, CardZone.drawPile);
+      expect(returned.zone, CardZone.zone);
+      expect(returned.zoneId, 'draw_deck');
       expect(returned.ownerId, 'p1');
       expect(returned.faceUp, isFalse);
-      expect(returned.stackParentId, 'root');
 
       // Drawing next should immediately return this exact card -- it's on top.
-      final drawn = _actions.drawCard(next, pileInstanceId: 'root', ownerId: 'p1');
+      final drawn = _actions.drawFromZone(next, zoneId: 'draw_deck', zoneOwnerId: 'p1', toOwnerId: 'p1');
       expect(drawn.cards.firstWhere((c) => c.instanceId == 'inHand').zone, CardZone.hand);
     });
 
-    test('an existing deck keeps its own ownerId regardless of the passed-in ownerId', () {
-      final state = TableState(
-        gameId: 'g',
-        players: const [],
-        cards: [
-          CardInstance(instanceId: 'root', definitionId: 'd1', x: 0, y: 0, zIndex: 0, faceUp: false, zone: CardZone.drawPile, ownerId: 'p1'),
-          CardInstance(instanceId: 'inHand', definitionId: 'd2', x: 0, y: 0, zIndex: 5, faceUp: true, zone: CardZone.hand, ownerId: 'p2'),
-        ],
-        revision: 0,
-      );
-      // p2 is returning a card, but the deck itself belongs to p1 -- the
-      // returned card should take on the deck's ownership, not p2's.
-      final next = _actions.returnToDeck(state, instanceId: 'inHand', deckRootInstanceId: 'root', ownerId: 'p2');
-      expect(next.cards.firstWhere((c) => c.instanceId == 'inHand').ownerId, 'p1');
-    });
-
-    test('a shared/unowned deck stays unowned even if the acting player passes their own id', () {
-      final state = TableState(
-        gameId: 'g',
-        players: const [],
-        cards: [
-          CardInstance(instanceId: 'root', definitionId: 'd1', x: 0, y: 0, zIndex: 0, faceUp: false, zone: CardZone.drawPile),
-          CardInstance(instanceId: 'inHand', definitionId: 'd2', x: 0, y: 0, zIndex: 5, faceUp: true, zone: CardZone.hand, ownerId: 'p1'),
-        ],
-        revision: 0,
-      );
-      final next = _actions.returnToDeck(state, instanceId: 'inHand', deckRootInstanceId: 'root', ownerId: 'p1');
+    test('a shared zone stays unowned even if a player id is passed as zoneOwnerId', () {
+      final state = _threeCardZone(zoneId: 'deck');
+      final inHand = CardInstance(instanceId: 'inHand', definitionId: 'd2', x: 0, y: 0, zIndex: 5, faceUp: true, zone: CardZone.hand, ownerId: 'p1');
+      final withHandCard = state.copyWith(cards: [...state.cards, inHand]);
+      final next = _actions.returnToZone(withHandCard, instanceId: 'inHand', zoneId: 'deck', zoneOwnerId: null, faceUp: false);
       expect(next.cards.firstWhere((c) => c.instanceId == 'inHand').ownerId, isNull);
     });
 
-    test('snaps to the deck root\'s x/y instead of keeping the card\'s old position', () {
+    test('sets faceUp according to the faceUp argument -- true for a discard-pile-style zone', () {
+      final state = _threeCardZone(zoneId: 'discard_pile', ownerId: 'p1');
+      final inHand = CardInstance(instanceId: 'inHand', definitionId: 'd2', x: 0, y: 0, zIndex: 5, faceUp: false, zone: CardZone.hand, ownerId: 'p1');
+      final withHandCard = state.copyWith(cards: [...state.cards, inHand]);
+      final next = _actions.returnToZone(withHandCard, instanceId: 'inHand', zoneId: 'discard_pile', zoneOwnerId: 'p1', faceUp: true);
+      expect(next.cards.firstWhere((c) => c.instanceId == 'inHand').faceUp, isTrue);
+    });
+
+    test('snaps to the position an existing zone card already shares', () {
       final state = TableState(
         gameId: 'g',
         players: const [],
         cards: [
-          CardInstance(instanceId: 'root', definitionId: 'd1', x: 0.8, y: 0.5, zIndex: 0, faceUp: false, zone: CardZone.drawPile),
+          CardInstance(instanceId: 'z1', definitionId: 'd1', x: 0.8, y: 0.5, zIndex: 0, faceUp: false, zone: CardZone.zone, zoneId: 'deck'),
           CardInstance(instanceId: 'onTable', definitionId: 'd2', x: 0.1, y: 0.1, zIndex: 5, faceUp: true, zone: CardZone.table),
         ],
         revision: 0,
       );
-      final next = _actions.returnToDeck(state, instanceId: 'onTable', deckRootInstanceId: 'root', ownerId: 'p1');
+      final next = _actions.returnToZone(state, instanceId: 'onTable', zoneId: 'deck', zoneOwnerId: null, faceUp: false);
       final returned = next.cards.firstWhere((c) => c.instanceId == 'onTable');
       expect(returned.x, 0.8);
       expect(returned.y, 0.5);
     });
 
-    test('an empty deck keeps the returned card at its own current x/y', () {
+    test('an empty zone keeps the returned card at its own current x/y', () {
       final state = TableState(
         gameId: 'g',
         players: const [],
@@ -279,44 +462,65 @@ void main() {
         ],
         revision: 0,
       );
-      final next = _actions.returnToDeck(state, instanceId: 'onTable', deckRootInstanceId: null, ownerId: 'p1');
+      final next = _actions.returnToZone(state, instanceId: 'onTable', zoneId: 'discard_pile', zoneOwnerId: 'p1', faceUp: false);
       final returned = next.cards.firstWhere((c) => c.instanceId == 'onTable');
       expect(returned.x, 0.1);
       expect(returned.y, 0.2);
+      expect(returned.zone, CardZone.zone);
+      expect(returned.zoneId, 'discard_pile');
     });
 
-    test('toBottom places the card below every other card in the deck', () {
-      final state = _threeCardPile();
-      final next = _actions.returnToDeck(
-        state,
-        instanceId: 'a',
-        deckRootInstanceId: 'root',
-        ownerId: 'p1',
-        toBottom: true,
-      );
-      final returned = next.cards.firstWhere((c) => c.instanceId == 'a');
-      final others = next.cards.where((c) => c.instanceId != 'a');
+    test('toBottom places the card below every other card in the zone', () {
+      final state = _threeCardZone(zoneId: 'draw_deck', ownerId: 'p1');
+      final inHand = CardInstance(instanceId: 'inHand', definitionId: 'd2', x: 0, y: 0, zIndex: 5, faceUp: true, zone: CardZone.hand, ownerId: 'p1');
+      final withHandCard = state.copyWith(cards: [...state.cards, inHand]);
+      final next = _actions.returnToZone(withHandCard, instanceId: 'inHand', zoneId: 'draw_deck', zoneOwnerId: 'p1', faceUp: false, toBottom: true);
+      final returned = next.cards.firstWhere((c) => c.instanceId == 'inHand');
+      final others = next.cards.where((c) => c.instanceId != 'inHand' && c.zoneId == 'draw_deck');
       expect(returned.zIndex, lessThan(others.map((c) => c.zIndex).reduce((x, y) => x < y ? x : y)));
     });
 
-    test('an empty deck (null root) makes the returned card the new root', () {
+    test('is a no-op when the card is already in that exact zone', () {
+      final state = _threeCardZone(zoneId: 'draw_deck', ownerId: 'p1');
+      final next = _actions.returnToZone(state, instanceId: 'z1', zoneId: 'draw_deck', zoneOwnerId: 'p1', faceUp: false);
+      expect(next, same(state));
+    });
+
+    test('resets a nonzero rotation -- a card never shows up sideways in a deck', () {
       final state = TableState(
         gameId: 'g',
         players: const [],
         cards: [
-          CardInstance(instanceId: 'inHand', definitionId: 'd2', x: 0, y: 0, zIndex: 0, faceUp: true, zone: CardZone.hand, ownerId: 'p1'),
+          CardInstance(instanceId: 'onTable', definitionId: 'd1', x: 0, y: 0, zIndex: 0, faceUp: false, zone: CardZone.table, rotationTurns: 1),
         ],
         revision: 0,
       );
-      final next = _actions.returnToDeck(state, instanceId: 'inHand', deckRootInstanceId: null, ownerId: 'p1');
-      final returned = next.cards.firstWhere((c) => c.instanceId == 'inHand');
-      expect(returned.zone, CardZone.drawPile);
-      expect(returned.stackParentId, isNull);
+      final next = _actions.returnToZone(state, instanceId: 'onTable', zoneId: 'draw_deck', zoneOwnerId: 'p1', faceUp: false);
+      expect(next.cards.single.rotationTurns, 0);
+    });
+  });
+
+  group('shuffleZone', () {
+    test('flips every card in the zone face-down and reassigns zIndex without changing membership', () {
+      final state = _threeCardZone(zoneId: 'draw_deck', ownerId: 'p1');
+      final next = _actions.shuffleZone(state, zoneId: 'draw_deck', zoneOwnerId: 'p1', seed: 42);
+      expect(next.cards.map((c) => c.instanceId).toSet(), state.cards.map((c) => c.instanceId).toSet());
+      for (final c in next.cards) {
+        expect(c.faceUp, isFalse);
+      }
+      expect(next.cards.map((c) => c.zIndex).toSet(), hasLength(next.cards.length));
     });
 
-    test('is a no-op when returning the deck root onto itself', () {
-      final state = _threeCardPile();
-      final next = _actions.returnToDeck(state, instanceId: 'root', deckRootInstanceId: 'root', ownerId: 'p1');
+    test('is a no-op for a zone of 1 or fewer cards', () {
+      final state = TableState(
+        gameId: 'g',
+        players: const [],
+        cards: [
+          CardInstance(instanceId: 'solo', definitionId: 'd1', x: 0, y: 0, zIndex: 0, faceUp: true, zone: CardZone.zone, zoneId: 'draw_deck', ownerId: 'p1'),
+        ],
+        revision: 0,
+      );
+      final next = _actions.shuffleZone(state, zoneId: 'draw_deck', zoneOwnerId: 'p1');
       expect(next, same(state));
     });
   });
@@ -338,7 +542,7 @@ void main() {
         gameId: 'g',
         players: const [],
         cards: [
-          CardInstance(instanceId: 'solo', definitionId: 'd1', x: 0, y: 0, zIndex: 0, faceUp: true, zone: CardZone.drawPile),
+          CardInstance(instanceId: 'solo', definitionId: 'd1', x: 0, y: 0, zIndex: 0, faceUp: true, zone: CardZone.table),
         ],
         revision: 0,
       );

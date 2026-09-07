@@ -46,7 +46,7 @@ void main() {
   group('filterForRecipient', () {
     test("hides an opponent's hand card identity and forces it face-down", () {
       final trueState = _stateWithTwoHands();
-      final filtered = filterForRecipient(trueState, 'p1');
+      final filtered = filterForRecipient(trueState, 'p1', visibleZoneIds: const {});
 
       final theirs = filtered.cards.firstWhere((c) => c.instanceId == 'theirs');
       expect(theirs.faceUp, isFalse);
@@ -56,7 +56,7 @@ void main() {
 
     test("leaves the recipient's own hand card untouched", () {
       final trueState = _stateWithTwoHands();
-      final filtered = filterForRecipient(trueState, 'p1');
+      final filtered = filterForRecipient(trueState, 'p1', visibleZoneIds: const {});
 
       final mine = filtered.cards.firstWhere((c) => c.instanceId == 'mine');
       expect(mine.faceUp, isTrue);
@@ -65,7 +65,7 @@ void main() {
 
     test('leaves table (non-hand) cards untouched regardless of recipient', () {
       final trueState = _stateWithTwoHands();
-      final filtered = filterForRecipient(trueState, 'p1');
+      final filtered = filterForRecipient(trueState, 'p1', visibleZoneIds: const {});
 
       final onTable = filtered.cards.firstWhere((c) => c.instanceId == 'onTable');
       expect(onTable.faceUp, isFalse);
@@ -74,7 +74,7 @@ void main() {
 
     test('filtering for the other player flips which hand is hidden', () {
       final trueState = _stateWithTwoHands();
-      final filtered = filterForRecipient(trueState, 'p2');
+      final filtered = filterForRecipient(trueState, 'p2', visibleZoneIds: const {});
 
       final mine = filtered.cards.firstWhere((c) => c.instanceId == 'mine');
       expect(mine.faceUp, isFalse);
@@ -87,60 +87,110 @@ void main() {
 
     test('preserves gameId and revision', () {
       final trueState = _stateWithTwoHands();
-      final filtered = filterForRecipient(trueState, 'p1');
+      final filtered = filterForRecipient(trueState, 'p1', visibleZoneIds: const {});
       expect(filtered.gameId, trueState.gameId);
       expect(filtered.revision, trueState.revision);
     });
 
-    test("hides an opponent's personal deck card identity and forces it face-down", () {
+    test("hides an opponent's owned zone card identity and forces it face-down", () {
       final trueState = TableState(
         gameId: 'g1',
         players: const [],
         cards: [
           CardInstance(
-            instanceId: 'theirDeckCard',
+            instanceId: 'theirZoneCard',
             definitionId: 'clubs_5',
             x: 0,
             y: 0,
             zIndex: 0,
             faceUp: false,
-            zone: CardZone.drawPile,
+            zone: CardZone.zone,
+            zoneId: 'draw_deck',
             ownerId: 'p2',
           ),
           CardInstance(
-            instanceId: 'myDeckCard',
+            instanceId: 'myZoneCard',
             definitionId: 'hearts_A',
             x: 0,
             y: 0,
             zIndex: 1,
             faceUp: false,
-            zone: CardZone.drawPile,
+            zone: CardZone.zone,
+            zoneId: 'draw_deck',
             ownerId: 'p1',
           ),
           CardInstance(
-            instanceId: 'sandboxPileCard',
+            instanceId: 'sharedZoneCard',
             definitionId: 'spades_K',
             x: 0,
             y: 0,
             zIndex: 2,
             faceUp: false,
-            zone: CardZone.drawPile,
+            zone: CardZone.zone,
+            zoneId: 'deck',
           ),
         ],
         revision: 1,
       );
-      final filtered = filterForRecipient(trueState, 'p1');
+      final filtered = filterForRecipient(trueState, 'p1', visibleZoneIds: const {});
 
-      final theirs = filtered.cards.firstWhere((c) => c.instanceId == 'theirDeckCard');
+      final theirs = filtered.cards.firstWhere((c) => c.instanceId == 'theirZoneCard');
       expect(theirs.definitionId, hiddenDefinitionId);
 
-      final mine = filtered.cards.firstWhere((c) => c.instanceId == 'myDeckCard');
+      final mine = filtered.cards.firstWhere((c) => c.instanceId == 'myZoneCard');
       expect(mine.definitionId, 'hearts_A');
 
-      // An unowned drawPile card (e.g. Practice Mode's shared pile) is never
-      // redacted for anyone -- there's no owner it could belong to instead.
-      final sandbox = filtered.cards.firstWhere((c) => c.instanceId == 'sandboxPileCard');
-      expect(sandbox.definitionId, 'spades_K');
+      // An unowned zone card (a shared deck, e.g. Standard 52's Deck) is
+      // never redacted for anyone -- there's no owner it could belong to
+      // instead.
+      final shared = filtered.cards.firstWhere((c) => c.instanceId == 'sharedZoneCard');
+      expect(shared.definitionId, 'spades_K');
+    });
+
+    test('a zone in visibleZoneIds is not redacted for a non-owner, but remains not interactable', () {
+      final trueState = TableState(
+        gameId: 'g1',
+        players: const [],
+        cards: [
+          CardInstance(
+            instanceId: 'theirDiscard',
+            definitionId: 'clubs_5',
+            x: 0,
+            y: 0,
+            zIndex: 0,
+            faceUp: true,
+            zone: CardZone.zone,
+            zoneId: 'discard_pile',
+            ownerId: 'p2',
+          ),
+          CardInstance(
+            instanceId: 'theirDrawDeck',
+            definitionId: 'hearts_A',
+            x: 0,
+            y: 0,
+            zIndex: 1,
+            faceUp: false,
+            zone: CardZone.zone,
+            zoneId: 'draw_deck',
+            ownerId: 'p2',
+          ),
+        ],
+        revision: 1,
+      );
+      final filtered = filterForRecipient(trueState, 'p1', visibleZoneIds: {'discard_pile'});
+
+      // discard_pile is visible -- real face and identity pass through.
+      final discard = filtered.cards.firstWhere((c) => c.instanceId == 'theirDiscard');
+      expect(discard.faceUp, isTrue);
+      expect(discard.definitionId, 'clubs_5');
+      // Still owned by p2, not p1 -- HostGameEngine's ownership resolution
+      // (never client-claimed) is what actually keeps it non-interactable,
+      // unaffected by this filter.
+      expect(discard.ownerId, 'p2');
+
+      // draw_deck isn't in visibleZoneIds -- still redacted as before.
+      final drawDeck = filtered.cards.firstWhere((c) => c.instanceId == 'theirDrawDeck');
+      expect(drawDeck.definitionId, hiddenDefinitionId);
     });
   });
 }

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../models/card_definition.dart';
 import 'card_back_widget.dart';
 import 'card_face_widget.dart';
+import 'draggable_card.dart' show rotationAnimationDuration;
 
 /// Extra room (beyond the card's own [cardWidth]/[cardHeight]) [PileWidget]
 /// reserves on each axis so its count badge and shuffle button can overflow
@@ -20,14 +21,15 @@ const double pileWidgetExtra = 24;
 /// [topFaceUp] being false, or [topDefinition] missing -- an opponent's
 /// hidden card, mirroring [DraggableCard]'s own fallback). Tap draws the top
 /// card into the local hand -- the same shortcut a deck zone used to offer
-/// before dragging replaced it there (see `DeckZoneWidget`); a table pile
+/// before dragging replaced it there (see `ZoneStackWidget`); a table pile
 /// keeps both, since tap-to-hand is still the common case while dragging
 /// lets the top card be placed anywhere (the table, or back onto another
 /// deck to return it) via [onDragEnd], the same drop-handling every other
-/// draggable card already goes through. The shuffle button randomizes
-/// stacking order and flips every card face-down, and plays a brief
-/// decaying wiggle (M6) so the tap reads as having done something even when
-/// the pile was already showing a back.
+/// draggable card already goes through. The shuffle button (hidden entirely
+/// when [onShuffle] is null -- e.g. a zone whose `ZoneDefinition.shuffleable`
+/// is false, like a discard pile) randomizes stacking order and flips every
+/// card face-down, and plays a brief decaying wiggle (M6) so the tap reads
+/// as having done something even when the pile was already showing a back.
 class PileWidget extends StatefulWidget {
   const PileWidget({
     super.key,
@@ -39,6 +41,10 @@ class PileWidget extends StatefulWidget {
     required this.onDragEnd,
     required this.onShuffle,
     this.isMirrored = false,
+    this.interactable = true,
+    this.topRotationTurns = 0,
+    this.topBorderColor,
+    this.onHover,
     this.cardBackImagePath,
   });
 
@@ -48,8 +54,26 @@ class PileWidget extends StatefulWidget {
   final CardDefinition? topDefinition;
   final VoidCallback onDraw;
   final void Function(Offset globalTopLeft) onDragEnd;
-  final VoidCallback onShuffle;
+  final VoidCallback? onShuffle;
   final bool isMirrored;
+
+  /// Gates draw-tap, drag, and shuffle entirely -- see `DraggableCard`'s own
+  /// copy of this concept (used to block acting on a pile owned by the other
+  /// player). Hover still fires either way.
+  final bool interactable;
+
+  /// The top card's `CardInstance.rotationTurns` -- see `DraggableCard`'s own
+  /// copy of this concept.
+  final int topRotationTurns;
+
+  /// Non-null when the top card is owned by the other player -- see
+  /// `DraggableCard.opponentBorderColor`.
+  final Color? topBorderColor;
+
+  /// Notified when the mouse enters/exits this pile -- same purpose as
+  /// `DraggableCard.onHover` (Space-hold preview, and D/Q/E targeting),
+  /// reported against [topInstanceId] since that's the card actually shown.
+  final ValueChanged<bool>? onHover;
   final String? cardBackImagePath;
 
   @override
@@ -62,8 +86,10 @@ class _PileWidgetState extends State<PileWidget> with SingleTickerProviderStateM
     duration: const Duration(milliseconds: 400),
   );
 
+  VoidCallback? get _effectiveOnShuffle => widget.interactable ? widget.onShuffle : null;
+
   void _handleShuffle() {
-    widget.onShuffle();
+    _effectiveOnShuffle?.call();
     _shuffleController.forward(from: 0);
   }
 
@@ -77,64 +103,90 @@ class _PileWidgetState extends State<PileWidget> with SingleTickerProviderStateM
     final content = widget.topFaceUp && widget.topDefinition != null
         ? CardFaceWidget(definition: widget.topDefinition!)
         : CardBackWidget(imagePath: widget.cardBackImagePath);
-    return widget.isMirrored ? Transform.rotate(angle: math.pi, child: content) : content;
+    final bordered = widget.topBorderColor == null
+        ? content
+        : Container(
+            foregroundDecoration: BoxDecoration(
+              border: Border.all(color: widget.topBorderColor!, width: 2),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: content,
+          );
+    final turns = (widget.isMirrored ? 0.5 : 0.0) + widget.topRotationTurns / 4;
+    return AnimatedRotation(turns: turns, duration: rotationAnimationDuration, curve: Curves.easeOut, child: bordered);
   }
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: cardWidth + pileWidgetExtra,
-      height: cardHeight + pileWidgetExtra,
-      child: Stack(
-        clipBehavior: Clip.none,
-        alignment: Alignment.center,
-        children: [
-          GestureDetector(
-            // Claims a zero-movement click for onDraw before Draggable's own
-            // recognizer can resolve it as a zero-distance drag -- mirrors
-            // how DraggableCard/DeckZoneWidget avoid the same footgun.
-            onTap: widget.onDraw,
-            child: Draggable<String>(
-              data: widget.topInstanceId,
-              feedback: Material(type: MaterialType.transparency, child: _topFace()),
-              childWhenDragging: Opacity(opacity: 0.3, child: _topFace()),
-              onDragEnd: (details) => widget.onDragEnd(details.offset),
-              child: AnimatedBuilder(
+    return MouseRegion(
+      onEnter: (_) => widget.onHover?.call(true),
+      onExit: (_) => widget.onHover?.call(false),
+      child: SizedBox(
+        width: cardWidth + pileWidgetExtra,
+        height: cardHeight + pileWidgetExtra,
+        child: Stack(
+          clipBehavior: Clip.none,
+          alignment: Alignment.center,
+          children: [
+            if (!widget.interactable)
+              AnimatedBuilder(
                 animation: _shuffleController,
                 builder: (context, child) {
                   final t = _shuffleController.value;
-                  // A few oscillations that decay to zero by the end.
                   final angle = math.sin(t * math.pi * 6) * 0.15 * (1 - t);
                   return Transform.rotate(angle: angle, child: child);
                 },
                 child: _topFace(),
+              )
+            else
+              GestureDetector(
+                // Claims a zero-movement click for onDraw before Draggable's own
+                // recognizer can resolve it as a zero-distance drag -- mirrors
+                // how DraggableCard/ZoneStackWidget avoid the same footgun.
+                onTap: widget.onDraw,
+                child: Draggable<String>(
+                  data: widget.topInstanceId,
+                  feedback: Material(type: MaterialType.transparency, child: _topFace()),
+                  childWhenDragging: Opacity(opacity: 0.3, child: _topFace()),
+                  onDragEnd: (details) => widget.onDragEnd(details.offset),
+                  child: AnimatedBuilder(
+                    animation: _shuffleController,
+                    builder: (context, child) {
+                      final t = _shuffleController.value;
+                      // A few oscillations that decay to zero by the end.
+                      final angle = math.sin(t * math.pi * 6) * 0.15 * (1 - t);
+                      return Transform.rotate(angle: angle, child: child);
+                    },
+                    child: _topFace(),
+                  ),
+                ),
+              ),
+            Positioned(
+              top: 0,
+              right: 0,
+              child: CircleAvatar(
+                radius: 12,
+                backgroundColor: Colors.black87,
+                child: Text('${widget.count}', style: const TextStyle(color: Colors.white, fontSize: 11)),
               ),
             ),
-          ),
-          Positioned(
-            top: 0,
-            right: 0,
-            child: CircleAvatar(
-              radius: 12,
-              backgroundColor: Colors.black87,
-              child: Text('${widget.count}', style: const TextStyle(color: Colors.white, fontSize: 11)),
-            ),
-          ),
-          Positioned(
-            bottom: -8,
-            child: Material(
-              color: Colors.black54,
-              shape: const CircleBorder(),
-              child: IconButton(
-                icon: const Icon(Icons.shuffle, color: Colors.white, size: 16),
-                tooltip: 'Shuffle',
-                onPressed: _handleShuffle,
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints.tightFor(width: 28, height: 28),
+            if (_effectiveOnShuffle != null)
+              Positioned(
+                bottom: -8,
+                child: Material(
+                  color: Colors.black54,
+                  shape: const CircleBorder(),
+                  child: IconButton(
+                    icon: const Icon(Icons.shuffle, color: Colors.white, size: 16),
+                    tooltip: 'Shuffle',
+                    onPressed: _handleShuffle,
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints.tightFor(width: 28, height: 28),
+                  ),
+                ),
               ),
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

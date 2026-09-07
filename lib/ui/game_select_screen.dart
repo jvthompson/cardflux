@@ -8,8 +8,8 @@ import 'widgets/game_picker.dart';
 
 /// Host-only screen: pick the bundled standard deck, or browse a folder on
 /// disk for custom game JSON files, then proceed to [HostLoadDeckScreen] --
-/// unless [game] is [GameDeckMode.fixedDeck], which has no per-player deck to
-/// choose, so it goes straight to [HostGameScreen] instead.
+/// unless [game] is `!needsDeckBuilding` (no owned zone needs a per-player
+/// deck choice), so it goes straight to [HostGameScreen] instead.
 /// The [hostServer]/[hostPlayerId] are only threaded through to the eventual
 /// [HostGameScreen] -- this screen doesn't touch the connection itself.
 class GameSelectScreen extends StatelessWidget {
@@ -19,7 +19,7 @@ class GameSelectScreen extends StatelessWidget {
   final String hostPlayerId;
 
   void _chooseGame(BuildContext context, GameDefinition game) {
-    if (game.deckMode == GameDeckMode.fixedDeck) {
+    if (!game.needsDeckBuilding) {
       Navigator.of(context).push(MaterialPageRoute(
         builder: (_) => HostGameScreen(
           hostServer: hostServer,

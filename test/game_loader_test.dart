@@ -58,6 +58,28 @@ void main() {
     expect(resolved, '${tempDir.path}${Platform.pathSeparator}one.jpg');
   });
 
+  test('loadFromFolder preserves zones through image-path resolution', () async {
+    final tempDir = await Directory.systemTemp.createTemp('flutter_deck_test_games_');
+    addTearDown(() => tempDir.delete(recursive: true));
+
+    final gameFile = File('${tempDir.path}/my_game.json');
+    await gameFile.writeAsString(jsonEncode({
+      'id': 'my_game',
+      'name': 'My Custom Game',
+      'cards': [
+        {'id': 'c1', 'cardTitle': 'One', 'colorHex': '#000000'},
+      ],
+      'zones': [
+        {'id': 'draw_deck', 'name': 'Draw Deck', 'dealsBuiltDeck': true},
+        {'id': 'discard_pile', 'name': 'Discard Pile'},
+      ],
+    }));
+
+    final games = await GameLoader().loadFromFolder(tempDir.path);
+    expect(games.single.zones, hasLength(2));
+    expect(games.single.needsDeckBuilding, isTrue);
+  });
+
   test('loadFromFolder returns empty list for a missing folder', () async {
     final games = await GameLoader().loadFromFolder('C:/definitely/not/a/real/path/xyz');
     expect(games, isEmpty);

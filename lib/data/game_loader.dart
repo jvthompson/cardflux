@@ -79,6 +79,7 @@ class GameLoader {
       name: game.name,
       cards: cards,
       cardBackImagePath: cardBackImagePath == null ? null : '$folderPath${Platform.pathSeparator}$cardBackImagePath',
+      zones: game.zones,
     );
   }
 }

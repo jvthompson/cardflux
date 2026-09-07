@@ -9,7 +9,6 @@ class TableState {
     required this.players,
     required this.cards,
     required this.revision,
-    this.fixedDeckNames = const {},
   });
 
   final String gameId;
@@ -17,20 +16,12 @@ class TableState {
   final List<CardInstance> cards;
   final int revision;
 
-  /// Root instanceId -> name, for decks dealt by `GameSession.dealFixedDecks`
-  /// (see `GameDeckMode.fixedDeck`) -- displayed as a hover tooltip over that
-  /// stack on the table. Set once at deal time and never touched again (not
-  /// exposed as a [copyWith] parameter), so it survives shuffles for free --
-  /// `shufflePile` never changes a stack's root/identity, only draw order.
-  final Map<String, String> fixedDeckNames;
-
   TableState copyWith({List<CardInstance>? cards, int? revision}) {
     return TableState(
       gameId: gameId,
       players: players,
       cards: cards ?? this.cards,
       revision: revision ?? this.revision,
-      fixedDeckNames: fixedDeckNames,
     );
   }
 
@@ -44,7 +35,6 @@ class TableState {
           .map((e) => CardInstance.fromJson((e as Map).cast<String, dynamic>()))
           .toList(),
       revision: json['revision'] as int,
-      fixedDeckNames: (json['fixedDeckNames'] as Map?)?.cast<String, String>() ?? const {},
     );
   }
 
@@ -54,7 +44,6 @@ class TableState {
       'players': players.map((p) => p.toJson()).toList(),
       'cards': cards.map((c) => c.toJson()).toList(),
       'revision': revision,
-      if (fixedDeckNames.isNotEmpty) 'fixedDeckNames': fixedDeckNames,
     };
   }
 }

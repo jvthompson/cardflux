@@ -6,6 +6,7 @@ import '../models/deck_config.dart';
 import '../models/game_definition.dart';
 import '../models/player.dart';
 import '../models/table_state.dart';
+import '../models/zone_definition.dart';
 import 'table_actions.dart';
 
 const _uuid = Uuid();
@@ -15,195 +16,110 @@ const _uuid = Uuid();
 /// `fullState` messages via [applyRemoteState] instead of local action
 /// calls -- see TableController for how the two differ in practice).
 class GameSession extends ChangeNotifier {
-  GameSession({required this.localPlayerId, required TableState initialState}) : _state = initialState;
+  GameSession({required this.game, required this.localPlayerId, required TableState initialState})
+      : _state = initialState;
 
+  /// The game this session is playing -- needed by [HostGameEngine] to
+  /// resolve a zone request (`{zoneId}`, no owner in the payload) down to
+  /// whether that zone is shared or belongs to the requesting player, via
+  /// [GameDefinition.zones].
+  final GameDefinition game;
   final String localPlayerId;
   final TableActions _actions = const TableActions();
   TableState _state;
 
   TableState get state => _state;
 
-  /// Builds a fresh single-player sandbox session (M2): every card from
-  /// [game] dealt face-down into one shared draw pile at the table center --
-  /// unless [game] is [GameDeckMode.fixedDeck], in which case its own
-  /// pre-authored, named deck(s) are dealt via [dealFixedDecks] instead (so
-  /// Practice Mode shows the same named-deck tooltip a real match would).
-  factory GameSession.localSandbox({
-    required GameDefinition game,
-    required String localPlayerId,
-    double pileX = 0.5,
-    double pileY = 0.5,
-  }) {
-    if (game.deckMode == GameDeckMode.fixedDeck) {
-      return GameSession.dealFixedDecks(
-        game: game,
-        players: [PlayerInfo(id: localPlayerId, name: 'You', role: PlayerRole.host)],
-        localPlayerId: localPlayerId,
-      );
-    }
-    return GameSession.dealDeck(
+  /// Builds a fresh single-player sandbox session (M2) via [dealFromZones],
+  /// with no per-player deck choice available -- any zone marked
+  /// [ZoneDefinition.dealsBuiltDeck] falls back to one of every card in
+  /// [game] instead of a real Load Deck selection.
+  factory GameSession.localSandbox({required GameDefinition game, required String localPlayerId}) {
+    return GameSession.dealFromZones(
       game: game,
-      deckConfig: DeckConfig.full(game),
-      localPlayerId: localPlayerId,
-      pileX: pileX,
-      pileY: pileY,
-    );
-  }
-
-  /// Builds a fresh session (M5) from a host's [DeckConfig] selection: the
-  /// requested quantity of each chosen [game] card, dealt face-down into one
-  /// shared draw pile at the table center. Entries referencing an unknown
-  /// [DeckEntry.definitionId] are skipped.
-  ///
-  /// [pileX]/[pileY] are canonical [0,1] fractions of the table's play area,
-  /// not pixels -- see `lib/game/geometry_utils.dart` for how a viewer
-  /// converts these to their own screen's local pixels (and mirrors them,
-  /// for whichever seat views the table from the opposite side).
-  factory GameSession.dealDeck({
-    required GameDefinition game,
-    required DeckConfig deckConfig,
-    required String localPlayerId,
-    double pileX = 0.5,
-    double pileY = 0.5,
-  }) {
-    final validIds = {for (final c in game.cards) c.id};
-    final cards = <CardInstance>[];
-    String? rootId;
-    var i = 0;
-    for (final entry in deckConfig.entries) {
-      if (!validIds.contains(entry.definitionId)) continue;
-      for (var q = 0; q < entry.quantity; q++) {
-        final instanceId = _uuid.v4();
-        cards.add(CardInstance(
-          instanceId: instanceId,
-          definitionId: entry.definitionId,
-          x: pileX,
-          y: pileY,
-          zIndex: i,
-          faceUp: false,
-          zone: CardZone.drawPile,
-          // All cards anchor directly to the first card, forming one pile.
-          stackParentId: i == 0 ? null : rootId,
-        ));
-        rootId ??= instanceId;
-        i++;
-      }
-    }
-    final state = TableState(
-      gameId: game.id,
       players: [PlayerInfo(id: localPlayerId, name: 'You', role: PlayerRole.host)],
-      cards: cards,
-      revision: 0,
+      localPlayerId: localPlayerId,
     );
-    return GameSession(localPlayerId: localPlayerId, initialState: state);
   }
 
-  /// Builds a fresh networked session from two independent per-player
-  /// [DeckConfig] selections (the Load Deck screen): each owner's cards are
-  /// dealt face-down into their *own* [CardZone.drawPile] stack (a separate
-  /// stackParentId chain per owner), unlike [dealDeck]'s single unowned
-  /// shared pile. Canonical `x`/`y` are unused for these cards -- a personal
-  /// deck renders via a fixed-position zone widget (see `DeckZoneWidget`),
-  /// never the free-form table `Stack`. Entries referencing an unknown
-  /// [DeckEntry.definitionId] are skipped, same as [dealDeck].
-  factory GameSession.dealPlayerDecks({
-    required GameDefinition game,
-    required Map<String, DeckConfig> deckConfigsByPlayerId,
-    required List<PlayerInfo> players,
-    required String localPlayerId,
-  }) {
-    final validIds = {for (final c in game.cards) c.id};
-    final cards = <CardInstance>[];
-    var i = 0;
-    for (final entry in deckConfigsByPlayerId.entries) {
-      final ownerId = entry.key;
-      String? rootId;
-      for (final deckEntry in entry.value.entries) {
-        if (!validIds.contains(deckEntry.definitionId)) continue;
-        for (var q = 0; q < deckEntry.quantity; q++) {
-          final instanceId = _uuid.v4();
-          cards.add(CardInstance(
-            instanceId: instanceId,
-            definitionId: deckEntry.definitionId,
-            x: 0.5,
-            y: 0.5,
-            zIndex: i,
-            faceUp: false,
-            zone: CardZone.drawPile,
-            ownerId: ownerId,
-            stackParentId: rootId,
-          ));
-          rootId ??= instanceId;
-          i++;
-        }
-      }
-    }
-    final state = TableState(gameId: game.id, players: players, cards: cards, revision: 0);
-    return GameSession(localPlayerId: localPlayerId, initialState: state);
-  }
-
-  /// Builds a fresh session from a [GameDeckMode.fixedDeck] game's own
-  /// pre-authored [GameDefinition.fixedDecks] -- no player ever builds or
-  /// chooses these (contrast [dealPlayerDecks]). Each deck is dealt
-  /// face-down into its own unowned, shared stack (same [CardZone.drawPile]
-  /// convention as [dealDeck]'s single shared pile -- draw/shuffle already
-  /// work for anyone on an unowned pile, no new guards needed) at its own
-  /// canonical position via [_fixedDeckPosition], clustered around the
-  /// host's middle-right (mirrors to the client's middle-left automatically,
-  /// same as any other canonical table position). A deck with empty
-  /// [FixedDeckDefinition.entries] gets one of every card in [game]; entries
-  /// referencing an unknown [DeckEntry.definitionId] are skipped, same as
-  /// [dealDeck]/[dealPlayerDecks].
-  factory GameSession.dealFixedDecks({
+  /// Deals every [player]'s zones from [game]'s [GameDefinition.zones]:
+  /// for each player, each owned zone (`!shared`) gets either that player's
+  /// entry in [deckConfigsByPlayerId] (if the zone is marked
+  /// [ZoneDefinition.dealsBuiltDeck] -- falling back to one of every card in
+  /// [game] if no config was supplied, e.g. Practice Mode) or its own static
+  /// [ZoneDefinition.entries] (typically empty, e.g. a discard pile starting
+  /// empty). Each shared zone is dealt once, unowned, at its own canonical
+  /// position (clustered around the host's middle-right, mirrored
+  /// automatically for the client -- see [_sharedZonePosition|), from its
+  /// own [ZoneDefinition.entries] (empty meaning one of every card, same
+  /// convention the old `FixedDeckDefinition` used). Entries referencing an
+  /// unknown [DeckEntry.definitionId] are skipped throughout.
+  ///
+  /// Zone cards don't need a stack-root identity the way a free-table pile
+  /// does (see `StackUtils`) -- a zone is found by `zone`/`zoneId`/`ownerId`
+  /// directly, not by walking a `stackParentId` chain, so [stackParentId] is
+  /// simply left null for every card dealt here.
+  factory GameSession.dealFromZones({
     required GameDefinition game,
     required List<PlayerInfo> players,
     required String localPlayerId,
+    Map<String, DeckConfig>? deckConfigsByPlayerId,
   }) {
     final validIds = {for (final c in game.cards) c.id};
+    final fullDeckEntries = [for (final c in game.cards) DeckEntry(definitionId: c.id, quantity: 1)];
     final cards = <CardInstance>[];
-    final fixedDeckNames = <String, String>{};
     var i = 0;
-    for (var d = 0; d < game.fixedDecks.length; d++) {
-      final deck = game.fixedDecks[d];
-      final entries = deck.entries.isNotEmpty
-          ? deck.entries
-          : [for (final c in game.cards) DeckEntry(definitionId: c.id, quantity: 1)];
-      final (px, py) = _fixedDeckPosition(d, game.fixedDecks.length);
-      String? rootId;
+
+    void deal(
+      Iterable<DeckEntry> entries, {
+      required String zoneId,
+      required String? ownerId,
+      required double x,
+      required double y,
+      required bool faceUp,
+    }) {
       for (final entry in entries) {
         if (!validIds.contains(entry.definitionId)) continue;
         for (var q = 0; q < entry.quantity; q++) {
-          final instanceId = _uuid.v4();
           cards.add(CardInstance(
-            instanceId: instanceId,
+            instanceId: _uuid.v4(),
             definitionId: entry.definitionId,
-            x: px,
-            y: py,
+            x: x,
+            y: y,
             zIndex: i,
-            faceUp: false,
-            zone: CardZone.drawPile,
-            stackParentId: rootId,
+            faceUp: faceUp,
+            zone: CardZone.zone,
+            zoneId: zoneId,
+            ownerId: ownerId,
           ));
-          rootId ??= instanceId;
           i++;
         }
       }
-      if (rootId != null) fixedDeckNames[rootId] = deck.name;
     }
-    final state = TableState(
-      gameId: game.id,
-      players: players,
-      cards: cards,
-      revision: 0,
-      fixedDeckNames: fixedDeckNames,
-    );
-    return GameSession(localPlayerId: localPlayerId, initialState: state);
+
+    for (final player in players) {
+      for (final zone in game.zones.where((z) => !z.shared)) {
+        final entries = zone.dealsBuiltDeck ? (deckConfigsByPlayerId?[player.id]?.entries ?? fullDeckEntries) : zone.entries;
+        deal(entries, zoneId: zone.id, ownerId: player.id, x: 0.5, y: 0.5, faceUp: zone.faceUp);
+      }
+    }
+
+    final sharedZones = game.zones.where((z) => z.shared).toList();
+    for (var d = 0; d < sharedZones.length; d++) {
+      final zone = sharedZones[d];
+      final entries = zone.entries.isNotEmpty ? zone.entries : fullDeckEntries;
+      final (px, py) = _sharedZonePosition(d, sharedZones.length);
+      deal(entries, zoneId: zone.id, ownerId: null, x: px, y: py, faceUp: zone.faceUp);
+    }
+
+    final state = TableState(gameId: game.id, players: players, cards: cards, revision: 0);
+    return GameSession(game: game, localPlayerId: localPlayerId, initialState: state);
   }
 
-  /// Canonical [0,1] position for the [index]th of [count] fixed decks,
+  /// Canonical [0,1] position for the [index]th of [count] shared zones,
   /// clustered around the host's middle-right (`x` fixed, `y` spread evenly
-  /// around center for `count` > 1) so multiple named decks don't overlap.
-  static (double, double) _fixedDeckPosition(int index, int count) {
+  /// around center for `count` > 1) so multiple shared zones don't overlap.
+  static (double, double) _sharedZonePosition(int index, int count) {
     const x = 0.8;
     const centerY = 0.5;
     const spacing = 0.15;
@@ -218,6 +134,11 @@ class GameSession extends ChangeNotifier {
 
   void moveStack(String rootInstanceId, double x, double y) {
     _state = _actions.moveStack(_state, rootInstanceId: rootInstanceId, x: x, y: y);
+    notifyListeners();
+  }
+
+  void rotateStack(String rootInstanceId, {required bool clockwise}) {
+    _state = _actions.rotateStack(_state, rootInstanceId: rootInstanceId, clockwise: clockwise);
     notifyListeners();
   }
 
@@ -251,9 +172,11 @@ class GameSession extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Draws into [ownerId]'s hand, defaulting to this session's own local
-  /// player -- the host overrides this to the requesting client's id when
-  /// applying a networked draw request on their behalf.
+  /// Draws the top card of the free-table pile rooted at [pileInstanceId]
+  /// into [ownerId]'s hand, defaulting to this session's own local player --
+  /// the host overrides this to the requesting client's id when applying a
+  /// networked draw request on their behalf. For a zone (draw deck, discard
+  /// pile, etc.) see [drawFromZone] instead.
   void drawCard(String pileInstanceId, {String? ownerId}) {
     _state = _actions.drawCard(_state, pileInstanceId: pileInstanceId, ownerId: ownerId ?? localPlayerId);
     notifyListeners();
@@ -264,19 +187,45 @@ class GameSession extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Returns into [ownerId]'s personal deck, defaulting to this session's
-  /// own local player -- see [drawCard]'s doc for why the host overrides
-  /// this when applying a networked request on the client's behalf.
-  void returnToDeck(String instanceId, String? deckRootInstanceId, {String? ownerId, bool toBottom = false}) {
-    _state = _actions.returnToDeck(
+  /// Draws the top card of the zone [zoneId] (owned by [zoneOwnerId], null
+  /// for a shared zone) into [toOwnerId]'s hand, defaulting to this
+  /// session's own local player.
+  void drawFromZone(String zoneId, {required String? zoneOwnerId, String? toOwnerId}) {
+    _state = _actions.drawFromZone(
+      _state,
+      zoneId: zoneId,
+      zoneOwnerId: zoneOwnerId,
+      toOwnerId: toOwnerId ?? localPlayerId,
+    );
+    notifyListeners();
+  }
+
+  /// Returns [instanceId] to the zone [zoneId] (owned by [zoneOwnerId], null
+  /// for a shared zone), detached from wherever it was, showing its face
+  /// according to that zone's own [ZoneDefinition.faceUp].
+  void returnToZone(String instanceId, String zoneId, {required String? zoneOwnerId, bool toBottom = false}) {
+    _state = _actions.returnToZone(
       _state,
       instanceId: instanceId,
-      deckRootInstanceId: deckRootInstanceId,
-      ownerId: ownerId ?? localPlayerId,
+      zoneId: zoneId,
+      zoneOwnerId: zoneOwnerId,
+      faceUp: _zoneDefinition(zoneId).faceUp,
       toBottom: toBottom,
     );
     notifyListeners();
   }
+
+  /// Shuffles the zone [zoneId] (owned by [zoneOwnerId], null for a shared
+  /// zone) -- a no-op if that zone's own [ZoneDefinition.shuffleable] is
+  /// false (e.g. a discard pile, whose order is a history rather than a
+  /// randomized pool).
+  void shuffleZone(String zoneId, {required String? zoneOwnerId}) {
+    if (!_zoneDefinition(zoneId).shuffleable) return;
+    _state = _actions.shuffleZone(_state, zoneId: zoneId, zoneOwnerId: zoneOwnerId);
+    notifyListeners();
+  }
+
+  ZoneDefinition _zoneDefinition(String zoneId) => game.zones.firstWhere((z) => z.id == zoneId);
 
   /// Replaces the entire state wholesale — used once networking lands (M4)
   /// to apply an incoming `fullState` snapshot from the host.
