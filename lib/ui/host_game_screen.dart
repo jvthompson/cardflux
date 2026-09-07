@@ -103,6 +103,7 @@ class _HostGameScreenState extends State<HostGameScreen> {
       child: TableScreen(
         definitionsById: _definitionsById,
         controller: HostTableController(session),
+        isMirrored: false,
       ),
     );
   }

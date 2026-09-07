@@ -23,6 +23,7 @@ enum NetMessageType {
   requestMove,
   requestFlip,
   requestStack,
+  requestMoveToHand,
   requestDraw,
   requestShuffle,
   ping,

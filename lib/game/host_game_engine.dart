@@ -64,6 +64,12 @@ class HostGameEngine {
           session.stackCard(instanceId, ontoInstanceId);
         }
         break;
+      case NetMessageType.requestMoveToHand:
+        final instanceId = msg.payload['instanceId'] as String;
+        if (_isAllowedToActOn(instanceId, clientId)) {
+          session.moveToHand(instanceId, ownerId: clientId);
+        }
+        break;
       case NetMessageType.requestDraw:
         session.drawCard(msg.payload['pileInstanceId'] as String, ownerId: clientId);
         break;

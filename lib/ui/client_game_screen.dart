@@ -112,6 +112,7 @@ class _ClientGameScreenState extends State<ClientGameScreen> {
       child: TableScreen(
         definitionsById: _definitionsById,
         controller: ClientTableController(widget.gameClient),
+        isMirrored: true,
       ),
     );
   }

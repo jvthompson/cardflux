@@ -1,3 +1,5 @@
+import 'dart:math' show pi;
+
 import 'package:flutter/material.dart';
 
 import '../../models/card_definition.dart';
@@ -9,6 +11,11 @@ import 'card_face_widget.dart';
 /// stack, tappable to flip. [definition] is null for a hidden opponent-hand
 /// card (see state_filter.dart's sentinel) — in that case a back is always
 /// shown regardless of [instance.faceUp].
+///
+/// [isMirrored] rotates the rendered face/back 180° -- used for shared table
+/// cards on a mirrored seat's view (see table_screen.dart's
+/// `TableScreen.isMirrored`); defaults to false since a player's own hand
+/// (rendered via `HandZoneWidget`) is never mirrored regardless of seat.
 class DraggableCard extends StatelessWidget {
   const DraggableCard({
     super.key,
@@ -16,18 +23,18 @@ class DraggableCard extends StatelessWidget {
     required this.definition,
     required this.onTapFlip,
     required this.onDragEnd,
+    this.isMirrored = false,
   });
 
   final CardInstance instance;
   final CardDefinition? definition;
   final VoidCallback onTapFlip;
   final void Function(Offset globalPosition) onDragEnd;
+  final bool isMirrored;
 
   Widget _face() {
-    if (instance.faceUp && definition != null) {
-      return CardFaceWidget(definition: definition!);
-    }
-    return const CardBackWidget();
+    final content = instance.faceUp && definition != null ? CardFaceWidget(definition: definition!) : const CardBackWidget();
+    return isMirrored ? Transform.rotate(angle: pi, child: content) : content;
   }
 
   @override

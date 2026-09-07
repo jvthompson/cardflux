@@ -50,6 +50,7 @@ class _PracticeScreenState extends State<PracticeScreen> {
       child: TableScreen(
         definitionsById: _definitionsById,
         controller: HostTableController(session),
+        isMirrored: false,
       ),
     );
   }

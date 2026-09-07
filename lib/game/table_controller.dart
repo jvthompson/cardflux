@@ -9,6 +9,7 @@ abstract class TableController {
   void moveCard(String instanceId, double x, double y);
   void flipCard(String instanceId);
   void stackCard(String instanceId, String ontoInstanceId);
+  void moveToHand(String instanceId);
   void drawCard(String pileInstanceId);
   void shufflePile(String pileRootInstanceId);
 }
@@ -28,6 +29,9 @@ class HostTableController implements TableController {
 
   @override
   void stackCard(String instanceId, String ontoInstanceId) => _session.stackCard(instanceId, ontoInstanceId);
+
+  @override
+  void moveToHand(String instanceId) => _session.moveToHand(instanceId);
 
   @override
   void drawCard(String pileInstanceId) => _session.drawCard(pileInstanceId);
@@ -60,6 +64,11 @@ class ClientTableController implements TableController {
       type: NetMessageType.requestStack,
       payload: {'instanceId': instanceId, 'ontoInstanceId': ontoInstanceId},
     ));
+  }
+
+  @override
+  void moveToHand(String instanceId) {
+    _client.send(NetMessage(type: NetMessageType.requestMoveToHand, payload: {'instanceId': instanceId}));
   }
 
   @override

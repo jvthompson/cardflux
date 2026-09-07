@@ -23,3 +23,35 @@ double clampCardCenterY({
   if (lowerBound > upperBound) return tableHeight / 2;
   return proposedCenterY.clamp(lowerBound, upperBound);
 }
+
+/// Converts a card's canonical [0,1] fraction position into a viewer's local
+/// pixel position within the table's Stack. [isMirrored] flips both axes for
+/// the seat viewing the table from the opposite side (see
+/// table_screen.dart's `TableScreen.isMirrored`) -- the host's own view is
+/// never mirrored; the client's is.
+(double, double) canonicalToLocalPixel({
+  required double fx,
+  required double fy,
+  required double tableWidth,
+  required double tableHeight,
+  required bool isMirrored,
+}) {
+  final ux = isMirrored ? 1 - fx : fx;
+  final uy = isMirrored ? 1 - fy : fy;
+  return (ux * tableWidth, uy * tableHeight);
+}
+
+/// Inverse of [canonicalToLocalPixel] -- converts a local pixel position
+/// (e.g. from a drag-end gesture) back into the canonical [0,1] fraction
+/// space stored on `CardInstance`, clamped to stay within the table.
+(double, double) localPixelToCanonical({
+  required double pixelX,
+  required double pixelY,
+  required double tableWidth,
+  required double tableHeight,
+  required bool isMirrored,
+}) {
+  final fx = (pixelX / tableWidth).clamp(0.0, 1.0);
+  final fy = (pixelY / tableHeight).clamp(0.0, 1.0);
+  return (isMirrored ? 1 - fx : fx, isMirrored ? 1 - fy : fy);
+}

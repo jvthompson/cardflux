@@ -35,6 +35,19 @@ class TableActions {
     return state.copyWith(cards: cards, revision: state.revision + 1);
   }
 
+  /// Moves an arbitrary table card directly into [ownerId]'s hand, face-up,
+  /// detached from any stack -- used when a card is dropped onto the
+  /// player's own hand zone rather than a table position. Unlike [drawCard],
+  /// [instanceId] is the card itself, not a pile to resolve a top card from.
+  TableState moveToHand(TableState state, {required String instanceId, required String ownerId}) {
+    final nextZ = _nextZIndex(state);
+    final cards = state.cards.map((c) {
+      if (c.instanceId != instanceId) return c;
+      return c.copyWith(zone: CardZone.hand, ownerId: ownerId, faceUp: true, stackParentId: null, zIndex: nextZ);
+    }).toList();
+    return state.copyWith(cards: cards, revision: state.revision + 1);
+  }
+
   /// Toggles a card's face-up/down state in place.
   TableState flipCard(TableState state, {required String instanceId}) {
     final cards = state.cards.map((c) {

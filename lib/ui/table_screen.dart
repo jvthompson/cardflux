@@ -23,11 +23,19 @@ const double _stackHitRadius = cardWidth * 0.6;
 /// anywhere, flipped, and stacked into piles, plus the local player's hand.
 /// Every action goes through [controller] -- the host applies it directly,
 /// a client sends it to the host and waits for the next state broadcast.
+///
+/// [isMirrored] renders the shared table area (not the hand zones, which
+/// always keep their own fixed top/bottom layout) as if viewed from the
+/// opposite seat -- both axes flipped and cards rotated 180° -- so a card
+/// dragged near one player's own hand appears near the *other* player's,
+/// matching a physical table where the two seats face each other. The host
+/// is always the canonical/unmirrored seat; the client is always mirrored.
 class TableScreen extends StatefulWidget {
-  const TableScreen({super.key, required this.definitionsById, required this.controller});
+  const TableScreen({super.key, required this.definitionsById, required this.controller, required this.isMirrored});
 
   final Map<String, CardDefinition> definitionsById;
   final TableController controller;
+  final bool isMirrored;
 
   @override
   State<TableScreen> createState() => _TableScreenState();
@@ -35,10 +43,38 @@ class TableScreen extends StatefulWidget {
 
 class _TableScreenState extends State<TableScreen> {
   final GlobalKey _tableKey = GlobalKey();
+  final GlobalKey _handZoneKey = GlobalKey();
+
+  /// The table Stack's own measured size, refreshed every build via the
+  /// LayoutBuilder in [build] -- needed to convert canonical [0,1] fractions
+  /// to this screen's pixels *during* the same build that lays the Stack
+  /// out, before `_tableBox` (which needs a completed layout) is available.
+  Size _tableSize = Size.zero;
 
   RenderBox get _tableBox => _tableKey.currentContext!.findRenderObject() as RenderBox;
 
   Offset _globalToTableLocal(Offset global) => _tableBox.globalToLocal(global);
+
+  Offset _toScreenPixel(double fx, double fy) {
+    final (px, py) = canonicalToLocalPixel(
+      fx: fx,
+      fy: fy,
+      tableWidth: _tableSize.width,
+      tableHeight: _tableSize.height,
+      isMirrored: widget.isMirrored,
+    );
+    return Offset(px, py);
+  }
+
+  /// True if [globalPoint] falls within the local player's own hand zone --
+  /// used so a card dropped back onto that zone goes into the hand instead
+  /// of onto the table (regardless of where it started the drag from).
+  bool _isOverLocalHandZone(Offset globalPoint) {
+    final box = _handZoneKey.currentContext?.findRenderObject() as RenderBox?;
+    if (box == null) return false;
+    final rect = box.localToGlobal(Offset.zero) & box.size;
+    return rect.contains(globalPoint);
+  }
 
   /// Finds the nearest other top-of-stack card within [_stackHitRadius] of
   /// [center], if any — used to decide whether a drop should stack instead
@@ -52,7 +88,10 @@ class _TableScreenState extends State<TableScreen> {
     double bestDist = double.infinity;
     for (final c in tableTops) {
       if (c.instanceId == excludingInstanceId) continue;
-      final dist = (Offset(c.x, c.y) - center).distance;
+      // Candidates are stored as canonical fractions -- convert through the
+      // same mirror-aware transform as rendering so distances are measured
+      // in this screen's actual pixel space regardless of seat.
+      final dist = (_toScreenPixel(c.x, c.y) - center).distance;
       if (dist < _stackHitRadius && dist < bestDist) {
         best = c;
         bestDist = dist;
@@ -62,7 +101,12 @@ class _TableScreenState extends State<TableScreen> {
   }
 
   void _handleDragEnd(List<CardInstance> tableTops, String instanceId, Offset globalTopLeft) {
-    final box = _tableBox;
+    final globalCenter = globalTopLeft + const Offset(cardWidth / 2, cardHeight / 2);
+    if (_isOverLocalHandZone(globalCenter)) {
+      widget.controller.moveToHand(instanceId);
+      return;
+    }
+
     final local = _globalToTableLocal(globalTopLeft);
     final rawCenter = Offset(local.dx + cardWidth / 2, local.dy + cardHeight / 2);
     final target = _findStackTarget(tableTops: tableTops, excludingInstanceId: instanceId, center: rawCenter);
@@ -73,10 +117,17 @@ class _TableScreenState extends State<TableScreen> {
       // released over a hand zone band lands behind it, unselectable.
       final clampedY = clampCardCenterY(
         proposedCenterY: rawCenter.dy,
-        tableHeight: box.size.height,
+        tableHeight: _tableSize.height,
         cardHeight: cardHeight,
       );
-      widget.controller.moveCard(instanceId, rawCenter.dx, clampedY);
+      final (fx, fy) = localPixelToCanonical(
+        pixelX: rawCenter.dx,
+        pixelY: clampedY,
+        tableWidth: _tableSize.width,
+        tableHeight: _tableSize.height,
+        isMirrored: widget.isMirrored,
+      );
+      widget.controller.moveCard(instanceId, fx, fy);
     }
   }
 
@@ -102,40 +153,48 @@ class _TableScreenState extends State<TableScreen> {
               children: [
                 OpponentHandZoneWidget(count: opponentHandCount),
                 Expanded(
-                  child: Stack(
-                    key: _tableKey,
-                    clipBehavior: Clip.none,
-                    children: [
-                      for (final group in groups.entries)
-                        Builder(builder: (context) {
-                          final cards = group.value;
-                          final top = _stackUtils.topOf(cards);
-                          if (cards.length > 1) {
-                            return Positioned(
-                              left: top.x - cardWidth / 2,
-                              top: top.y - cardHeight / 2,
-                              child: PileWidget(
-                                count: cards.length,
-                                onDraw: () => widget.controller.drawCard(group.key),
-                                onShuffle: () => widget.controller.shufflePile(group.key),
-                              ),
-                            );
-                          }
-                          return Positioned(
-                            left: top.x - cardWidth / 2,
-                            top: top.y - cardHeight / 2,
-                            child: DraggableCard(
-                              instance: top,
-                              definition: widget.definitionsById[top.definitionId],
-                              onTapFlip: () => widget.controller.flipCard(top.instanceId),
-                              onDragEnd: (offset) => _handleDragEnd(tops, top.instanceId, offset),
-                            ),
-                          );
-                        }),
-                    ],
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      _tableSize = constraints.biggest;
+                      return Stack(
+                        key: _tableKey,
+                        clipBehavior: Clip.none,
+                        children: [
+                          for (final group in groups.entries)
+                            Builder(builder: (context) {
+                              final cards = group.value;
+                              final top = _stackUtils.topOf(cards);
+                              final pos = _toScreenPixel(top.x, top.y);
+                              if (cards.length > 1) {
+                                return Positioned(
+                                  left: pos.dx - cardWidth / 2,
+                                  top: pos.dy - cardHeight / 2,
+                                  child: PileWidget(
+                                    count: cards.length,
+                                    onDraw: () => widget.controller.drawCard(group.key),
+                                    onShuffle: () => widget.controller.shufflePile(group.key),
+                                  ),
+                                );
+                              }
+                              return Positioned(
+                                left: pos.dx - cardWidth / 2,
+                                top: pos.dy - cardHeight / 2,
+                                child: DraggableCard(
+                                  instance: top,
+                                  definition: widget.definitionsById[top.definitionId],
+                                  isMirrored: widget.isMirrored,
+                                  onTapFlip: () => widget.controller.flipCard(top.instanceId),
+                                  onDragEnd: (offset) => _handleDragEnd(tops, top.instanceId, offset),
+                                ),
+                              );
+                            }),
+                        ],
+                      );
+                    },
                   ),
                 ),
                 HandZoneWidget(
+                  key: _handZoneKey,
                   cards: localHand,
                   definitionsById: widget.definitionsById,
                   onTapFlip: (id) => widget.controller.flipCard(id),

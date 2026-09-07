@@ -74,6 +74,22 @@ void main() {
     });
   });
 
+  group('moveToHand', () {
+    test('moves the given card into the owner hand, face-up, detached from its stack', () {
+      final state = _threeCardPile();
+      final next = _actions.moveToHand(state, instanceId: 'a', ownerId: 'p1');
+      final moved = next.cards.firstWhere((c) => c.instanceId == 'a');
+      expect(moved.zone, CardZone.hand);
+      expect(moved.ownerId, 'p1');
+      expect(moved.faceUp, isTrue);
+      expect(moved.stackParentId, isNull);
+      // Untouched cards remain exactly as they were.
+      final root = next.cards.firstWhere((c) => c.instanceId == 'root');
+      expect(root.zone, CardZone.drawPile);
+      expect(next.revision, state.revision + 1);
+    });
+  });
+
   group('drawCard', () {
     test('moves the top card into the given owner hand, face-up, detached', () {
       final state = _threeCardPile();

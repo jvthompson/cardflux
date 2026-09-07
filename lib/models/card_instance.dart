@@ -30,6 +30,13 @@ class CardInstance {
 
   final String instanceId;
   final String definitionId;
+
+  /// Canonical position as [0,1] fractions of the table's play area (0,0 =
+  /// top-left, 1,1 = bottom-right), not pixels -- resolution-independent so
+  /// host and client windows of any size agree on where a card sits. See
+  /// `lib/game/geometry_utils.dart` for how a viewer converts these to their
+  /// own screen's pixels, mirroring both axes for whichever seat views the
+  /// table from the opposite side.
   final double x;
   final double y;
   final int zIndex;

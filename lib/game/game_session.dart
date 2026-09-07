@@ -28,8 +28,8 @@ class GameSession extends ChangeNotifier {
   factory GameSession.localSandbox({
     required GameDefinition game,
     required String localPlayerId,
-    double pileX = 400,
-    double pileY = 300,
+    double pileX = 0.5,
+    double pileY = 0.5,
   }) {
     return GameSession.dealDeck(
       game: game,
@@ -44,12 +44,17 @@ class GameSession extends ChangeNotifier {
   /// requested quantity of each chosen [game] card, dealt face-down into one
   /// shared draw pile at the table center. Entries referencing an unknown
   /// [DeckEntry.definitionId] are skipped.
+  ///
+  /// [pileX]/[pileY] are canonical [0,1] fractions of the table's play area,
+  /// not pixels -- see `lib/game/geometry_utils.dart` for how a viewer
+  /// converts these to their own screen's local pixels (and mirrors them,
+  /// for whichever seat views the table from the opposite side).
   factory GameSession.dealDeck({
     required GameDefinition game,
     required DeckConfig deckConfig,
     required String localPlayerId,
-    double pileX = 400,
-    double pileY = 300,
+    double pileX = 0.5,
+    double pileY = 0.5,
   }) {
     final validIds = {for (final c in game.cards) c.id};
     final cards = <CardInstance>[];
@@ -95,6 +100,13 @@ class GameSession extends ChangeNotifier {
 
   void stackCard(String instanceId, String ontoInstanceId) {
     _state = _actions.stackCard(_state, instanceId: instanceId, ontoInstanceId: ontoInstanceId);
+    notifyListeners();
+  }
+
+  /// Moves into [ownerId]'s hand, defaulting to this session's own local
+  /// player -- see [drawCard]'s doc for why the host overrides this.
+  void moveToHand(String instanceId, {String? ownerId}) {
+    _state = _actions.moveToHand(_state, instanceId: instanceId, ownerId: ownerId ?? localPlayerId);
     notifyListeners();
   }
 
