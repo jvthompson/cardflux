@@ -5,6 +5,16 @@ import 'dart:convert';
 /// out-of-band -- just the host's IP address.
 const int defaultGamePort = 51234;
 
+/// How often each side of a connection sends an unprompted [NetMessageType.ping]
+/// to the other -- keeps the line active and lets [heartbeatTimeout] detect a
+/// silently-dead peer (as opposed to a clean process exit, which the socket's
+/// own `onDone`/`onError` already reports immediately).
+const Duration heartbeatInterval = Duration(seconds: 4);
+
+/// How long without receiving *any* message (gameplay traffic or a ping)
+/// before a connection is considered dead and forcibly dropped.
+const Duration heartbeatTimeout = Duration(seconds: 12);
+
 enum NetMessageType {
   hello,
   welcome,

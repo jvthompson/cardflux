@@ -5,9 +5,14 @@ import 'join_screen.dart';
 import 'practice_screen.dart';
 
 /// Entry screen: choose a display name, then host a game, join one by IP,
-/// or practice offline in the single-player sandbox (M2).
+/// or practice offline in the single-player sandbox (M2). [message], when
+/// set, is shown as a one-time banner -- used to explain why we're back here
+/// (e.g. the opponent disconnected mid-game, see host_game_screen.dart /
+/// client_game_screen.dart).
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  const HomeScreen({super.key, this.message});
+
+  final String? message;
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -39,6 +44,19 @@ class _HomeScreenState extends State<HomeScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
+                if (widget.message != null) ...[
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.orange),
+                    ),
+                    child: Text(widget.message!, style: const TextStyle(color: Colors.orange)),
+                  ),
+                  const SizedBox(height: 24),
+                ],
                 TextField(
                   controller: _nameController,
                   decoration: const InputDecoration(labelText: 'Your name', border: OutlineInputBorder()),

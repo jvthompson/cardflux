@@ -13,10 +13,16 @@ enum HostConnectionStatus { waiting, connected, disconnected }
 /// connection, and completes a hello/welcome handshake. Game-state messages
 /// (fullState/requestX) are surfaced via [incoming] but not interpreted here
 /// -- HostGameEngine (M4) owns applying them to the authoritative table.
+/// Also runs a [heartbeatInterval] ping/pong with the client (M6) so a
+/// silently-dead connection (as opposed to a clean process exit, which the
+/// socket's own `onDone`/`onError` already reports immediately) is detected
+/// within [heartbeatTimeout] instead of relying on the OS's TCP timeout.
 class HostServer {
   ServerSocket? _serverSocket;
   Socket? _clientSocket;
   StreamSubscription<NetMessage>? _sub;
+  Timer? _heartbeatTimer;
+  DateTime _lastActivity = DateTime.now();
   final _incomingController = StreamController<NetMessage>.broadcast();
   final _statusController = StreamController<HostConnectionStatus>.broadcast();
 
@@ -42,8 +48,15 @@ class HostServer {
       return;
     }
     _clientSocket = socket;
+    _lastActivity = DateTime.now();
+    _heartbeatTimer = Timer.periodic(heartbeatInterval, (_) => _onHeartbeatTick());
     _sub = decodeMessages(socket).listen(
       (msg) {
+        _lastActivity = DateTime.now();
+        if (msg.type == NetMessageType.ping) {
+          send(NetMessage(type: NetMessageType.pong));
+          return;
+        }
         if (msg.type == NetMessageType.hello) {
           opponentName = msg.payload['name'] as String?;
           opponentPlayerId = _uuid.v4();
@@ -61,9 +74,22 @@ class HostServer {
     );
   }
 
+  void _onHeartbeatTick() {
+    if (DateTime.now().difference(_lastActivity) > heartbeatTimeout) {
+      // No traffic at all (not even a ping) within the timeout -- the
+      // client is silently gone; force the socket closed so onDone/onError
+      // runs the normal disconnect path.
+      _clientSocket?.destroy();
+      return;
+    }
+    send(NetMessage(type: NetMessageType.ping));
+  }
+
   void _handleDisconnect() {
+    if (status == HostConnectionStatus.disconnected) return;
     status = HostConnectionStatus.disconnected;
     _statusController.add(status);
+    _heartbeatTimer?.cancel();
     _clientSocket = null;
   }
 
@@ -72,6 +98,7 @@ class HostServer {
   }
 
   Future<void> stop() async {
+    _heartbeatTimer?.cancel();
     await _sub?.cancel();
     _clientSocket?.destroy();
     await _serverSocket?.close();

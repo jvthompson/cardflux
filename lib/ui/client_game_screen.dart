@@ -10,6 +10,7 @@ import '../models/game_definition.dart';
 import '../models/table_state.dart';
 import '../networking/game_client.dart';
 import '../networking/net_message.dart';
+import 'home_screen.dart';
 import 'table_screen.dart';
 
 /// Waits for the host's `gameData` (the [GameDefinition] it's dealing from)
@@ -33,12 +34,29 @@ class _ClientGameScreenState extends State<ClientGameScreen> {
   GameSession? _session;
   Map<String, CardDefinition> _definitionsById = {};
   StreamSubscription<NetMessage>? _sub;
+  StreamSubscription<ClientConnectionStatus>? _statusSub;
   GameDefinition? _game;
+  bool _navigatedHome = false;
 
   @override
   void initState() {
     super.initState();
     _sub = widget.gameClient.incoming.listen(_handleMessage);
+    _statusSub = widget.gameClient.statusStream.listen((status) {
+      if (status == ClientConnectionStatus.disconnected) _returnHome();
+    });
+  }
+
+  void _returnHome() {
+    if (_navigatedHome || !mounted) return;
+    _navigatedHome = true;
+    // This connection is over either way -- release the socket so a fresh
+    // "Join Game" attempt from HomeScreen can open a new one.
+    widget.gameClient.disconnect();
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const HomeScreen(message: 'Disconnected from host.')),
+      (route) => false,
+    );
   }
 
   void _handleMessage(NetMessage msg) {
@@ -67,6 +85,8 @@ class _ClientGameScreenState extends State<ClientGameScreen> {
   @override
   void dispose() {
     _sub?.cancel();
+    _statusSub?.cancel();
+    if (!_navigatedHome) widget.gameClient.disconnect();
     super.dispose();
   }
 

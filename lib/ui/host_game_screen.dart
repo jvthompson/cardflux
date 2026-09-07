@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -9,6 +11,7 @@ import '../models/deck_config.dart';
 import '../models/game_definition.dart';
 import '../networking/host_server.dart';
 import '../networking/net_message.dart';
+import 'home_screen.dart';
 import 'table_screen.dart';
 
 /// Deals [game]/[deckConfig] (chosen on [GameSelectScreen]/[DeckBuildScreen])
@@ -39,6 +42,8 @@ class _HostGameScreenState extends State<HostGameScreen> {
   GameSession? _session;
   HostGameEngine? _engine;
   Map<String, CardDefinition> _definitionsById = {};
+  StreamSubscription<HostConnectionStatus>? _statusSub;
+  bool _navigatedHome = false;
 
   @override
   void initState() {
@@ -57,6 +62,9 @@ class _HostGameScreenState extends State<HostGameScreen> {
     // definitionIds in the fullState snapshot that follows.
     widget.hostServer.send(NetMessage(type: NetMessageType.gameData, payload: widget.game.toJson()));
     engine.start();
+    _statusSub = widget.hostServer.statusStream.listen((status) {
+      if (status == HostConnectionStatus.disconnected) _returnHome();
+    });
     setState(() {
       _session = session;
       _engine = engine;
@@ -64,9 +72,23 @@ class _HostGameScreenState extends State<HostGameScreen> {
     });
   }
 
+  void _returnHome() {
+    if (_navigatedHome || !mounted) return;
+    _navigatedHome = true;
+    // This hosting session is over either way -- release the port so a
+    // fresh "Host Game" attempt from HomeScreen can rebind it.
+    widget.hostServer.stop();
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const HomeScreen(message: 'Opponent disconnected.')),
+      (route) => false,
+    );
+  }
+
   @override
   void dispose() {
+    _statusSub?.cancel();
     _engine?.dispose();
+    if (!_navigatedHome) widget.hostServer.stop();
     super.dispose();
   }
 
