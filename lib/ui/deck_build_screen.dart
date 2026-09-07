@@ -121,10 +121,10 @@ class _DeckEntryRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = Color(int.parse(card.colorHex.replaceFirst('#', '0xFF')));
+    final color = Color(int.parse((card.colorHex ?? '#9E9E9E').replaceFirst('#', '0xFF')));
     return ListTile(
-      leading: CircleAvatar(backgroundColor: color, child: Text(card.label, style: const TextStyle(color: Colors.white, fontSize: 12))),
-      title: Text(card.label),
+      leading: CircleAvatar(backgroundColor: color, child: Text(card.cardTitle, style: const TextStyle(color: Colors.white, fontSize: 12))),
+      title: Text(card.cardTitle),
       subtitle: card.suit != null ? Text(card.suit!) : null,
       trailing: Row(
         mainAxisSize: MainAxisSize.min,

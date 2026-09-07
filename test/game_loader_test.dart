@@ -28,7 +28,7 @@ void main() {
       'id': 'my_game',
       'name': 'My Custom Game',
       'cards': [
-        {'id': 'c1', 'label': 'One', 'colorHex': '#000000'},
+        {'id': 'c1', 'cardTitle': 'One', 'colorHex': '#000000'},
       ],
     }));
     // A non-JSON file in the same folder should be ignored, not error.
@@ -37,7 +37,7 @@ void main() {
     final games = await GameLoader().loadFromFolder(tempDir.path);
     expect(games, hasLength(1));
     expect(games.single.id, 'my_game');
-    expect(games.single.cards.single.label, 'One');
+    expect(games.single.cards.single.cardTitle, 'One');
   });
 
   test('loadFromFolder returns empty list for a missing folder', () async {

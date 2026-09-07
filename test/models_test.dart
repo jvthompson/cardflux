@@ -11,14 +11,14 @@ void main() {
     test('round-trips through JSON', () {
       const def = CardDefinition(
         id: 'hearts_A',
-        label: 'A',
+        cardTitle: 'A',
         colorHex: '#D32F2F',
         suit: 'hearts',
         rank: 'A',
       );
       final roundTripped = CardDefinition.fromJson(def.toJson());
       expect(roundTripped.id, def.id);
-      expect(roundTripped.label, def.label);
+      expect(roundTripped.cardTitle, def.cardTitle);
       expect(roundTripped.colorHex, def.colorHex);
       expect(roundTripped.suit, def.suit);
       expect(roundTripped.rank, def.rank);
@@ -98,7 +98,7 @@ void main() {
       const game = GameDefinition(
         id: 'standard_52',
         name: 'Standard 52-Card Deck',
-        cards: [CardDefinition(id: 'hearts_A', label: 'A', colorHex: '#D32F2F')],
+        cards: [CardDefinition(id: 'hearts_A', cardTitle: 'A', colorHex: '#D32F2F')],
       );
       final roundTripped = GameDefinition.fromJson(game.toJson());
       expect(roundTripped.id, 'standard_52');
@@ -124,8 +124,8 @@ void main() {
         id: 'g1',
         name: 'G',
         cards: [
-          CardDefinition(id: 'a', label: 'A', colorHex: '#000000'),
-          CardDefinition(id: 'b', label: 'B', colorHex: '#000000'),
+          CardDefinition(id: 'a', cardTitle: 'A', colorHex: '#000000'),
+          CardDefinition(id: 'b', cardTitle: 'B', colorHex: '#000000'),
         ],
       );
       final deck = DeckConfig.full(game);

@@ -18,6 +18,10 @@ const Map<String, String> _suitGlyphs = {
 /// suit concept (its cards fall back to just the rank label everywhere).
 String? _suitGlyphFor(String? suit) => suit == null ? null : _suitGlyphs[suit.toLowerCase()];
 
+/// Fallback color for a custom game that doesn't assign a [CardDefinition.colorHex]
+/// (e.g. one with no natural single-color-per-card scheme).
+const String _defaultColorHex = '#9E9E9E';
+
 Color _parseHexColor(String hex) {
   final cleaned = hex.replaceFirst('#', '');
   return Color(int.parse('FF$cleaned', radix: 16));
@@ -38,7 +42,7 @@ class CardFaceWidget extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          definition.label,
+          definition.cardTitle,
           style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 15, height: 1),
         ),
         if (glyph != null) Text(glyph, style: TextStyle(color: color, fontSize: 13, height: 1.1)),
@@ -48,7 +52,7 @@ class CardFaceWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = _parseHexColor(definition.colorHex);
+    final color = _parseHexColor(definition.colorHex ?? _defaultColorHex);
     final glyph = _suitGlyphFor(definition.suit);
     return Container(
       width: cardWidth,
@@ -65,7 +69,7 @@ class CardFaceWidget extends StatelessWidget {
           Positioned(top: 0, left: 0, child: _corner(color, glyph)),
           Center(
             child: Text(
-              glyph ?? definition.label,
+              glyph ?? definition.cardTitle,
               style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: glyph != null ? 34 : 22),
             ),
           ),

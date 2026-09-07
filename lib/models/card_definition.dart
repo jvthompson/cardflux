@@ -3,8 +3,8 @@
 class CardDefinition {
   const CardDefinition({
     required this.id,
-    required this.label,
-    required this.colorHex,
+    required this.cardTitle,
+    this.colorHex,
     this.suit,
     this.rank,
     this.imagePath,
@@ -12,8 +12,8 @@ class CardDefinition {
   });
 
   final String id;
-  final String label;
-  final String colorHex;
+  final String cardTitle;
+  final String? colorHex;
   final String? suit;
   final String? rank;
   final String? imagePath;
@@ -22,8 +22,8 @@ class CardDefinition {
   factory CardDefinition.fromJson(Map<String, dynamic> json) {
     return CardDefinition(
       id: json['id'] as String,
-      label: json['label'] as String,
-      colorHex: json['colorHex'] as String,
+      cardTitle: json['cardTitle'] as String,
+      colorHex: json['colorHex'] as String?,
       suit: json['suit'] as String?,
       rank: json['rank'] as String?,
       imagePath: json['imagePath'] as String?,
@@ -34,8 +34,8 @@ class CardDefinition {
   Map<String, dynamic> toJson() {
     return {
       'id': id,
-      'label': label,
-      'colorHex': colorHex,
+      'cardTitle': cardTitle,
+      if (colorHex != null) 'colorHex': colorHex,
       if (suit != null) 'suit': suit,
       if (rank != null) 'rank': rank,
       if (imagePath != null) 'imagePath': imagePath,

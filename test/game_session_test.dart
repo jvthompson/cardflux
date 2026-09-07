@@ -9,8 +9,8 @@ const _game = GameDefinition(
   id: 'g1',
   name: 'Test Game',
   cards: [
-    CardDefinition(id: 'a', label: 'A', colorHex: '#000000'),
-    CardDefinition(id: 'b', label: 'B', colorHex: '#000000'),
+    CardDefinition(id: 'a', cardTitle: 'A', colorHex: '#000000'),
+    CardDefinition(id: 'b', cardTitle: 'B', colorHex: '#000000'),
   ],
 );
 
