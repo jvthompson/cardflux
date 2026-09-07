@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../game/game_session.dart';
+import '../game/geometry_utils.dart';
 import '../game/stack_utils.dart';
 import '../game/table_controller.dart';
 import '../models/card_definition.dart';
@@ -35,10 +36,9 @@ class TableScreen extends StatefulWidget {
 class _TableScreenState extends State<TableScreen> {
   final GlobalKey _tableKey = GlobalKey();
 
-  Offset _globalToTableLocal(Offset global) {
-    final box = _tableKey.currentContext!.findRenderObject() as RenderBox;
-    return box.globalToLocal(global);
-  }
+  RenderBox get _tableBox => _tableKey.currentContext!.findRenderObject() as RenderBox;
+
+  Offset _globalToTableLocal(Offset global) => _tableBox.globalToLocal(global);
 
   /// Finds the nearest other top-of-stack card within [_stackHitRadius] of
   /// [center], if any — used to decide whether a drop should stack instead
@@ -62,13 +62,21 @@ class _TableScreenState extends State<TableScreen> {
   }
 
   void _handleDragEnd(List<CardInstance> tableTops, String instanceId, Offset globalTopLeft) {
+    final box = _tableBox;
     final local = _globalToTableLocal(globalTopLeft);
-    final center = Offset(local.dx + cardWidth / 2, local.dy + cardHeight / 2);
-    final target = _findStackTarget(tableTops: tableTops, excludingInstanceId: instanceId, center: center);
+    final rawCenter = Offset(local.dx + cardWidth / 2, local.dy + cardHeight / 2);
+    final target = _findStackTarget(tableTops: tableTops, excludingInstanceId: instanceId, center: rawCenter);
     if (target != null) {
       widget.controller.stackCard(instanceId, target.instanceId);
     } else {
-      widget.controller.moveCard(instanceId, center.dx, center.dy);
+      // Keep the whole card clear of both hand zones -- otherwise a drop
+      // released over a hand zone band lands behind it, unselectable.
+      final clampedY = clampCardCenterY(
+        proposedCenterY: rawCenter.dy,
+        tableHeight: box.size.height,
+        cardHeight: cardHeight,
+      );
+      widget.controller.moveCard(instanceId, rawCenter.dx, clampedY);
     }
   }
 
