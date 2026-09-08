@@ -34,6 +34,11 @@ enum NetMessageType {
   requestDrawFromZone,
   requestReturnToZone,
   requestShuffleZone,
+  requestCreateWidget,
+  requestMoveWidget,
+  requestSetWidgetValue,
+  requestDeleteWidget,
+  requestSetWidgetColors,
   ping,
   pong,
   disconnect;

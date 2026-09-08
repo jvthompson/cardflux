@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_deck/game/table_actions.dart';
+import 'package:flutter_deck/models/board_widget_instance.dart';
 import 'package:flutter_deck/models/card_instance.dart';
 import 'package:flutter_deck/models/table_state.dart';
 
@@ -647,6 +648,118 @@ void main() {
       );
       final next = _actions.shufflePile(state, pileRootInstanceId: 'solo');
       expect(next, same(state));
+    });
+  });
+
+  group('createWidget', () {
+    test('adds a widget at the given position with an ascending zIndex, bumping revision', () {
+      const state = TableState(gameId: 'g', players: [], cards: [], revision: 0);
+      final next = _actions.createWidget(state, instanceId: 'w1', kind: BoardWidgetKind.simpleCounter, x: 0.2, y: 0.3);
+      expect(next.widgets, hasLength(1));
+      final w = next.widgets.single;
+      expect(w.instanceId, 'w1');
+      expect(w.kind, BoardWidgetKind.simpleCounter);
+      expect(w.x, 0.2);
+      expect(w.y, 0.3);
+      expect(w.value, 0);
+      expect(next.revision, state.revision + 1);
+
+      final withSecond = _actions.createWidget(next, instanceId: 'w2', kind: BoardWidgetKind.simpleCounter, x: 0.5, y: 0.5);
+      expect(withSecond.widgets.firstWhere((w) => w.instanceId == 'w2').zIndex, greaterThan(w.zIndex));
+    });
+  });
+
+  group('moveWidget', () {
+    test('updates position and bumps revision', () {
+      final state = TableState(
+        gameId: 'g',
+        players: const [],
+        cards: const [],
+        revision: 0,
+        widgets: [BoardWidgetInstance(instanceId: 'w1', kind: BoardWidgetKind.simpleCounter, x: 0, y: 0, zIndex: 0)],
+      );
+      final next = _actions.moveWidget(state, instanceId: 'w1', x: 0.7, y: 0.8);
+      final moved = next.widgets.single;
+      expect(moved.x, 0.7);
+      expect(moved.y, 0.8);
+      expect(next.revision, state.revision + 1);
+    });
+
+    test('is a no-op (aside from revision) for an unknown id', () {
+      final state = TableState(
+        gameId: 'g',
+        players: const [],
+        cards: const [],
+        revision: 0,
+        widgets: [BoardWidgetInstance(instanceId: 'w1', kind: BoardWidgetKind.simpleCounter, x: 0, y: 0, zIndex: 0)],
+      );
+      final next = _actions.moveWidget(state, instanceId: 'nonexistent', x: 0.7, y: 0.8);
+      expect(next.widgets.single.x, 0);
+      expect(next.widgets.single.y, 0);
+    });
+  });
+
+  group('setWidgetValue', () {
+    TableState state() => TableState(
+          gameId: 'g',
+          players: const [],
+          cards: const [],
+          revision: 0,
+          widgets: [BoardWidgetInstance(instanceId: 'w1', kind: BoardWidgetKind.simpleCounter, x: 0, y: 0, zIndex: 0)],
+        );
+
+    test('sets an in-range absolute value', () {
+      final next = _actions.setWidgetValue(state(), instanceId: 'w1', value: 42);
+      expect(next.widgets.single.value, 42);
+      expect(next.revision, 1);
+    });
+
+    test('clamps a negative value to boardWidgetCounterMin', () {
+      final next = _actions.setWidgetValue(state(), instanceId: 'w1', value: -10);
+      expect(next.widgets.single.value, boardWidgetCounterMin);
+    });
+
+    test('clamps a value above boardWidgetCounterMax', () {
+      final next = _actions.setWidgetValue(state(), instanceId: 'w1', value: 500000);
+      expect(next.widgets.single.value, boardWidgetCounterMax);
+    });
+  });
+
+  group('deleteWidget', () {
+    test('removes the widget', () {
+      final state = TableState(
+        gameId: 'g',
+        players: const [],
+        cards: const [],
+        revision: 0,
+        widgets: [BoardWidgetInstance(instanceId: 'w1', kind: BoardWidgetKind.simpleCounter, x: 0, y: 0, zIndex: 0)],
+      );
+      final next = _actions.deleteWidget(state, instanceId: 'w1');
+      expect(next.widgets, isEmpty);
+      expect(next.revision, state.revision + 1);
+    });
+
+    test('no-ops on an unknown id', () {
+      const state = TableState(gameId: 'g', players: [], cards: [], revision: 0);
+      final next = _actions.deleteWidget(state, instanceId: 'nonexistent');
+      expect(next.widgets, isEmpty);
+    });
+  });
+
+  group('setWidgetColors', () {
+    test('sets both colors and bumps revision', () {
+      final state = TableState(
+        gameId: 'g',
+        players: const [],
+        cards: const [],
+        revision: 0,
+        widgets: [BoardWidgetInstance(instanceId: 'w1', kind: BoardWidgetKind.simpleCounter, x: 0, y: 0, zIndex: 0)],
+      );
+      final next = _actions.setWidgetColors(state, instanceId: 'w1', backgroundColor: 0xFFD32F2F, textColor: 0xFF000000);
+      final w = next.widgets.single;
+      expect(w.backgroundColor, 0xFFD32F2F);
+      expect(w.textColor, 0xFF000000);
+      expect(next.revision, state.revision + 1);
     });
   });
 }

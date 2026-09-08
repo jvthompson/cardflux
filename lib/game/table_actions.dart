@@ -1,5 +1,6 @@
 import 'dart:math';
 
+import '../models/board_widget_instance.dart';
 import '../models/card_instance.dart';
 import '../models/table_state.dart';
 import 'stack_utils.dart';
@@ -384,5 +385,56 @@ class TableActions {
       return c.copyWith(zIndex: newZ, faceUp: false);
     }).toList();
     return state.copyWith(cards: cards, revision: state.revision + 1);
+  }
+
+  // --- Board widgets -------------------------------------------------
+
+  int _nextWidgetZIndex(TableState state) {
+    if (state.widgets.isEmpty) return 0;
+    return state.widgets.map((w) => w.zIndex).reduce((a, b) => a > b ? a : b) + 1;
+  }
+
+  /// Creates a new [kind] widget at canonical [x]/[y], on top of every
+  /// existing widget. The widget catalog is hardcoded (see
+  /// [BoardWidgetKind]), so unlike a card there's no `definitionId` to
+  /// validate against a game's own definitions.
+  TableState createWidget(TableState state, {required String instanceId, required BoardWidgetKind kind, required double x, required double y}) {
+    final newWidget = BoardWidgetInstance(instanceId: instanceId, kind: kind, x: x, y: y, zIndex: _nextWidgetZIndex(state));
+    return state.copyWith(widgets: [...state.widgets, newWidget], revision: state.revision + 1);
+  }
+
+  /// Repositions a widget -- structurally like [moveCard] minus the zone/
+  /// stack detachment, since a widget has neither.
+  TableState moveWidget(TableState state, {required String instanceId, required double x, required double y}) {
+    final nextZ = _nextWidgetZIndex(state);
+    final widgets = state.widgets
+        .map((w) => w.instanceId == instanceId ? w.copyWith(x: x, y: y, zIndex: nextZ) : w)
+        .toList();
+    return state.copyWith(widgets: widgets, revision: state.revision + 1);
+  }
+
+  /// Sets an absolute value, clamped to [boardWidgetCounterMin]-
+  /// [boardWidgetCounterMax]. There's no separate increment/decrement
+  /// action -- callers compute the new absolute value themselves and funnel
+  /// it through this same clamped setter.
+  TableState setWidgetValue(TableState state, {required String instanceId, required int value}) {
+    final clamped = value.clamp(boardWidgetCounterMin, boardWidgetCounterMax);
+    final widgets = state.widgets.map((w) => w.instanceId == instanceId ? w.copyWith(value: clamped) : w).toList();
+    return state.copyWith(widgets: widgets, revision: state.revision + 1);
+  }
+
+  TableState deleteWidget(TableState state, {required String instanceId}) {
+    final widgets = state.widgets.where((w) => w.instanceId != instanceId).toList();
+    return state.copyWith(widgets: widgets, revision: state.revision + 1);
+  }
+
+  /// Sets a widget's background/text color (ARGB ints) -- always both
+  /// together, since the "Set Colors" prompt always submits both from one
+  /// dialog.
+  TableState setWidgetColors(TableState state, {required String instanceId, required int backgroundColor, required int textColor}) {
+    final widgets = state.widgets
+        .map((w) => w.instanceId == instanceId ? w.copyWith(backgroundColor: backgroundColor, textColor: textColor) : w)
+        .toList();
+    return state.copyWith(widgets: widgets, revision: state.revision + 1);
   }
 }

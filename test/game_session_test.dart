@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_deck/game/game_session.dart';
+import 'package:flutter_deck/models/board_widget_instance.dart';
 import 'package:flutter_deck/models/card_definition.dart';
 import 'package:flutter_deck/models/card_instance.dart';
 import 'package:flutter_deck/models/deck_config.dart';
@@ -291,6 +292,69 @@ void main() {
       );
       final session = GameSession.localSandbox(game: game, localPlayerId: 'p1');
       expect(session.state.cards, hasLength(2));
+    });
+  });
+
+  group('GameSession board widgets', () {
+    GameSession emptySession() {
+      const game = GameDefinition(id: 'g1', name: 'G', cards: _cards);
+      return GameSession(
+        game: game,
+        localPlayerId: 'p1',
+        initialState: const TableState(gameId: 'g1', players: [], cards: [], revision: 0),
+      );
+    }
+
+    test('createWidget adds a widget and notifies listeners', () {
+      final session = emptySession();
+      var notified = false;
+      session.addListener(() => notified = true);
+      session.createWidget('w1', BoardWidgetKind.simpleCounter, 0.5, 0.5);
+      expect(session.state.widgets, hasLength(1));
+      expect(session.state.widgets.single.instanceId, 'w1');
+      expect(notified, isTrue);
+    });
+
+    test('moveWidget repositions and notifies listeners', () {
+      final session = emptySession();
+      session.createWidget('w1', BoardWidgetKind.simpleCounter, 0.1, 0.1);
+      var notified = false;
+      session.addListener(() => notified = true);
+      session.moveWidget('w1', 0.9, 0.9);
+      expect(session.state.widgets.single.x, 0.9);
+      expect(session.state.widgets.single.y, 0.9);
+      expect(notified, isTrue);
+    });
+
+    test('setWidgetValue updates the value, clamped, and notifies listeners', () {
+      final session = emptySession();
+      session.createWidget('w1', BoardWidgetKind.simpleCounter, 0, 0);
+      var notified = false;
+      session.addListener(() => notified = true);
+      session.setWidgetValue('w1', 500000);
+      expect(session.state.widgets.single.value, boardWidgetCounterMax);
+      expect(notified, isTrue);
+    });
+
+    test('deleteWidget removes it and notifies listeners', () {
+      final session = emptySession();
+      session.createWidget('w1', BoardWidgetKind.simpleCounter, 0, 0);
+      var notified = false;
+      session.addListener(() => notified = true);
+      session.deleteWidget('w1');
+      expect(session.state.widgets, isEmpty);
+      expect(notified, isTrue);
+    });
+
+    test('setWidgetColors updates both colors and notifies listeners', () {
+      final session = emptySession();
+      session.createWidget('w1', BoardWidgetKind.simpleCounter, 0, 0);
+      var notified = false;
+      session.addListener(() => notified = true);
+      session.setWidgetColors('w1', 0xFFD32F2F, 0xFF000000);
+      expect(session.state.widgets.single.backgroundColor, 0xFFD32F2F);
+      expect(session.state.widgets.single.textColor, 0xFF000000);
+      expect(notified, isTrue);
     });
   });
 }

@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import '../models/board_widget_instance.dart';
 import '../models/card_instance.dart';
 import '../networking/host_server.dart';
 import '../networking/net_message.dart';
@@ -139,6 +140,34 @@ class HostGameEngine {
       case NetMessageType.requestShuffleZone:
         final zoneId = msg.payload['zoneId'] as String;
         session.shuffleZone(zoneId, zoneOwnerId: _zoneOwnerId(zoneId, clientId));
+        break;
+      case NetMessageType.requestCreateWidget:
+        session.createWidget(
+          msg.payload['instanceId'] as String,
+          BoardWidgetKind.fromName(msg.payload['kind'] as String),
+          (msg.payload['x'] as num).toDouble(),
+          (msg.payload['y'] as num).toDouble(),
+        );
+        break;
+      case NetMessageType.requestMoveWidget:
+        session.moveWidget(
+          msg.payload['instanceId'] as String,
+          (msg.payload['x'] as num).toDouble(),
+          (msg.payload['y'] as num).toDouble(),
+        );
+        break;
+      case NetMessageType.requestSetWidgetValue:
+        session.setWidgetValue(msg.payload['instanceId'] as String, msg.payload['value'] as int);
+        break;
+      case NetMessageType.requestDeleteWidget:
+        session.deleteWidget(msg.payload['instanceId'] as String);
+        break;
+      case NetMessageType.requestSetWidgetColors:
+        session.setWidgetColors(
+          msg.payload['instanceId'] as String,
+          msg.payload['backgroundColor'] as int,
+          msg.payload['textColor'] as int,
+        );
         break;
       case NetMessageType.hello:
       case NetMessageType.welcome:

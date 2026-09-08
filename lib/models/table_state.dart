@@ -1,3 +1,4 @@
+import 'board_widget_instance.dart';
 import 'card_instance.dart';
 import 'player.dart';
 
@@ -9,6 +10,7 @@ class TableState {
     required this.players,
     required this.cards,
     required this.revision,
+    this.widgets = const [],
   });
 
   final String gameId;
@@ -16,12 +18,18 @@ class TableState {
   final List<CardInstance> cards;
   final int revision;
 
-  TableState copyWith({List<CardInstance>? cards, int? revision}) {
+  /// Board widgets (e.g. a Simple Counter) placed on the table -- unlike
+  /// [cards], never owned by a player and never hidden, so unlike `cards`,
+  /// nothing here needs `state_filter.dart` redaction.
+  final List<BoardWidgetInstance> widgets;
+
+  TableState copyWith({List<CardInstance>? cards, int? revision, List<BoardWidgetInstance>? widgets}) {
     return TableState(
       gameId: gameId,
       players: players,
       cards: cards ?? this.cards,
       revision: revision ?? this.revision,
+      widgets: widgets ?? this.widgets,
     );
   }
 
@@ -35,6 +43,10 @@ class TableState {
           .map((e) => CardInstance.fromJson((e as Map).cast<String, dynamic>()))
           .toList(),
       revision: json['revision'] as int,
+      widgets: (json['widgets'] as List?)
+              ?.map((e) => BoardWidgetInstance.fromJson((e as Map).cast<String, dynamic>()))
+              .toList() ??
+          const [],
     );
   }
 
@@ -44,6 +56,7 @@ class TableState {
       'players': players.map((p) => p.toJson()).toList(),
       'cards': cards.map((c) => c.toJson()).toList(),
       'revision': revision,
+      if (widgets.isNotEmpty) 'widgets': widgets.map((w) => w.toJson()).toList(),
     };
   }
 }

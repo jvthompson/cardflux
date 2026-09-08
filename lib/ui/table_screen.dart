@@ -1,17 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:uuid/uuid.dart';
 
 import '../game/game_session.dart';
 import '../game/geometry_utils.dart';
 import '../game/stack_utils.dart';
 import '../game/table_controller.dart';
+import '../models/board_widget_instance.dart';
 import '../models/card_definition.dart';
 import '../models/card_instance.dart';
 import '../models/game_definition.dart';
 import '../models/zone_definition.dart';
 import 'widgets/card_back_widget.dart';
 import 'widgets/card_face_widget.dart';
+import 'widgets/counter_widget.dart';
 import 'widgets/draggable_card.dart';
 import 'widgets/hand_zone_widget.dart';
 import 'widgets/opponent_hand_zone_widget.dart';
@@ -20,6 +23,13 @@ import 'widgets/pile_widget.dart';
 import 'widgets/zone_stack_widget.dart';
 
 const StackUtils _stackUtils = StackUtils();
+
+/// Mints ids for widgets created interactively (see [_TableScreenState._showBoardContextMenu])
+/// -- unlike a card, which only ever gets an id at deal time in `GameSession`,
+/// a widget's id has to be picked by whichever side (host or client) is
+/// creating it, before any round trip, so its own creator has a stable id to
+/// reference immediately.
+const Uuid _uuid = Uuid();
 
 /// Overlap radius (in logical pixels) within which dropping a card onto
 /// another counts as stacking rather than a bare move.
@@ -620,6 +630,215 @@ class _TableScreenState extends State<TableScreen> with SingleTickerProviderStat
     widget.controller.moveStack(rootId, fx, fy);
   }
 
+  /// Repositions a placed board widget after a drag release -- structurally
+  /// like [_handleDragEnd]'s plain-move branch, minus every card-specific
+  /// concern (hand/zone drop targets, stacking) a widget has none of.
+  void _handleWidgetDragEnd(String instanceId, Offset globalTopLeft) {
+    final local = _globalToTableLocal(globalTopLeft);
+    final rawCenter = Offset(local.dx + counterWidgetWidth / 2, local.dy + counterWidgetHeight / 2);
+    final clampedY = clampCardCenterY(
+      proposedCenterY: rawCenter.dy,
+      tableHeight: _tableSize.height,
+      cardHeight: counterWidgetHeight,
+    );
+    final (fx, fy) = localPixelToCanonical(
+      pixelX: rawCenter.dx,
+      pixelY: clampedY,
+      tableWidth: _tableSize.width,
+      tableHeight: _tableSize.height,
+      isMirrored: widget.isMirrored,
+    );
+    widget.controller.moveWidget(instanceId, fx, fy);
+  }
+
+  /// Right-clicking empty table space: a first menu picking a category (just
+  /// "Widgets" today), then a second listing that category's widget types
+  /// (just "Simple Counter" today) -- two plain sequential [showMenu] calls
+  /// rather than a nested-submenu widget, since a catalog of one item in one
+  /// category doesn't warrant building a generic plugin system; a second
+  /// category or widget type is just one more [PopupMenuItem] in the
+  /// relevant list. The same click position anchors both menus and becomes
+  /// the new widget's canonical position.
+  Future<void> _showBoardContextMenu(Offset globalPosition) async {
+    final category = await showMenu<String>(
+      context: context,
+      position: RelativeRect.fromLTRB(globalPosition.dx, globalPosition.dy, globalPosition.dx, globalPosition.dy),
+      items: const [PopupMenuItem(value: 'widgets', child: Text('Widgets'))],
+    );
+    if (category != 'widgets' || !mounted) return;
+
+    final kind = await showMenu<BoardWidgetKind>(
+      context: context,
+      position: RelativeRect.fromLTRB(globalPosition.dx, globalPosition.dy, globalPosition.dx, globalPosition.dy),
+      items: const [PopupMenuItem(value: BoardWidgetKind.simpleCounter, child: Text('Simple Counter'))],
+    );
+    if (kind == null || !mounted) return;
+
+    final local = _globalToTableLocal(globalPosition);
+    final (fx, fy) = localPixelToCanonical(
+      pixelX: local.dx,
+      pixelY: local.dy,
+      tableWidth: _tableSize.width,
+      tableHeight: _tableSize.height,
+      isMirrored: widget.isMirrored,
+    );
+    widget.controller.createWidget(_uuid.v4(), kind, fx, fy);
+  }
+
+  /// Right-clicking a placed [CounterWidget]: Increment/Decrement send the
+  /// current value +/- 1 as a new absolute value (the host-side clamp in
+  /// `TableActions.setWidgetValue` handles both ends of the range), Set
+  /// Value opens [_promptSetValue], Set Colors opens [_promptSetColors],
+  /// Delete removes it outright.
+  Future<void> _showCounterMenu(Offset globalPosition, BoardWidgetInstance instance) async {
+    final action = await showMenu<String>(
+      context: context,
+      position: RelativeRect.fromLTRB(globalPosition.dx, globalPosition.dy, globalPosition.dx, globalPosition.dy),
+      items: const [
+        PopupMenuItem(value: 'increment', child: Text('Increment')),
+        PopupMenuItem(value: 'decrement', child: Text('Decrement')),
+        PopupMenuItem(value: 'setValue', child: Text('Set Value')),
+        PopupMenuItem(value: 'setColors', child: Text('Set Colors')),
+        PopupMenuItem(value: 'delete', child: Text('Delete')),
+      ],
+    );
+    if (!mounted) return;
+    switch (action) {
+      case 'increment':
+        widget.controller.setWidgetValue(instance.instanceId, instance.value + 1);
+      case 'decrement':
+        widget.controller.setWidgetValue(instance.instanceId, instance.value - 1);
+      case 'setValue':
+        await _promptSetValue(instance);
+      case 'setColors':
+        await _promptSetColors(instance);
+      case 'delete':
+        widget.controller.deleteWidget(instance.instanceId);
+    }
+  }
+
+  /// A modal numeric prompt for Set Value -- the one deliberate exception to
+  /// this app having no other [showDialog] anywhere, since a blocking
+  /// numeric prompt has no other natural fit here. Non-numeric input shows
+  /// an inline error and keeps the dialog open rather than silently
+  /// substituting a fallback (unlike the `?? default` idiom used for the
+  /// join screen's port field) -- a valid but out-of-range number is instead
+  /// clamped and accepted, matching the spec's "validated, clamped to
+  /// 0-99999".
+  Future<void> _promptSetValue(BoardWidgetInstance instance) async {
+    final textController = TextEditingController(text: '${instance.value}');
+    final result = await showDialog<int>(
+      context: context,
+      builder: (context) {
+        String? error;
+        return StatefulBuilder(
+          builder: (context, setState) => AlertDialog(
+            title: const Text('Set Value'),
+            content: TextField(
+              controller: textController,
+              keyboardType: TextInputType.number,
+              autofocus: true,
+              decoration: InputDecoration(
+                labelText: 'Value (0-$boardWidgetCounterMax)',
+                errorText: error,
+              ),
+              onSubmitted: (_) {
+                final parsed = int.tryParse(textController.text.trim());
+                if (parsed == null) {
+                  setState(() => error = 'Enter a whole number');
+                  return;
+                }
+                Navigator.of(context).pop(parsed.clamp(boardWidgetCounterMin, boardWidgetCounterMax));
+              },
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Cancel')),
+              FilledButton(
+                onPressed: () {
+                  final parsed = int.tryParse(textController.text.trim());
+                  if (parsed == null) {
+                    setState(() => error = 'Enter a whole number');
+                    return;
+                  }
+                  Navigator.of(context).pop(parsed.clamp(boardWidgetCounterMin, boardWidgetCounterMax));
+                },
+                child: const Text('Set'),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+    textController.dispose();
+    if (result != null && mounted) widget.controller.setWidgetValue(instance.instanceId, result);
+  }
+
+  /// A modal prompt to set a widget's background/text color from a small
+  /// fixed palette ([counterColorPalette]) -- there's no color-picker
+  /// dependency in this app, and a preset swatch grid is simpler than
+  /// building/adding one for a cosmetic setting.
+  Future<void> _promptSetColors(BoardWidgetInstance instance) async {
+    int background = instance.backgroundColor;
+    int text = instance.textColor;
+    final result = await showDialog<(int, int)>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: const Text('Set Colors'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Background'),
+                const SizedBox(height: 8),
+                _colorSwatchRow(selected: background, onSelected: (c) => setState(() => background = c)),
+                const SizedBox(height: 16),
+                const Text('Text'),
+                const SizedBox(height: 8),
+                _colorSwatchRow(selected: text, onSelected: (c) => setState(() => text = c)),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Cancel')),
+            FilledButton(onPressed: () => Navigator.of(context).pop((background, text)), child: const Text('Set')),
+          ],
+        ),
+      ),
+    );
+    if (result != null && mounted) {
+      widget.controller.setWidgetColors(instance.instanceId, result.$1, result.$2);
+    }
+  }
+
+  /// One row of tappable swatches from [counterColorPalette] -- the
+  /// currently [selected] one gets a highlighted ring.
+  Widget _colorSwatchRow({required int selected, required ValueChanged<int> onSelected}) {
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        for (final c in counterColorPalette)
+          GestureDetector(
+            onTap: () => onSelected(c),
+            child: Container(
+              width: 28,
+              height: 28,
+              decoration: BoxDecoration(
+                color: Color(c),
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: c == selected ? Colors.blueAccent : Colors.black26,
+                  width: c == selected ? 3 : 1,
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
   /// A large, always-upright rendering of exactly what [instance] currently
   /// shows (real face if face-up, a back otherwise) positioned in the center
   /// of whichever half of [screenSize] the cursor isn't in, clamped to stay
@@ -829,7 +1048,10 @@ class _TableScreenState extends State<TableScreen> with SingleTickerProviderStat
                             child: LayoutBuilder(
                               builder: (context, constraints) {
                                 _tableSize = constraints.biggest;
-                                return Stack(
+                                return GestureDetector(
+                                  behavior: HitTestBehavior.opaque,
+                                  onSecondaryTapUp: (details) => _showBoardContextMenu(details.globalPosition),
+                                  child: Stack(
                                   key: _tableKey,
                                   clipBehavior: Clip.none,
                                   children: [
@@ -928,6 +1150,25 @@ class _TableScreenState extends State<TableScreen> with SingleTickerProviderStat
                                           ),
                                         );
                                       }),
+                                    // Board widgets (e.g. a Simple Counter) always render above every
+                                    // card -- cards and widgets don't share a unified z-order, since
+                                    // they're never expected to visually interleave the way two cards
+                                    // stack together.
+                                    for (final w in state.widgets)
+                                      Builder(builder: (context) {
+                                        final pos = _toScreenPixel(w.x, w.y);
+                                        return Positioned(
+                                          left: pos.dx - counterWidgetWidth / 2,
+                                          top: pos.dy - counterWidgetHeight / 2,
+                                          child: switch (w.kind) {
+                                            BoardWidgetKind.simpleCounter => CounterWidget(
+                                                instance: w,
+                                                onDragEnd: (offset) => _handleWidgetDragEnd(w.instanceId, offset),
+                                                onSecondaryTapUp: (globalPos) => _showCounterMenu(globalPos, w),
+                                              ),
+                                          },
+                                        );
+                                      }),
                                     if (_flyingDiscard != null) _buildFlyingDiscard(_flyingDiscard!),
                                     for (final zone in sharedZones)
                                       if (sharedZoneCardsById[zone.id]!.isNotEmpty)
@@ -974,6 +1215,7 @@ class _TableScreenState extends State<TableScreen> with SingleTickerProviderStat
                                           );
                                         }),
                                   ],
+                                  ),
                                 );
                               },
                             ),

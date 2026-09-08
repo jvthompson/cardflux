@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_deck/models/board_widget_instance.dart';
 import 'package:flutter_deck/models/card_definition.dart';
 import 'package:flutter_deck/models/card_instance.dart';
 import 'package:flutter_deck/models/deck_config.dart';
@@ -145,6 +146,66 @@ void main() {
       final rotated = instance.copyWith(rotationTurns: 3);
       final roundTripped = CardInstance.fromJson(rotated.toJson());
       expect(roundTripped.rotationTurns, 3);
+    });
+  });
+
+  group('BoardWidgetInstance', () {
+    test('round-trips through JSON', () {
+      final instance = BoardWidgetInstance(
+        instanceId: 'w1',
+        kind: BoardWidgetKind.simpleCounter,
+        x: 0.4,
+        y: 0.6,
+        zIndex: 2,
+        value: 42,
+      );
+      final roundTripped = BoardWidgetInstance.fromJson(instance.toJson());
+      expect(roundTripped.instanceId, 'w1');
+      expect(roundTripped.kind, BoardWidgetKind.simpleCounter);
+      expect(roundTripped.x, 0.4);
+      expect(roundTripped.y, 0.6);
+      expect(roundTripped.zIndex, 2);
+      expect(roundTripped.value, 42);
+    });
+
+    test('value defaults to 0 and is omitted from JSON', () {
+      final instance = BoardWidgetInstance(instanceId: 'w1', kind: BoardWidgetKind.simpleCounter, x: 0, y: 0, zIndex: 0);
+      expect(instance.value, 0);
+      expect(instance.toJson().containsKey('value'), isFalse);
+      expect(BoardWidgetInstance.fromJson(instance.toJson()).value, 0);
+    });
+
+    test('copyWith updates only requested fields', () {
+      final instance = BoardWidgetInstance(instanceId: 'w1', kind: BoardWidgetKind.simpleCounter, x: 0, y: 0, zIndex: 0);
+      final moved = instance.copyWith(x: 0.5, y: 0.5, value: 7);
+      expect(moved.x, 0.5);
+      expect(moved.y, 0.5);
+      expect(moved.value, 7);
+      expect(moved.instanceId, instance.instanceId);
+      expect(moved.kind, instance.kind);
+    });
+
+    test('backgroundColor/textColor default and are omitted from JSON', () {
+      final instance = BoardWidgetInstance(instanceId: 'w1', kind: BoardWidgetKind.simpleCounter, x: 0, y: 0, zIndex: 0);
+      expect(instance.backgroundColor, defaultBoardWidgetBackgroundColor);
+      expect(instance.textColor, defaultBoardWidgetTextColor);
+      expect(instance.toJson().containsKey('backgroundColor'), isFalse);
+      expect(instance.toJson().containsKey('textColor'), isFalse);
+    });
+
+    test('backgroundColor/textColor round-trip a custom value through JSON', () {
+      final instance = BoardWidgetInstance(
+        instanceId: 'w1',
+        kind: BoardWidgetKind.simpleCounter,
+        x: 0,
+        y: 0,
+        zIndex: 0,
+        backgroundColor: 0xFFD32F2F,
+        textColor: 0xFF000000,
+      );
+      final roundTripped = BoardWidgetInstance.fromJson(instance.toJson());
+      expect(roundTripped.backgroundColor, 0xFFD32F2F);
+      expect(roundTripped.textColor, 0xFF000000);
     });
   });
 
@@ -436,6 +497,26 @@ void main() {
       final next = state.copyWith(cards: [], revision: 2);
       expect(next.revision, 2);
       expect(next.gameId, state.gameId);
+    });
+
+    test('widgets defaults to empty and is omitted from JSON', () {
+      final state = TableState(gameId: 'g', players: const [], cards: const [], revision: 0);
+      expect(state.widgets, isEmpty);
+      expect(state.toJson().containsKey('widgets'), isFalse);
+    });
+
+    test('widgets round-trips through JSON', () {
+      final state = TableState(
+        gameId: 'g',
+        players: const [],
+        cards: const [],
+        revision: 0,
+        widgets: [BoardWidgetInstance(instanceId: 'w1', kind: BoardWidgetKind.simpleCounter, x: 0.2, y: 0.3, zIndex: 0, value: 5)],
+      );
+      final roundTripped = TableState.fromJson(state.toJson());
+      expect(roundTripped.widgets, hasLength(1));
+      expect(roundTripped.widgets.single.instanceId, 'w1');
+      expect(roundTripped.widgets.single.value, 5);
     });
   });
 }

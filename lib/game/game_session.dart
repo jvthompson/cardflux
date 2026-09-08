@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
 
+import '../models/board_widget_instance.dart';
 import '../models/card_instance.dart';
 import '../models/deck_config.dart';
 import '../models/game_definition.dart';
@@ -240,6 +241,33 @@ class GameSession extends ChangeNotifier {
   }
 
   ZoneDefinition _zoneDefinition(String zoneId) => game.zones.firstWhere((z) => z.id == zoneId);
+
+  // --- Board widgets -----------------------------------------------
+
+  void createWidget(String instanceId, BoardWidgetKind kind, double x, double y) {
+    _state = _actions.createWidget(_state, instanceId: instanceId, kind: kind, x: x, y: y);
+    notifyListeners();
+  }
+
+  void moveWidget(String instanceId, double x, double y) {
+    _state = _actions.moveWidget(_state, instanceId: instanceId, x: x, y: y);
+    notifyListeners();
+  }
+
+  void setWidgetValue(String instanceId, int value) {
+    _state = _actions.setWidgetValue(_state, instanceId: instanceId, value: value);
+    notifyListeners();
+  }
+
+  void deleteWidget(String instanceId) {
+    _state = _actions.deleteWidget(_state, instanceId: instanceId);
+    notifyListeners();
+  }
+
+  void setWidgetColors(String instanceId, int backgroundColor, int textColor) {
+    _state = _actions.setWidgetColors(_state, instanceId: instanceId, backgroundColor: backgroundColor, textColor: textColor);
+    notifyListeners();
+  }
 
   /// Replaces the entire state wholesale — used once networking lands (M4)
   /// to apply an incoming `fullState` snapshot from the host.

@@ -1,3 +1,4 @@
+import '../models/board_widget_instance.dart';
 import '../models/card_instance.dart';
 import '../networking/game_client.dart';
 import '../networking/net_message.dart';
@@ -20,6 +21,11 @@ abstract class TableController {
   void drawFromZone(String zoneId);
   void returnToZone(String instanceId, String zoneId, {bool toBottom});
   void shuffleZone(String zoneId);
+  void createWidget(String instanceId, BoardWidgetKind kind, double x, double y);
+  void moveWidget(String instanceId, double x, double y);
+  void setWidgetValue(String instanceId, int value);
+  void deleteWidget(String instanceId);
+  void setWidgetColors(String instanceId, int backgroundColor, int textColor);
 }
 
 /// The host applies actions directly to its own authoritative [GameSession]
@@ -100,6 +106,26 @@ class HostTableController implements TableController {
 
   @override
   void shuffleZone(String zoneId) => _session.shuffleZone(zoneId, zoneOwnerId: _zoneOwnerId(zoneId));
+
+  // Widgets have no ownership concept at all (unlike a card) -- every
+  // widget is a shared table utility, so these need no `_isOwnedOrUnowned`
+  // guard.
+  @override
+  void createWidget(String instanceId, BoardWidgetKind kind, double x, double y) =>
+      _session.createWidget(instanceId, kind, x, y);
+
+  @override
+  void moveWidget(String instanceId, double x, double y) => _session.moveWidget(instanceId, x, y);
+
+  @override
+  void setWidgetValue(String instanceId, int value) => _session.setWidgetValue(instanceId, value);
+
+  @override
+  void deleteWidget(String instanceId) => _session.deleteWidget(instanceId);
+
+  @override
+  void setWidgetColors(String instanceId, int backgroundColor, int textColor) =>
+      _session.setWidgetColors(instanceId, backgroundColor, textColor);
 }
 
 /// A client never mutates its local [GameSession] directly from a gesture
@@ -199,5 +225,42 @@ class ClientTableController implements TableController {
   @override
   void shuffleZone(String zoneId) {
     _client.send(NetMessage(type: NetMessageType.requestShuffleZone, payload: {'zoneId': zoneId}));
+  }
+
+  @override
+  void createWidget(String instanceId, BoardWidgetKind kind, double x, double y) {
+    _client.send(NetMessage(
+      type: NetMessageType.requestCreateWidget,
+      payload: {'instanceId': instanceId, 'kind': kind.name, 'x': x, 'y': y},
+    ));
+  }
+
+  @override
+  void moveWidget(String instanceId, double x, double y) {
+    _client.send(NetMessage(
+      type: NetMessageType.requestMoveWidget,
+      payload: {'instanceId': instanceId, 'x': x, 'y': y},
+    ));
+  }
+
+  @override
+  void setWidgetValue(String instanceId, int value) {
+    _client.send(NetMessage(
+      type: NetMessageType.requestSetWidgetValue,
+      payload: {'instanceId': instanceId, 'value': value},
+    ));
+  }
+
+  @override
+  void deleteWidget(String instanceId) {
+    _client.send(NetMessage(type: NetMessageType.requestDeleteWidget, payload: {'instanceId': instanceId}));
+  }
+
+  @override
+  void setWidgetColors(String instanceId, int backgroundColor, int textColor) {
+    _client.send(NetMessage(
+      type: NetMessageType.requestSetWidgetColors,
+      payload: {'instanceId': instanceId, 'backgroundColor': backgroundColor, 'textColor': textColor},
+    ));
   }
 }
