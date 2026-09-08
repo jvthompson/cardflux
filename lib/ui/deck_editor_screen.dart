@@ -41,14 +41,21 @@ class _DeckEditorScreenState extends State<DeckEditorScreen> {
   /// declares no types at all, in which case the filter bar doesn't render.
   late final Set<String> _selectedTypes = widget.game.cardTypes.toSet();
 
+  /// Which of [GameDefinition.sets] currently show in the pool -- every set
+  /// starts selected. Ignored entirely when the game declares no sets at
+  /// all, in which case the filter bar doesn't render.
+  late final Set<String> _selectedSetIds = widget.game.sets.map((s) => s.id).toSet();
+
   int get _totalCards => _quantities.values.fold(0, (a, b) => a + b);
 
-  /// A card with no types of its own is never hidden by a filter; otherwise
-  /// it shows if *any* of its types is currently selected.
+  /// A card with no types of its own is never hidden by the type filter, and
+  /// a card with no set is never hidden by the set filter. The set filter
+  /// takes precedence: a card whose set is disabled stays hidden even if its
+  /// type is enabled.
   bool _isVisible(CardDefinition card) {
-    if (widget.game.cardTypes.isEmpty) return true;
-    if (card.types.isEmpty) return true;
-    return card.types.any(_selectedTypes.contains);
+    final typeOk = widget.game.cardTypes.isEmpty || card.types.isEmpty || card.types.any(_selectedTypes.contains);
+    final setOk = widget.game.sets.isEmpty || card.setId == null || _selectedSetIds.contains(card.setId);
+    return typeOk && setOk;
   }
 
   List<CardDefinition> get _visibleCards => widget.game.cards.where(_isVisible).toList();
@@ -114,6 +121,35 @@ class _DeckEditorScreenState extends State<DeckEditorScreen> {
               (e) => MapEntry(e.definitionId, e.quantity),
             ));
     });
+  }
+
+  /// The set-toggle filter bar shown above the type filter bar -- empty (no
+  /// widget) for a game that declares no [GameDefinition.sets]. Set
+  /// filtering takes precedence over Type filtering (see [_isVisible]), so
+  /// it's shown first/above.
+  Widget _buildSetFilterBar() {
+    if (widget.game.sets.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+      child: Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: [
+          for (final set in widget.game.sets)
+            FilterChip(
+              label: Text(set.name),
+              selected: _selectedSetIds.contains(set.id),
+              onSelected: (selected) => setState(() {
+                if (selected) {
+                  _selectedSetIds.add(set.id);
+                } else {
+                  _selectedSetIds.remove(set.id);
+                }
+              }),
+            ),
+        ],
+      ),
+    );
   }
 
   /// The type-toggle filter bar shown above the pool grid -- empty (no
@@ -277,6 +313,7 @@ class _DeckEditorScreenState extends State<DeckEditorScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
+                      _buildSetFilterBar(),
                       _buildTypeFilterBar(),
                       Expanded(
                         child: GridView.builder(

@@ -4,6 +4,7 @@ import 'package:flutter_deck/models/card_definition.dart';
 import 'package:flutter_deck/models/card_instance.dart';
 import 'package:flutter_deck/models/deck_config.dart';
 import 'package:flutter_deck/models/game_definition.dart';
+import 'package:flutter_deck/models/game_set.dart';
 import 'package:flutter_deck/models/player.dart';
 import 'package:flutter_deck/models/table_state.dart';
 import 'package:flutter_deck/models/zone_definition.dart';
@@ -51,6 +52,16 @@ void main() {
       const left = CardDefinition(id: 'b', cardTitle: 'B', orientation: CardOrientation.left);
       expect(CardDefinition.fromJson(left.toJson()).orientation, CardOrientation.left);
       expect(left.toJson()['orientation'], 'left');
+    });
+
+    test('setId defaults to null and round-trips through JSON', () {
+      const untagged = CardDefinition(id: 'a', cardTitle: 'A');
+      expect(untagged.setId, isNull);
+      expect(untagged.toJson().containsKey('setId'), isFalse);
+
+      const tagged = CardDefinition(id: 'b', cardTitle: 'B', setId: 'core_set');
+      final roundTripped = CardDefinition.fromJson(tagged.toJson());
+      expect(roundTripped.setId, 'core_set');
     });
   });
 
@@ -465,6 +476,57 @@ void main() {
         cards: [CardDefinition(id: 'a', cardTitle: 'A', colorHex: '#000000')],
       );
       expect(game.toJson().containsKey('zones'), isFalse);
+    });
+
+    test('sets defaults to empty and toJson keeps writing the flat cards shape unchanged', () {
+      const game = GameDefinition(
+        id: 'g1',
+        name: 'G',
+        cards: [CardDefinition(id: 'a', cardTitle: 'A', colorHex: '#000000')],
+      );
+      expect(game.sets, isEmpty);
+      final json = game.toJson();
+      expect(json.containsKey('sets'), isFalse);
+      expect(json.containsKey('cards'), isTrue);
+      final roundTripped = GameDefinition.fromJson(json);
+      expect(roundTripped.sets, isEmpty);
+      expect(roundTripped.cards.single.setId, isNull);
+    });
+
+    test('sets round-trip through JSON, with cards tagged and grouped by set', () {
+      const game = GameDefinition(
+        id: 'g1',
+        name: 'G',
+        sets: [GameSet(id: 's1', name: 'Set One'), GameSet(id: 's2', name: 'Set Two')],
+        cards: [
+          CardDefinition(id: 'a', cardTitle: 'A', setId: 's1'),
+          CardDefinition(id: 'b', cardTitle: 'B', setId: 's2'),
+        ],
+      );
+
+      final json = game.toJson();
+      expect(json.containsKey('sets'), isTrue);
+      expect(json.containsKey('cards'), isFalse);
+      final setsJson = json['sets'] as List;
+      expect(setsJson, hasLength(2));
+      final firstSetCards = (setsJson[0] as Map)['cards'] as List;
+      expect((firstSetCards.single as Map).containsKey('setId'), isFalse);
+
+      final roundTripped = GameDefinition.fromJson(json);
+      expect(roundTripped.sets.map((s) => s.id), ['s1', 's2']);
+      expect(roundTripped.sets.map((s) => s.name), ['Set One', 'Set Two']);
+      expect(roundTripped.cards, hasLength(2));
+      expect(roundTripped.cards[0].setId, 's1');
+      expect(roundTripped.cards[1].setId, 's2');
+    });
+  });
+
+  group('GameSet', () {
+    test('round-trips through JSON', () {
+      const set = GameSet(id: 'core_set', name: 'The Wizards');
+      final roundTripped = GameSet.fromJson(set.toJson());
+      expect(roundTripped.id, 'core_set');
+      expect(roundTripped.name, 'The Wizards');
     });
   });
 

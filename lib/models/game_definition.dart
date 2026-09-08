@@ -1,4 +1,5 @@
 import 'card_definition.dart';
+import 'game_set.dart';
 import 'zone_definition.dart';
 
 /// Default for [GameDefinition.opponentCardBorderColor] when a game's JSON
@@ -17,6 +18,7 @@ class GameDefinition {
     this.zones = const [],
     this.opponentCardBorderColor = defaultOpponentCardBorderColor,
     this.cardTypes = const [],
+    this.sets = const [],
   });
 
   final String id;
@@ -28,6 +30,13 @@ class GameDefinition {
   /// Empty means this game doesn't use types at all, in which case the Deck
   /// Editor shows no filter chips.
   final List<String> cardTypes;
+
+  /// This game's declared sets (e.g. METW's "Core Set", Lorcana's numbered
+  /// chapters) -- see [GameSet]. Empty means this game's JSON used the flat
+  /// top-level `cards` schema with no set concept, in which case the Deck
+  /// Editor shows no Set filter chips and every [CardDefinition.setId] here
+  /// is null.
+  final List<GameSet> sets;
 
   /// Optional real art for this game's card back, shared by every card in
   /// it (unlike [CardDefinition.imagePath], which is per-card front art).
@@ -58,12 +67,27 @@ class GameDefinition {
   bool get needsDeckBuilding => deckBuildingZones.isNotEmpty;
 
   factory GameDefinition.fromJson(Map<String, dynamic> json) {
+    final rawSets = json['sets'] as List?;
+    final List<GameSet> sets;
+    final List<CardDefinition> cards;
+    if (rawSets != null) {
+      sets = rawSets.map((e) => GameSet.fromJson((e as Map).cast<String, dynamic>())).toList();
+      cards = [
+        for (final rawSet in rawSets.cast<Map>().map((e) => e.cast<String, dynamic>()))
+          for (final rawCard in (rawSet['cards'] as List).cast<Map>().map((e) => e.cast<String, dynamic>()))
+            _cardWithSetId(CardDefinition.fromJson(rawCard), rawSet['id'] as String),
+      ];
+    } else {
+      sets = const [];
+      cards = (json['cards'] as List)
+          .map((e) => CardDefinition.fromJson((e as Map).cast<String, dynamic>()))
+          .toList();
+    }
     return GameDefinition(
       id: json['id'] as String,
       name: json['name'] as String,
-      cards: (json['cards'] as List)
-          .map((e) => CardDefinition.fromJson((e as Map).cast<String, dynamic>()))
-          .toList(),
+      cards: cards,
+      sets: sets,
       cardBackImagePath: json['cardBackImagePath'] as String?,
       zones: (json['zones'] as List?)
               ?.map((e) => ZoneDefinition.fromJson((e as Map).cast<String, dynamic>()))
@@ -74,11 +98,42 @@ class GameDefinition {
     );
   }
 
+  /// Reconstructs [card] with [setId] stamped on -- used while parsing the
+  /// nested `sets` schema, where a card's set membership comes from its
+  /// position in the JSON rather than an inline field.
+  static CardDefinition _cardWithSetId(CardDefinition card, String setId) {
+    return CardDefinition(
+      id: card.id,
+      cardTitle: card.cardTitle,
+      colorHex: card.colorHex,
+      suit: card.suit,
+      rank: card.rank,
+      imagePath: card.imagePath,
+      extraFields: card.extraFields,
+      types: card.types,
+      orientation: card.orientation,
+      setId: setId,
+    );
+  }
+
   Map<String, dynamic> toJson() {
     return {
       'id': id,
       'name': name,
-      'cards': cards.map((c) => c.toJson()).toList(),
+      if (sets.isNotEmpty)
+        'sets': [
+          for (final s in sets)
+            {
+              'id': s.id,
+              'name': s.name,
+              'cards': cards
+                  .where((c) => c.setId == s.id)
+                  .map((c) => c.toJson()..remove('setId'))
+                  .toList(),
+            },
+        ]
+      else
+        'cards': cards.map((c) => c.toJson()).toList(),
       if (cardBackImagePath != null) 'cardBackImagePath': cardBackImagePath,
       if (zones.isNotEmpty) 'zones': zones.map((z) => z.toJson()).toList(),
       if (opponentCardBorderColor != defaultOpponentCardBorderColor) 'opponentCardBorderColor': opponentCardBorderColor,

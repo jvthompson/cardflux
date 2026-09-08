@@ -34,20 +34,24 @@ class GameLoader {
     return games;
   }
 
-  /// Scans [folderPath] for `*.json` files, parsing each as one
-  /// [GameDefinition]. Files that fail to parse are skipped. Each card's
+  /// Scans [folderPath] for a file named exactly `gamedef.json`
+  /// (case-insensitive), parsing it as one [GameDefinition]. Any other file
+  /// in the folder (a stray deck save, notes, etc.) is ignored. Each card's
   /// [CardDefinition.imagePath] and the game's own
   /// [GameDefinition.cardBackImagePath] (both authored as bare filenames
   /// alongside the game's JSON) are rewritten to an absolute path so
   /// renderers can load them directly without needing to know which folder a
-  /// game came from.
+  /// game came from -- a card belonging to a set (see [GameSet]) has its
+  /// image resolved inside that set's own subfolder (named after
+  /// [CardDefinition.setId]), since set art is kept one folder deeper than
+  /// the game's own JSON.
   Future<List<GameDefinition>> loadFromFolder(String folderPath) async {
     final dir = Directory(folderPath);
     if (!await dir.exists()) return const [];
 
     final games = <GameDefinition>[];
     await for (final entity in dir.list()) {
-      if (entity is! File || !entity.path.toLowerCase().endsWith('.json')) continue;
+      if (entity is! File || entity.uri.pathSegments.last.toLowerCase() != 'gamedef.json') continue;
       try {
         final raw = await entity.readAsString();
         final parsed = GameDefinition.fromJson(jsonDecode(raw) as Map<String, dynamic>);
@@ -63,16 +67,19 @@ class GameLoader {
     final cards = game.cards.map((c) {
       final imagePath = c.imagePath;
       if (imagePath == null) return c;
+      final setId = c.setId;
+      final base = setId == null ? folderPath : '$folderPath${Platform.pathSeparator}$setId';
       return CardDefinition(
         id: c.id,
         cardTitle: c.cardTitle,
         colorHex: c.colorHex,
         suit: c.suit,
         rank: c.rank,
-        imagePath: '$folderPath${Platform.pathSeparator}$imagePath',
+        imagePath: '$base${Platform.pathSeparator}$imagePath',
         extraFields: c.extraFields,
         types: c.types,
         orientation: c.orientation,
+        setId: setId,
       );
     }).toList();
     final cardBackImagePath = game.cardBackImagePath;
@@ -80,6 +87,7 @@ class GameLoader {
       id: game.id,
       name: game.name,
       cards: cards,
+      sets: game.sets,
       cardBackImagePath: cardBackImagePath == null ? null : '$folderPath${Platform.pathSeparator}$cardBackImagePath',
       zones: game.zones,
       opponentCardBorderColor: game.opponentCardBorderColor,

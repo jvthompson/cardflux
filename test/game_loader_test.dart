@@ -19,11 +19,11 @@ void main() {
     expect(ids, hasLength(52), reason: 'all card ids should be unique');
   });
 
-  test('loadFromFolder parses every json file in a directory', () async {
+  test('loadFromFolder finds the gamedef.json file in a directory, ignoring stray files', () async {
     final tempDir = await Directory.systemTemp.createTemp('flutter_deck_test_games_');
     addTearDown(() => tempDir.delete(recursive: true));
 
-    final gameFile = File('${tempDir.path}/my_game.json');
+    final gameFile = File('${tempDir.path}/gamedef.json');
     await gameFile.writeAsString(jsonEncode({
       'id': 'my_game',
       'name': 'My Custom Game',
@@ -31,8 +31,16 @@ void main() {
         {'id': 'c1', 'cardTitle': 'One', 'colorHex': '#000000'},
       ],
     }));
-    // A non-JSON file in the same folder should be ignored, not error.
+    // A non-JSON file, and a stray .json file that isn't named gamedef.json,
+    // should both be ignored, not error and not loaded as a second game.
     await File('${tempDir.path}/notes.txt').writeAsString('not a game');
+    await File('${tempDir.path}/My Deck.json').writeAsString(jsonEncode({
+      'id': 'other_game',
+      'name': 'Other',
+      'cards': [
+        {'id': 'x1', 'cardTitle': 'X', 'colorHex': '#000000'},
+      ],
+    }));
 
     final games = await GameLoader().loadFromFolder(tempDir.path);
     expect(games, hasLength(1));
@@ -44,7 +52,7 @@ void main() {
     final tempDir = await Directory.systemTemp.createTemp('flutter_deck_test_games_');
     addTearDown(() => tempDir.delete(recursive: true));
 
-    final gameFile = File('${tempDir.path}/my_game.json');
+    final gameFile = File('${tempDir.path}/gamedef.json');
     await gameFile.writeAsString(jsonEncode({
       'id': 'my_game',
       'name': 'My Custom Game',
@@ -62,7 +70,7 @@ void main() {
     final tempDir = await Directory.systemTemp.createTemp('flutter_deck_test_games_');
     addTearDown(() => tempDir.delete(recursive: true));
 
-    final gameFile = File('${tempDir.path}/my_game.json');
+    final gameFile = File('${tempDir.path}/gamedef.json');
     await gameFile.writeAsString(jsonEncode({
       'id': 'my_game',
       'name': 'My Custom Game',
@@ -84,7 +92,7 @@ void main() {
     final tempDir = await Directory.systemTemp.createTemp('flutter_deck_test_games_');
     addTearDown(() => tempDir.delete(recursive: true));
 
-    final gameFile = File('${tempDir.path}/my_game.json');
+    final gameFile = File('${tempDir.path}/gamedef.json');
     await gameFile.writeAsString(jsonEncode({
       'id': 'my_game',
       'name': 'My Custom Game',
@@ -108,5 +116,84 @@ void main() {
   test('loadFromFolder returns empty list for a missing folder', () async {
     final games = await GameLoader().loadFromFolder('C:/definitely/not/a/real/path/xyz');
     expect(games, isEmpty);
+  });
+
+  test('loadFromFolder parses a multi-set gamedef.json, tagging each card with its set id', () async {
+    final tempDir = await Directory.systemTemp.createTemp('flutter_deck_test_games_');
+    addTearDown(() => tempDir.delete(recursive: true));
+
+    final gameFile = File('${tempDir.path}/gamedef.json');
+    await gameFile.writeAsString(jsonEncode({
+      'id': 'g1',
+      'name': 'G',
+      'sets': [
+        {
+          'id': 'set_a',
+          'name': 'Set A',
+          'cards': [
+            {'id': 'c1', 'cardTitle': 'One'},
+          ],
+        },
+        {
+          'id': 'set_b',
+          'name': 'Set B',
+          'cards': [
+            {'id': 'c2', 'cardTitle': 'Two'},
+          ],
+        },
+      ],
+    }));
+
+    final games = await GameLoader().loadFromFolder(tempDir.path);
+    final game = games.single;
+    expect(game.sets.map((s) => s.id), ['set_a', 'set_b']);
+    expect(game.sets.map((s) => s.name), ['Set A', 'Set B']);
+    expect(game.cards, hasLength(2));
+    expect(game.cards[0].setId, 'set_a');
+    expect(game.cards[1].setId, 'set_b');
+  });
+
+  test('loadFromFolder leaves sets empty and setId null for the flat cards schema', () async {
+    final tempDir = await Directory.systemTemp.createTemp('flutter_deck_test_games_');
+    addTearDown(() => tempDir.delete(recursive: true));
+
+    final gameFile = File('${tempDir.path}/gamedef.json');
+    await gameFile.writeAsString(jsonEncode({
+      'id': 'g1',
+      'name': 'G',
+      'cards': [
+        {'id': 'c1', 'cardTitle': 'One'},
+      ],
+    }));
+
+    final games = await GameLoader().loadFromFolder(tempDir.path);
+    final game = games.single;
+    expect(game.sets, isEmpty);
+    expect(game.cards.single.setId, isNull);
+  });
+
+  test('loadFromFolder resolves a set card\'s imagePath inside its own set subfolder', () async {
+    final tempDir = await Directory.systemTemp.createTemp('flutter_deck_test_games_');
+    addTearDown(() => tempDir.delete(recursive: true));
+
+    final gameFile = File('${tempDir.path}/gamedef.json');
+    await gameFile.writeAsString(jsonEncode({
+      'id': 'g1',
+      'name': 'G',
+      'sets': [
+        {
+          'id': 'core_set',
+          'name': 'Core Set',
+          'cards': [
+            {'id': 'c1', 'cardTitle': 'One', 'imagePath': 'one.jpg'},
+          ],
+        },
+      ],
+    }));
+
+    final games = await GameLoader().loadFromFolder(tempDir.path);
+    final card = games.single.cards.single;
+    expect(card.setId, 'core_set');
+    expect(card.imagePath, '${tempDir.path}${Platform.pathSeparator}core_set${Platform.pathSeparator}one.jpg');
   });
 }

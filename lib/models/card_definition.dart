@@ -20,6 +20,7 @@ class CardDefinition {
     this.extraFields = const {},
     this.types = const [],
     this.orientation = CardOrientation.portrait,
+    this.setId,
   });
 
   final String id;
@@ -37,6 +38,12 @@ class CardDefinition {
   /// a chip.
   final List<String> types;
 
+  /// Which of [GameDefinition.sets] this card belongs to, stamped on by
+  /// [GameDefinition.fromJson] when parsing the nested `sets` schema -- null
+  /// for a game with no set concept (flat top-level `cards` schema). Drives
+  /// the Deck Editor's Set filter chips the same way [types] drives Type.
+  final String? setId;
+
   /// This card's default table rotation -- see [CardOrientation].
   final CardOrientation orientation;
 
@@ -51,6 +58,7 @@ class CardDefinition {
       extraFields: (json['extraFields'] as Map?)?.cast<String, String>() ?? const {},
       types: (json['types'] as List?)?.cast<String>().toList() ?? const [],
       orientation: CardOrientation.values.byName(json['orientation'] as String? ?? 'portrait'),
+      setId: json['setId'] as String?,
     );
   }
 
@@ -65,6 +73,7 @@ class CardDefinition {
       if (extraFields.isNotEmpty) 'extraFields': extraFields,
       if (types.isNotEmpty) 'types': types,
       if (orientation != CardOrientation.portrait) 'orientation': orientation.name,
+      if (setId != null) 'setId': setId,
     };
   }
 }

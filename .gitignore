@@ -50,7 +50,9 @@ app.*.map.json
 # Claude Code local/personal settings
 .claude/settings.local.json
 
-# Custom game card art -- large scanned-card image sets kept local only,
-# not committed (the game JSON that references them still is)
-game_library/metw/**/*.jpg
-game_library/metw/*.jpg
+# Custom game card art -- large scanned/exported card image sets kept local
+# only, not committed (each game's gamedef.json that references them still is)
+game_library/**/*.jpg
+game_library/**/*.jpeg
+game_library/**/*.png
+game_library/**/*.webp
