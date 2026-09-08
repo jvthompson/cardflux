@@ -31,6 +31,11 @@ const Duration rotationAnimationDuration = Duration(milliseconds: 150);
 /// on a card owned by the other player) -- hover still fires either way, so
 /// the opponent border and Space-preview keep working on a card you can't
 /// otherwise touch.
+///
+/// [applyOrientation], when true, folds [CardDefinition.orientation] into the
+/// same rotation -- only ever set for a loose card on the free table; hand
+/// and zone rendering leave it false so a landscape card always shows plain
+/// portrait there.
 class DraggableCard extends StatelessWidget {
   const DraggableCard({
     super.key,
@@ -40,6 +45,7 @@ class DraggableCard extends StatelessWidget {
     required this.onDragEnd,
     this.isMirrored = false,
     this.interactable = true,
+    this.applyOrientation = false,
     this.opponentBorderColor,
     this.onHover,
     this.cardBackImagePath,
@@ -51,6 +57,7 @@ class DraggableCard extends StatelessWidget {
   final void Function(Offset globalPosition) onDragEnd;
   final bool isMirrored;
   final bool interactable;
+  final bool applyOrientation;
 
   /// Non-null when this card is owned by the other player -- painted as a
   /// thin border *inside* the same rotated subtree as the card's face/back
@@ -73,7 +80,8 @@ class DraggableCard extends StatelessWidget {
             ),
             child: content,
           );
-    final turns = (isMirrored ? 0.5 : 0.0) + instance.rotationTurns / 4;
+    final orientation = applyOrientation ? (definition?.orientation ?? CardOrientation.portrait) : CardOrientation.portrait;
+    final turns = (isMirrored ? 0.5 : 0.0) + orientationTurns(orientation) + instance.rotationTurns / 4;
     return AnimatedRotation(turns: turns, duration: rotationAnimationDuration, curve: Curves.easeOut, child: bordered);
   }
 

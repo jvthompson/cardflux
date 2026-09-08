@@ -16,11 +16,18 @@ class GameDefinition {
     this.cardBackImagePath,
     this.zones = const [],
     this.opponentCardBorderColor = defaultOpponentCardBorderColor,
+    this.cardTypes = const [],
   });
 
   final String id;
   final String name;
   final List<CardDefinition> cards;
+
+  /// This game's declared card-type taxonomy (e.g. "Character", "Item"),
+  /// display/toggle order matching JSON order -- see [CardDefinition.types].
+  /// Empty means this game doesn't use types at all, in which case the Deck
+  /// Editor shows no filter chips.
+  final List<String> cardTypes;
 
   /// Optional real art for this game's card back, shared by every card in
   /// it (unlike [CardDefinition.imagePath], which is per-card front art).
@@ -58,6 +65,7 @@ class GameDefinition {
               .toList() ??
           const [],
       opponentCardBorderColor: json['opponentCardBorderColor'] as String? ?? defaultOpponentCardBorderColor,
+      cardTypes: (json['cardTypes'] as List?)?.cast<String>().toList() ?? const [],
     );
   }
 
@@ -69,6 +77,7 @@ class GameDefinition {
       if (cardBackImagePath != null) 'cardBackImagePath': cardBackImagePath,
       if (zones.isNotEmpty) 'zones': zones.map((z) => z.toJson()).toList(),
       if (opponentCardBorderColor != defaultOpponentCardBorderColor) 'opponentCardBorderColor': opponentCardBorderColor,
+      if (cardTypes.isNotEmpty) 'cardTypes': cardTypes,
     };
   }
 }

@@ -1,3 +1,12 @@
+/// A card's default table rotation relative to plain upright portrait --
+/// some cards (e.g. METW's Region cards) are physically landscape, printed
+/// sideways on an otherwise portrait-shaped card image. [right] is 90°
+/// clockwise from portrait, [left] is 90° counter-clockwise. Only affects a
+/// card's own loose on-table look (see `DraggableCard`/`PileWidget`'s
+/// `applyOrientation`) -- a hand card or anything sitting in a zone always
+/// renders plain portrait regardless of this.
+enum CardOrientation { portrait, left, right }
+
 /// A template describing one kind of card available in a [GameDefinition]'s
 /// card pool. Not a card actually on the table — see [CardInstance] for that.
 class CardDefinition {
@@ -9,6 +18,8 @@ class CardDefinition {
     this.rank,
     this.imagePath,
     this.extraFields = const {},
+    this.types = const [],
+    this.orientation = CardOrientation.portrait,
   });
 
   final String id;
@@ -19,6 +30,16 @@ class CardDefinition {
   final String? imagePath;
   final Map<String, String> extraFields;
 
+  /// This card's types (e.g. "Character", "Item") -- matched against
+  /// [GameDefinition.cardTypes] to drive the Deck Editor's filter chips. A
+  /// card with no types is never hidden by any filter. Not validated against
+  /// the game's declared taxonomy -- an unrecognized type just never matches
+  /// a chip.
+  final List<String> types;
+
+  /// This card's default table rotation -- see [CardOrientation].
+  final CardOrientation orientation;
+
   factory CardDefinition.fromJson(Map<String, dynamic> json) {
     return CardDefinition(
       id: json['id'] as String,
@@ -28,6 +49,8 @@ class CardDefinition {
       rank: json['rank'] as String?,
       imagePath: json['imagePath'] as String?,
       extraFields: (json['extraFields'] as Map?)?.cast<String, String>() ?? const {},
+      types: (json['types'] as List?)?.cast<String>().toList() ?? const [],
+      orientation: CardOrientation.values.byName(json['orientation'] as String? ?? 'portrait'),
     );
   }
 
@@ -40,6 +63,8 @@ class CardDefinition {
       if (rank != null) 'rank': rank,
       if (imagePath != null) 'imagePath': imagePath,
       if (extraFields.isNotEmpty) 'extraFields': extraFields,
+      if (types.isNotEmpty) 'types': types,
+      if (orientation != CardOrientation.portrait) 'orientation': orientation.name,
     };
   }
 }

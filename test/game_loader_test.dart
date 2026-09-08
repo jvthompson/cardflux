@@ -80,6 +80,31 @@ void main() {
     expect(games.single.needsDeckBuilding, isTrue);
   });
 
+  test('loadFromFolder preserves cardTypes, per-card types, and opponentCardBorderColor', () async {
+    final tempDir = await Directory.systemTemp.createTemp('flutter_deck_test_games_');
+    addTearDown(() => tempDir.delete(recursive: true));
+
+    final gameFile = File('${tempDir.path}/my_game.json');
+    await gameFile.writeAsString(jsonEncode({
+      'id': 'my_game',
+      'name': 'My Custom Game',
+      'cardTypes': ['Character', 'Item'],
+      'opponentCardBorderColor': '#00FF00',
+      'cards': [
+        {'id': 'c1', 'cardTitle': 'One', 'imagePath': 'one.jpg', 'types': ['Character']},
+      ],
+    }));
+
+    final games = await GameLoader().loadFromFolder(tempDir.path);
+    final game = games.single;
+    expect(game.cardTypes, ['Character', 'Item']);
+    expect(game.opponentCardBorderColor, '#00FF00');
+    expect(game.cards.single.types, ['Character']);
+    // imagePath resolution (the reason this class exists) should still work
+    // alongside the new fields.
+    expect(game.cards.single.imagePath, '${tempDir.path}${Platform.pathSeparator}one.jpg');
+  });
+
   test('loadFromFolder returns empty list for a missing folder', () async {
     final games = await GameLoader().loadFromFolder('C:/definitely/not/a/real/path/xyz');
     expect(games, isEmpty);

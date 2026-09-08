@@ -25,6 +25,32 @@ void main() {
       expect(roundTripped.rank, def.rank);
       expect(roundTripped.imagePath, isNull);
     });
+
+    test('types defaults to empty and round-trips through JSON', () {
+      const untyped = CardDefinition(id: 'a', cardTitle: 'A');
+      expect(untyped.types, isEmpty);
+      expect(untyped.toJson().containsKey('types'), isFalse);
+
+      const typed = CardDefinition(id: 'b', cardTitle: 'B', types: ['Hearts', 'Face']);
+      final roundTripped = CardDefinition.fromJson(typed.toJson());
+      expect(roundTripped.types, ['Hearts', 'Face']);
+    });
+
+    test('orientation defaults to portrait and is omitted from JSON', () {
+      const def = CardDefinition(id: 'a', cardTitle: 'A');
+      expect(def.orientation, CardOrientation.portrait);
+      expect(def.toJson().containsKey('orientation'), isFalse);
+    });
+
+    test('orientation round-trips left and right through JSON', () {
+      const right = CardDefinition(id: 'a', cardTitle: 'A', orientation: CardOrientation.right);
+      expect(CardDefinition.fromJson(right.toJson()).orientation, CardOrientation.right);
+      expect(right.toJson()['orientation'], 'right');
+
+      const left = CardDefinition(id: 'b', cardTitle: 'B', orientation: CardOrientation.left);
+      expect(CardDefinition.fromJson(left.toJson()).orientation, CardOrientation.left);
+      expect(left.toJson()['orientation'], 'left');
+    });
   });
 
   group('CardInstance', () {
@@ -246,6 +272,31 @@ void main() {
       final roundTripped = GameDefinition.fromJson(game.toJson());
       expect(roundTripped.opponentCardBorderColor, '#00FF00');
       expect(game.toJson()['opponentCardBorderColor'], '#00FF00');
+    });
+
+    test('cardTypes defaults to empty when absent from JSON', () {
+      final json = {
+        'id': 'g1',
+        'name': 'G',
+        'cards': [
+          {'id': 'a', 'cardTitle': 'A', 'colorHex': '#000000'},
+        ],
+      };
+      final game = GameDefinition.fromJson(json);
+      expect(game.cardTypes, isEmpty);
+      expect(game.toJson().containsKey('cardTypes'), isFalse);
+    });
+
+    test('cardTypes round-trips through JSON', () {
+      const game = GameDefinition(
+        id: 'standard_52',
+        name: 'Standard 52-Card Deck',
+        cards: [CardDefinition(id: 'hearts_A', cardTitle: 'A', colorHex: '#D32F2F', types: ['Hearts'])],
+        cardTypes: ['Hearts', 'Diamonds', 'Clubs', 'Spades'],
+      );
+      final roundTripped = GameDefinition.fromJson(game.toJson());
+      expect(roundTripped.cardTypes, ['Hearts', 'Diamonds', 'Clubs', 'Spades']);
+      expect(roundTripped.cards.first.types, ['Hearts']);
     });
 
     test('round-trips zones through JSON', () {

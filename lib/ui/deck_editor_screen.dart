@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math' show pi;
 
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
@@ -35,7 +36,22 @@ class _DeckEditorScreenState extends State<DeckEditorScreen> {
   final Map<String, int> _quantities = {};
   String? _hoveredDefinitionId;
 
+  /// Which of [GameDefinition.cardTypes] currently show in the pool -- every
+  /// type starts selected (nothing hidden). Ignored entirely when the game
+  /// declares no types at all, in which case the filter bar doesn't render.
+  late final Set<String> _selectedTypes = widget.game.cardTypes.toSet();
+
   int get _totalCards => _quantities.values.fold(0, (a, b) => a + b);
+
+  /// A card with no types of its own is never hidden by a filter; otherwise
+  /// it shows if *any* of its types is currently selected.
+  bool _isVisible(CardDefinition card) {
+    if (widget.game.cardTypes.isEmpty) return true;
+    if (card.types.isEmpty) return true;
+    return card.types.any(_selectedTypes.contains);
+  }
+
+  List<CardDefinition> get _visibleCards => widget.game.cards.where(_isVisible).toList();
 
   void _addCopy(String definitionId) {
     setState(() => _quantities[definitionId] = (_quantities[definitionId] ?? 0) + 1);
@@ -100,8 +116,40 @@ class _DeckEditorScreenState extends State<DeckEditorScreen> {
     });
   }
 
-  Widget _buildPoolRow(CardDefinition card) {
-    final color = Color(int.parse((card.colorHex ?? '#9E9E9E').replaceFirst('#', '0xFF')));
+  /// The type-toggle filter bar shown above the pool grid -- empty (no
+  /// widget) for a game that declares no [GameDefinition.cardTypes], so the
+  /// feature is entirely invisible unless a game opts in.
+  Widget _buildTypeFilterBar() {
+    if (widget.game.cardTypes.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+      child: Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: [
+          for (final type in widget.game.cardTypes)
+            FilterChip(
+              label: Text(type),
+              selected: _selectedTypes.contains(type),
+              onSelected: (selected) => setState(() {
+                if (selected) {
+                  _selectedTypes.add(type);
+                } else {
+                  _selectedTypes.remove(type);
+                }
+              }),
+            ),
+        ],
+      ),
+    );
+  }
+
+  /// One pool tile: the real card face at its native table size (not
+  /// scaled), with the same left-click-to-add/right-click-to-remove wiring
+  /// and hover-preview tracking the old text row had, plus a quantity badge
+  /// overlaid on the face and a title underneath (still needed for real-art
+  /// cards whose image has no title baked in).
+  Widget _buildPoolCard(CardDefinition card) {
     final quantity = _quantities[card.id] ?? 0;
     return MouseRegion(
       onEnter: (_) => setState(() => _hoveredDefinitionId = card.id),
@@ -111,11 +159,40 @@ class _DeckEditorScreenState extends State<DeckEditorScreen> {
       child: GestureDetector(
         onTap: () => _addCopy(card.id),
         onSecondaryTap: () => _removeCopy(card.id),
-        child: ListTile(
-          leading: CircleAvatar(backgroundColor: color, child: Text(card.cardTitle, style: const TextStyle(color: Colors.white, fontSize: 12))),
-          title: Text(card.cardTitle),
-          subtitle: card.suit != null ? Text(card.suit!) : null,
-          trailing: quantity > 0 ? Text('×$quantity', style: const TextStyle(fontWeight: FontWeight.bold)) : null,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Transform.rotate(
+                  angle: orientationTurns(card.orientation) * 2 * pi,
+                  child: SizedBox(width: cardWidth, height: cardHeight, child: CardFaceWidget(definition: card)),
+                ),
+                if (quantity > 0)
+                  Positioned(
+                    top: -6,
+                    right: -6,
+                    child: CircleAvatar(
+                      radius: 11,
+                      backgroundColor: Colors.black87,
+                      child: Text('$quantity', style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            SizedBox(
+              width: cardWidth,
+              child: Text(
+                card.cardTitle,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 11),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -135,7 +212,10 @@ class _DeckEditorScreenState extends State<DeckEditorScreen> {
                   Expanded(
                     child: FittedBox(
                       fit: BoxFit.contain,
-                      child: SizedBox(width: cardWidth, height: cardHeight, child: CardFaceWidget(definition: hovered)),
+                      child: RotatedBox(
+                        quarterTurns: orientationQuarterTurns(hovered.orientation),
+                        child: SizedBox(width: cardWidth, height: cardHeight, child: CardFaceWidget(definition: hovered)),
+                      ),
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -194,9 +274,24 @@ class _DeckEditorScreenState extends State<DeckEditorScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Expanded(
-                  child: ListView.builder(
-                    itemCount: widget.game.cards.length,
-                    itemBuilder: (context, index) => _buildPoolRow(widget.game.cards[index]),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      _buildTypeFilterBar(),
+                      Expanded(
+                        child: GridView.builder(
+                          padding: const EdgeInsets.all(12),
+                          gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                            maxCrossAxisExtent: cardWidth + 24,
+                            mainAxisExtent: cardHeight + 28,
+                            crossAxisSpacing: 12,
+                            mainAxisSpacing: 12,
+                          ),
+                          itemCount: _visibleCards.length,
+                          itemBuilder: (context, index) => _buildPoolCard(_visibleCards[index]),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
                 const VerticalDivider(width: 1),

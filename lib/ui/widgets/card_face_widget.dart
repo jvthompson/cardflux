@@ -30,6 +30,29 @@ Color parseHexColor(String hex) {
   return Color(int.parse('FF$cleaned', radix: 16));
 }
 
+/// The `AnimatedRotation`/`Transform.rotate` turns contributed by
+/// [CardOrientation] alone -- see its own doc for what `right`/`left` mean.
+/// Shared by `DraggableCard`, `PileWidget`, and the Deck Editor's pool grid
+/// so the mapping only lives in one place.
+double orientationTurns(CardOrientation orientation) => switch (orientation) {
+      CardOrientation.portrait => 0,
+      CardOrientation.right => 0.25,
+      CardOrientation.left => -0.25,
+    };
+
+/// The `RotatedBox.quarterTurns` equivalent of [orientationTurns] -- for
+/// preview-style rendering (Deck Editor hover, Space-hold on the table) that
+/// scales a rotated card to fill an available box via `FittedBox`.
+/// `RotatedBox`, unlike `Transform.rotate`/`AnimatedRotation`, actually swaps
+/// the child's effective width/height for a 90°/270° turn, so `FittedBox`
+/// scales a landscape card to fill the space instead of shrinking it inside
+/// a portrait-shaped box.
+int orientationQuarterTurns(CardOrientation orientation) => switch (orientation) {
+      CardOrientation.portrait => 0,
+      CardOrientation.right => 1,
+      CardOrientation.left => 3,
+    };
+
 /// The front face of a card. If [CardDefinition.imagePath] is set, renders
 /// the real scanned/art image (falling back to the code-drawn face below if
 /// the file can't be loaded); otherwise code-draws it from the definition's

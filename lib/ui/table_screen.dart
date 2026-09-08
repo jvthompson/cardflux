@@ -477,12 +477,22 @@ class _TableScreenState extends State<TableScreen> with SingleTickerProviderStat
   /// of whichever half of [screenSize] the cursor isn't in, clamped to stay
   /// fully on screen regardless of card image aspect ratio or window size.
   Widget _buildHoverPreview(CardInstance instance, CardDefinition? definition, Size screenSize) {
+    // Only a table card's own orientation is honored here (matching
+    // DraggableCard/PileWidget's applyOrientation) -- a hand/zone card is
+    // never actually rendered rotated on screen, so its preview shouldn't be
+    // either.
+    final orientation =
+        instance.zone == CardZone.table ? (definition?.orientation ?? CardOrientation.portrait) : CardOrientation.portrait;
+    final rotated = orientation != CardOrientation.portrait;
+    final boxWidth = rotated ? cardHeight : cardWidth;
+    final boxHeight = rotated ? cardWidth : cardHeight;
+
     double previewHeight = screenSize.height * 0.7;
-    double previewWidth = previewHeight * (cardWidth / cardHeight);
+    double previewWidth = previewHeight * (boxWidth / boxHeight);
     final maxWidth = screenSize.width * 0.42;
     if (previewWidth > maxWidth) {
       previewWidth = maxWidth;
-      previewHeight = previewWidth * (cardHeight / cardWidth);
+      previewHeight = previewWidth * (boxHeight / boxWidth);
     }
 
     final onLeftHalf = _lastMousePos.dx < screenSize.width / 2;
@@ -503,7 +513,10 @@ class _TableScreenState extends State<TableScreen> with SingleTickerProviderStat
           height: previewHeight,
           child: FittedBox(
             fit: BoxFit.contain,
-            child: SizedBox(width: cardWidth, height: cardHeight, child: content),
+            child: RotatedBox(
+              quarterTurns: orientationQuarterTurns(orientation),
+              child: SizedBox(width: cardWidth, height: cardHeight, child: content),
+            ),
           ),
         ),
       ),
@@ -695,6 +708,7 @@ class _TableScreenState extends State<TableScreen> with SingleTickerProviderStat
                                               onShuffle: () => widget.controller.shufflePile(group.key),
                                               isMirrored: ownedByOpponent,
                                               interactable: !ownedByOpponent,
+                                              applyOrientation: true,
                                               topBorderColor: ownedByOpponent ? opponentBorderColor : null,
                                               onHover: (hovering) => _setHoveredId(hovering ? top.instanceId : null),
                                               cardBackImagePath: widget.cardBackImagePath,
@@ -718,6 +732,7 @@ class _TableScreenState extends State<TableScreen> with SingleTickerProviderStat
                                             definition: widget.definitionsById[top.definitionId],
                                             isMirrored: ownedByOpponent,
                                             interactable: !ownedByOpponent,
+                                            applyOrientation: true,
                                             opponentBorderColor: ownedByOpponent ? opponentBorderColor : null,
                                             onTapFlip: () => widget.controller.flipCard(top.instanceId),
                                             onDragEnd: (offset) => _handleDragEnd(tableTops, top.instanceId, offset, localHand),

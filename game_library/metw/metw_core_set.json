@@ -2,2510 +2,4055 @@
   "id": "metw_core_set",
   "name": "Middle-earth: The Wizards -- Core Set",
   "cardBackImagePath": "cardback.jpg",
+  "cardTypes": [
+    "Character",
+    "Resource",
+    "Hazard",
+    "Site",
+    "Region"
+  ],
   "zones": [
-    { "id": "draw_deck", "name": "Draw Deck", "dealsBuiltDeck": true },
-    { "id": "discard_pile", "name": "Discard Pile", "faceUp": true, "shuffleable": false, "visibleToAll": true, "isDiscardPile": true }
+    {
+      "id": "draw_deck",
+      "name": "Draw Deck",
+      "dealsBuiltDeck": true
+    },
+    {
+      "id": "discard_pile",
+      "name": "Discard Pile",
+      "faceUp": true,
+      "shuffleable": false,
+      "visibleToAll": true,
+      "isDiscardPile": true
+    }
   ],
   "cards": [
     {
       "id": "a_chance_meeting",
       "cardTitle": "A Chance Meeting",
-      "imagePath": "core_set/AChanceMeeting.jpg"
+      "imagePath": "core_set/AChanceMeeting.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "a_friend_or_three",
       "cardTitle": "A Friend or Three",
-      "imagePath": "core_set/AFriendorThree.jpg"
+      "imagePath": "core_set/AFriendorThree.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "a_pack_at_the_door",
       "cardTitle": "A Pack at the Door",
-      "imagePath": "core_set/APackattheDoor.jpg"
+      "imagePath": "core_set/APackattheDoor.jpg",
+      "types": [
+        "Hazard"
+      ]
     },
     {
       "id": "abductor",
       "cardTitle": "Abductor",
-      "imagePath": "core_set/Abductor.jpg"
+      "imagePath": "core_set/Abductor.jpg",
+      "types": [
+        "Hazard"
+      ]
     },
     {
       "id": "adrazar",
       "cardTitle": "Adrazar",
-      "imagePath": "core_set/Adrazar.jpg"
+      "imagePath": "core_set/Adrazar.jpg",
+      "types": [
+        "Character"
+      ]
     },
     {
       "id": "adunaphel",
       "cardTitle": "Adunaphel",
-      "imagePath": "core_set/Adunaphel.jpg"
+      "imagePath": "core_set/Adunaphel.jpg",
+      "types": [
+        "Hazard"
+      ]
     },
     {
       "id": "agburanar",
       "cardTitle": "Agburanar",
-      "imagePath": "core_set/Agburanar.jpg"
+      "imagePath": "core_set/Agburanar.jpg",
+      "types": [
+        "Hazard"
+      ]
     },
     {
       "id": "akhorahil",
       "cardTitle": "Akhorahil",
-      "imagePath": "core_set/Akhorahil.jpg"
+      "imagePath": "core_set/Akhorahil.jpg",
+      "types": [
+        "Hazard"
+      ]
     },
     {
       "id": "alatar",
       "cardTitle": "Alatar",
-      "imagePath": "core_set/Alatar.jpg"
+      "imagePath": "core_set/Alatar.jpg",
+      "types": [
+        "Character"
+      ]
     },
     {
       "id": "align_palantir",
       "cardTitle": "Align Palantir",
-      "imagePath": "core_set/AlignPalantir.jpg"
+      "imagePath": "core_set/AlignPalantir.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "ambusher",
       "cardTitle": "Ambusher",
-      "imagePath": "core_set/Ambusher.jpg"
+      "imagePath": "core_set/Ambusher.jpg",
+      "types": [
+        "Hazard"
+      ]
     },
     {
       "id": "amon_hen",
       "cardTitle": "Amon Hen",
-      "imagePath": "core_set/AmonHen.jpg"
+      "imagePath": "core_set/AmonHen.jpg",
+      "types": [
+        "Site"
+      ]
     },
     {
       "id": "anborn",
       "cardTitle": "Anborn",
-      "imagePath": "core_set/Anborn.jpg"
+      "imagePath": "core_set/Anborn.jpg",
+      "types": [
+        "Character"
+      ]
     },
     {
       "id": "andrast",
       "cardTitle": "Andrast",
-      "imagePath": "core_set/Andrast.jpg"
+      "imagePath": "core_set/Andrast.jpg",
+      "types": [
+        "Region"
+      ]
     },
     {
       "id": "andrast_coast",
       "cardTitle": "Andrast Coast",
-      "imagePath": "core_set/AndrastCoast.jpg"
+      "imagePath": "core_set/AndrastCoast.jpg",
+      "types": [
+        "Region"
+      ]
     },
     {
       "id": "anduin_river",
       "cardTitle": "Anduin River",
-      "imagePath": "core_set/AnduinRiver.jpg"
+      "imagePath": "core_set/AnduinRiver.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "anduin_vales",
       "cardTitle": "Anduin Vales",
-      "imagePath": "core_set/AnduinVales.jpg"
+      "imagePath": "core_set/AnduinVales.jpg",
+      "types": [
+        "Region"
+      ]
     },
     {
       "id": "anduril_the_flame_of_the_west",
       "cardTitle": "Anduril the Flame of the West",
-      "imagePath": "core_set/AnduriltheFlameoftheWest.jpg"
+      "imagePath": "core_set/AnduriltheFlameoftheWest.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "anfalas",
       "cardTitle": "Anfalas",
-      "imagePath": "core_set/Anfalas.jpg"
+      "imagePath": "core_set/Anfalas.jpg",
+      "orientation": "right",
+      "types": [
+        "Region"
+      ]
     },
     {
       "id": "angmar",
       "cardTitle": "Angmar",
-      "imagePath": "core_set/Angmar.jpg"
+      "imagePath": "core_set/Angmar.jpg",
+      "types": [
+        "Region"
+      ],
+      "orientation": "right"
     },
     {
       "id": "annalena",
       "cardTitle": "Annalena",
-      "imagePath": "core_set/Annalena.jpg"
+      "imagePath": "core_set/Annalena.jpg",
+      "types": [
+        "Character"
+      ]
     },
     {
       "id": "anorien",
       "cardTitle": "Anorien",
-      "imagePath": "core_set/Anorien.jpg"
+      "imagePath": "core_set/Anorien.jpg",
+      "types": [
+        "Region"
+      ]
     },
     {
       "id": "aragorn_ii",
       "cardTitle": "Aragorn II",
-      "imagePath": "core_set/AragornII.jpg"
+      "imagePath": "core_set/AragornII.jpg",
+      "types": [
+        "Character"
+      ]
     },
     {
       "id": "arinmir",
       "cardTitle": "Arinmir",
-      "imagePath": "core_set/Arinmir.jpg"
+      "imagePath": "core_set/Arinmir.jpg",
+      "types": [
+        "Character"
+      ]
     },
     {
       "id": "army_of_the_dead",
       "cardTitle": "Army of the Dead",
-      "imagePath": "core_set/ArmyoftheDead.jpg"
+      "imagePath": "core_set/ArmyoftheDead.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "arouse_denizens",
       "cardTitle": "Arouse Denizens",
-      "imagePath": "core_set/ArouseDenizens.jpg"
+      "imagePath": "core_set/ArouseDenizens.jpg",
+      "types": [
+        "Hazard"
+      ]
     },
     {
       "id": "arouse_minions",
       "cardTitle": "Arouse Minions",
-      "imagePath": "core_set/ArouseMinions.jpg"
+      "imagePath": "core_set/ArouseMinions.jpg",
+      "types": [
+        "Hazard"
+      ]
     },
     {
       "id": "arthedain",
       "cardTitle": "Arthedain",
-      "imagePath": "core_set/Arthedain.jpg"
+      "imagePath": "core_set/Arthedain.jpg",
+      "types": [
+        "Region"
+      ]
     },
     {
       "id": "arwen",
       "cardTitle": "Arwen",
-      "imagePath": "core_set/Arwen.jpg"
+      "imagePath": "core_set/Arwen.jpg",
+      "types": [
+        "Character"
+      ]
     },
     {
       "id": "ash_mountains",
       "cardTitle": "Ash Mountains",
-      "imagePath": "core_set/AshMountains.jpg"
+      "imagePath": "core_set/AshMountains.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "assassin",
       "cardTitle": "Assassin",
-      "imagePath": "core_set/Assassin.jpg"
+      "imagePath": "core_set/Assassin.jpg",
+      "types": [
+        "Hazard"
+      ]
     },
     {
       "id": "athelas",
       "cardTitle": "Athelas",
-      "imagePath": "core_set/Athelas.jpg"
+      "imagePath": "core_set/Athelas.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "awaken_denizens",
       "cardTitle": "Awaken Denizens",
-      "imagePath": "core_set/AwakenDenizens.jpg"
+      "imagePath": "core_set/AwakenDenizens.jpg",
+      "types": [
+        "Hazard"
+      ]
     },
     {
       "id": "awaken_minions",
       "cardTitle": "Awaken Minions",
-      "imagePath": "core_set/AwakenMinions.jpg"
+      "imagePath": "core_set/AwakenMinions.jpg",
+      "types": [
+        "Hazard"
+      ]
     },
     {
       "id": "awaken_the_earths_fire",
       "cardTitle": "Awaken the Earth's Fire",
-      "imagePath": "core_set/AwakentheEarthsFire.jpg"
+      "imagePath": "core_set/AwakentheEarthsFire.jpg",
+      "types": [
+        "Hazard"
+      ]
     },
     {
       "id": "bag_end",
       "cardTitle": "Bag End",
-      "imagePath": "core_set/BagEnd.jpg"
+      "imagePath": "core_set/BagEnd.jpg",
+      "types": [
+        "Site"
+      ]
     },
     {
       "id": "balin",
       "cardTitle": "Balin",
-      "imagePath": "core_set/Balin.jpg"
+      "imagePath": "core_set/Balin.jpg",
+      "types": [
+        "Character"
+      ]
     },
     {
       "id": "balrog_of_moria",
       "cardTitle": "Balrog of Moria",
-      "imagePath": "core_set/BalrogofMoria.jpg"
+      "imagePath": "core_set/BalrogofMoria.jpg",
+      "types": [
+        "Hazard"
+      ]
     },
     {
       "id": "bandit_lair",
       "cardTitle": "Bandit Lair",
-      "imagePath": "core_set/BanditLair.jpg"
+      "imagePath": "core_set/BanditLair.jpg",
+      "types": [
+        "Site"
+      ]
     },
     {
       "id": "bane_of_the_ithilstone",
       "cardTitle": "Bane of the Ithilstone",
-      "imagePath": "core_set/BaneoftheIthilstone.jpg"
+      "imagePath": "core_set/BaneoftheIthilstone.jpg",
+      "types": [
+        "Hazard"
+      ]
     },
     {
       "id": "baraddur",
       "cardTitle": "Baraddur",
-      "imagePath": "core_set/Baraddur.jpg"
+      "imagePath": "core_set/Baraddur.jpg",
+      "types": [
+        "Site"
+      ]
     },
     {
       "id": "bard_bowman",
       "cardTitle": "Bard Bowman",
-      "imagePath": "core_set/BardBowman.jpg"
+      "imagePath": "core_set/BardBowman.jpg",
+      "types": [
+        "Character"
+      ]
     },
     {
       "id": "barliman_butterbur",
       "cardTitle": "Barliman Butterbur",
-      "imagePath": "core_set/BarlimanButterbur.jpg"
+      "imagePath": "core_set/BarlimanButterbur.jpg",
+      "types": [
+        "Character"
+      ]
     },
     {
       "id": "barrowdowns",
       "cardTitle": "Barrowdowns",
-      "imagePath": "core_set/Barrowdowns.jpg"
+      "imagePath": "core_set/Barrowdowns.jpg",
+      "types": [
+        "Site"
+      ]
     },
     {
       "id": "barrow_wight",
       "cardTitle": "Barrow-wight",
-      "imagePath": "core_set/Barrowwight.jpg"
+      "imagePath": "core_set/Barrowwight.jpg",
+      "types": [
+        "Hazard"
+      ]
     },
     {
       "id": "barrow_wight_2",
       "cardTitle": "Barrow-wight",
-      "imagePath": "core_set/Barrowwight2.jpg"
+      "imagePath": "core_set/Barrowwight2.jpg",
+      "types": [
+        "Hazard"
+      ]
     },
     {
       "id": "bay_of_belfalas",
       "cardTitle": "Bay of Belfalas",
-      "imagePath": "core_set/BayofBelfalas.jpg"
+      "imagePath": "core_set/BayofBelfalas.jpg",
+      "types": [
+        "Region"
+      ],
+      "orientation": "right"
     },
     {
       "id": "beautiful_gold_ring",
       "cardTitle": "Beautiful Gold Ring",
-      "imagePath": "core_set/BeautifulGoldRing.jpg"
+      "imagePath": "core_set/BeautifulGoldRing.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "belfalas",
       "cardTitle": "Belfalas",
-      "imagePath": "core_set/Belfalas.jpg"
+      "imagePath": "core_set/Belfalas.jpg",
+      "types": [
+        "Region"
+      ]
     },
     {
       "id": "beorn",
       "cardTitle": "Beorn",
-      "imagePath": "core_set/Beorn.jpg"
+      "imagePath": "core_set/Beorn.jpg",
+      "types": [
+        "Character"
+      ]
     },
     {
       "id": "beornings",
       "cardTitle": "Beornings",
-      "imagePath": "core_set/Beornings.jpg"
+      "imagePath": "core_set/Beornings.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "beorns_house",
       "cardTitle": "Beorn's House",
-      "imagePath": "core_set/BeornsHouse.jpg"
+      "imagePath": "core_set/BeornsHouse.jpg",
+      "types": [
+        "Site"
+      ]
     },
     {
       "id": "beregond",
       "cardTitle": "Beregond",
-      "imagePath": "core_set/Beregond.jpg"
+      "imagePath": "core_set/Beregond.jpg",
+      "types": [
+        "Character"
+      ]
     },
     {
       "id": "beretar",
       "cardTitle": "Beretar",
-      "imagePath": "core_set/Beretar.jpg"
+      "imagePath": "core_set/Beretar.jpg",
+      "types": [
+        "Character"
+      ]
     },
     {
       "id": "bergil",
       "cardTitle": "Bergil",
-      "imagePath": "core_set/Bergil.jpg"
+      "imagePath": "core_set/Bergil.jpg",
+      "types": [
+        "Character"
+      ]
     },
     {
       "id": "bert_burat",
       "cardTitle": "Bert Burat",
-      "imagePath": "core_set/BertBurat.jpg"
+      "imagePath": "core_set/BertBurat.jpg",
+      "types": [
+        "Hazard"
+      ]
     },
     {
       "id": "bifur",
       "cardTitle": "Bifur",
-      "imagePath": "core_set/Bifur.jpg"
+      "imagePath": "core_set/Bifur.jpg",
+      "types": [
+        "Character"
+      ]
     },
     {
       "id": "bilbo",
       "cardTitle": "Bilbo",
-      "imagePath": "core_set/Bilbo.jpg"
+      "imagePath": "core_set/Bilbo.jpg",
+      "types": [
+        "Character"
+      ]
     },
     {
       "id": "bill_the_pony",
       "cardTitle": "Bill the Pony",
-      "imagePath": "core_set/BillthePony.jpg"
+      "imagePath": "core_set/BillthePony.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "black_arrow",
       "cardTitle": "Black Arrow",
-      "imagePath": "core_set/BlackArrow.jpg"
+      "imagePath": "core_set/BlackArrow.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "block",
       "cardTitle": "Block",
-      "imagePath": "core_set/Block.jpg"
+      "imagePath": "core_set/Block.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "blue_mountain_dwarfhold",
       "cardTitle": "Blue Mountain Dwarfhold",
-      "imagePath": "core_set/BlueMountainDwarfhold.jpg"
+      "imagePath": "core_set/BlueMountainDwarfhold.jpg",
+      "types": [
+        "Site"
+      ]
     },
     {
       "id": "blue_mountain_dwarves",
       "cardTitle": "Blue Mountain Dwarves",
-      "imagePath": "core_set/BlueMountainDwarves.jpg"
+      "imagePath": "core_set/BlueMountainDwarves.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "bofur",
       "cardTitle": "Bofur",
-      "imagePath": "core_set/Bofur.jpg"
+      "imagePath": "core_set/Bofur.jpg",
+      "types": [
+        "Character"
+      ]
     },
     {
       "id": "bombur",
       "cardTitle": "Bombur",
-      "imagePath": "core_set/Bombur.jpg"
+      "imagePath": "core_set/Bombur.jpg",
+      "types": [
+        "Character"
+      ]
     },
     {
       "id": "book_of_mazarbul",
       "cardTitle": "Book of Mazarbul",
-      "imagePath": "core_set/BookofMazarbul.jpg"
+      "imagePath": "core_set/BookofMazarbul.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "boromir_ii",
       "cardTitle": "Boromir II",
-      "imagePath": "core_set/BoromirII.jpg"
+      "imagePath": "core_set/BoromirII.jpg",
+      "types": [
+        "Character"
+      ]
     },
     {
       "id": "boromir_ii_2",
       "cardTitle": "Boromir II",
-      "imagePath": "core_set/BoromirII2.jpg"
+      "imagePath": "core_set/BoromirII2.jpg",
+      "types": [
+        "Character"
+      ]
     },
     {
       "id": "bree",
       "cardTitle": "Bree",
-      "imagePath": "core_set/Bree.jpg"
+      "imagePath": "core_set/Bree.jpg",
+      "types": [
+        "Site"
+      ]
     },
     {
       "id": "bridge",
       "cardTitle": "Bridge",
-      "imagePath": "core_set/Bridge.jpg"
+      "imagePath": "core_set/Bridge.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "brigands",
       "cardTitle": "Brigands",
-      "imagePath": "core_set/Brigands.jpg"
+      "imagePath": "core_set/Brigands.jpg",
+      "types": [
+        "Hazard"
+      ]
     },
     {
       "id": "brown_lands",
       "cardTitle": "Brown Lands",
-      "imagePath": "core_set/BrownLands.jpg"
+      "imagePath": "core_set/BrownLands.jpg",
+      "types": [
+        "Region"
+      ],
+      "orientation": "right"
     },
     {
       "id": "call_of_home",
       "cardTitle": "Call of Home",
-      "imagePath": "core_set/CallofHome.jpg"
+      "imagePath": "core_set/CallofHome.jpg",
+      "types": [
+        "Hazard"
+      ]
     },
     {
       "id": "call_of_the_sea",
       "cardTitle": "Call of the Sea",
-      "imagePath": "core_set/CalloftheSea.jpg"
+      "imagePath": "core_set/CalloftheSea.jpg",
+      "types": [
+        "Hazard"
+      ]
     },
     {
       "id": "cameth_brin",
       "cardTitle": "Cameth Brin",
-      "imagePath": "core_set/CamethBrin.jpg"
+      "imagePath": "core_set/CamethBrin.jpg",
+      "types": [
+        "Site"
+      ]
     },
     {
       "id": "cardolan",
       "cardTitle": "Cardolan",
-      "imagePath": "core_set/Cardolan.jpg"
+      "imagePath": "core_set/Cardolan.jpg",
+      "types": [
+        "Region"
+      ],
+      "orientation": "right"
     },
     {
       "id": "carn_dum",
       "cardTitle": "Carn Dum",
-      "imagePath": "core_set/CarnDum.jpg"
+      "imagePath": "core_set/CarnDum.jpg",
+      "types": [
+        "Site"
+      ]
     },
     {
       "id": "cavedrake",
       "cardTitle": "Cavedrake",
-      "imagePath": "core_set/Cavedrake.jpg"
+      "imagePath": "core_set/Cavedrake.jpg",
+      "types": [
+        "Hazard"
+      ]
     },
     {
       "id": "caves_of_ulund",
       "cardTitle": "Caves of Ulund",
-      "imagePath": "core_set/CavesofUlund.jpg"
+      "imagePath": "core_set/CavesofUlund.jpg",
+      "types": [
+        "Site"
+      ]
     },
     {
       "id": "celeborn",
       "cardTitle": "Celeborn",
-      "imagePath": "core_set/Celeborn.jpg"
+      "imagePath": "core_set/Celeborn.jpg",
+      "types": [
+        "Character"
+      ]
     },
     {
       "id": "choking_shadows",
       "cardTitle": "Choking Shadows",
-      "imagePath": "core_set/ChokingShadows.jpg"
+      "imagePath": "core_set/ChokingShadows.jpg",
+      "types": [
+        "Hazard"
+      ]
     },
     {
       "id": "cirdan",
       "cardTitle": "Cirdan",
-      "imagePath": "core_set/Cirdan.jpg"
+      "imagePath": "core_set/Cirdan.jpg",
+      "types": [
+        "Character"
+      ]
     },
     {
       "id": "cirith_ungol",
       "cardTitle": "Cirith Ungol",
-      "imagePath": "core_set/CirithUngol.jpg"
+      "imagePath": "core_set/CirithUngol.jpg",
+      "types": [
+        "Site"
+      ]
     },
     {
       "id": "clear_skies",
       "cardTitle": "Clear Skies",
-      "imagePath": "core_set/ClearSkies.jpg"
+      "imagePath": "core_set/ClearSkies.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "clouds",
       "cardTitle": "Clouds",
-      "imagePath": "core_set/Clouds.jpg"
+      "imagePath": "core_set/Clouds.jpg",
+      "types": [
+        "Hazard"
+      ]
     },
     {
       "id": "concealment",
       "cardTitle": "Concealment",
-      "imagePath": "core_set/Concealment.jpg"
+      "imagePath": "core_set/Concealment.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "corpse_candle",
       "cardTitle": "Corpse-candle",
-      "imagePath": "core_set/Corpsecandle.jpg"
+      "imagePath": "core_set/Corpsecandle.jpg",
+      "types": [
+        "Hazard"
+      ]
     },
     {
       "id": "corsairs_of_umbar",
       "cardTitle": "Corsairs of Umbar",
-      "imagePath": "core_set/CorsairsofUmbar.jpg"
+      "imagePath": "core_set/CorsairsofUmbar.jpg",
+      "types": [
+        "Hazard"
+      ]
     },
     {
       "id": "cracks_of_doom",
       "cardTitle": "Cracks of Doom",
-      "imagePath": "core_set/CracksofDoom.jpg"
+      "imagePath": "core_set/CracksofDoom.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "crebain",
       "cardTitle": "Crebain",
-      "imagePath": "core_set/Crebain.jpg"
+      "imagePath": "core_set/Crebain.jpg",
+      "types": [
+        "Hazard"
+      ]
     },
     {
       "id": "daelomin",
       "cardTitle": "Daelomin",
-      "imagePath": "core_set/Daelomin.jpg"
+      "imagePath": "core_set/Daelomin.jpg",
+      "types": [
+        "Hazard"
+      ]
     },
     {
       "id": "dagger_of_westernesse",
       "cardTitle": "Dagger of Westernesse",
-      "imagePath": "core_set/DaggerofWesternesse.jpg"
+      "imagePath": "core_set/DaggerofWesternesse.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "dagorlad",
       "cardTitle": "Dagorlad",
-      "imagePath": "core_set/Dagorlad.jpg"
+      "imagePath": "core_set/Dagorlad.jpg",
+      "types": [
+        "Region"
+      ],
+      "orientation": "right"
     },
     {
       "id": "dain_ii",
       "cardTitle": "Dain II",
-      "imagePath": "core_set/DainII.jpg"
+      "imagePath": "core_set/DainII.jpg",
+      "types": [
+        "Character"
+      ]
     },
     {
       "id": "damrod",
       "cardTitle": "Damrod",
-      "imagePath": "core_set/Damrod.jpg"
+      "imagePath": "core_set/Damrod.jpg",
+      "types": [
+        "Character"
+      ]
     },
     {
       "id": "dancing_spire",
       "cardTitle": "Dancing Spire",
-      "imagePath": "core_set/DancingSpire.jpg"
+      "imagePath": "core_set/DancingSpire.jpg",
+      "types": [
+        "Site"
+      ]
     },
     {
       "id": "dark_quarrels",
       "cardTitle": "Dark Quarrels",
-      "imagePath": "core_set/DarkQuarrels.jpg"
+      "imagePath": "core_set/DarkQuarrels.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "dark_quarrels_2",
       "cardTitle": "Dark Quarrels",
-      "imagePath": "core_set/DarkQuarrels2.jpg"
+      "imagePath": "core_set/DarkQuarrels2.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "dead_marshes",
       "cardTitle": "Dead Marshes",
-      "imagePath": "core_set/DeadMarshes.jpg"
+      "imagePath": "core_set/DeadMarshes.jpg",
+      "types": [
+        "Site"
+      ]
     },
     {
       "id": "denethor_ii",
       "cardTitle": "Denethor II",
-      "imagePath": "core_set/DenethorII.jpg"
+      "imagePath": "core_set/DenethorII.jpg",
+      "types": [
+        "Character"
+      ]
     },
     {
       "id": "despair_of_the_heart",
       "cardTitle": "Despair of the Heart",
-      "imagePath": "core_set/DespairoftheHeart.jpg"
+      "imagePath": "core_set/DespairoftheHeart.jpg",
+      "types": [
+        "Hazard"
+      ]
     },
     {
       "id": "dimrill_dale",
       "cardTitle": "Dimrill Dale",
-      "imagePath": "core_set/DimrillDale.jpg"
+      "imagePath": "core_set/DimrillDale.jpg",
+      "types": [
+        "Site"
+      ]
     },
     {
       "id": "dodge",
       "cardTitle": "Dodge",
-      "imagePath": "core_set/Dodge.jpg"
+      "imagePath": "core_set/Dodge.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "dol_amroth",
       "cardTitle": "Dol Amroth",
-      "imagePath": "core_set/DolAmroth.jpg"
+      "imagePath": "core_set/DolAmroth.jpg",
+      "types": [
+        "Site"
+      ]
     },
     {
       "id": "dol_guldur",
       "cardTitle": "Dol Guldur",
-      "imagePath": "core_set/DolGuldur.jpg"
+      "imagePath": "core_set/DolGuldur.jpg",
+      "types": [
+        "Site"
+      ]
     },
     {
       "id": "doors_of_night",
       "cardTitle": "Doors of Night",
-      "imagePath": "core_set/DoorsofNight.jpg"
+      "imagePath": "core_set/DoorsofNight.jpg",
+      "types": [
+        "Hazard"
+      ]
     },
     {
       "id": "dori",
       "cardTitle": "Dori",
-      "imagePath": "core_set/Dori.jpg"
+      "imagePath": "core_set/Dori.jpg",
+      "types": [
+        "Character"
+      ]
     },
     {
       "id": "dorwinion",
       "cardTitle": "Dorwinion",
-      "imagePath": "core_set/Dorwinion.jpg"
+      "imagePath": "core_set/Dorwinion.jpg",
+      "types": [
+        "Region"
+      ]
     },
     {
       "id": "dragons_desolation",
       "cardTitle": "Dragon's Desolation",
-      "imagePath": "core_set/DragonsDesolation.jpg"
+      "imagePath": "core_set/DragonsDesolation.jpg",
+      "types": [
+        "Hazard"
+      ]
     },
     {
       "id": "dreams_of_lore",
       "cardTitle": "Dreams of Lore",
-      "imagePath": "core_set/DreamsofLore.jpg"
+      "imagePath": "core_set/DreamsofLore.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "drowning_seas",
       "cardTitle": "Drowning Seas",
-      "imagePath": "core_set/DrowningSeas.jpg"
+      "imagePath": "core_set/DrowningSeas.jpg",
+      "types": [
+        "Hazard"
+      ]
     },
     {
       "id": "druadan_forest",
       "cardTitle": "Druadan Forest",
-      "imagePath": "core_set/DruadanForest.jpg"
+      "imagePath": "core_set/DruadanForest.jpg",
+      "types": [
+        "Site"
+      ]
     },
     {
       "id": "dunharrow",
       "cardTitle": "Dunharrow",
-      "imagePath": "core_set/Dunharrow.jpg"
+      "imagePath": "core_set/Dunharrow.jpg",
+      "types": [
+        "Site"
+      ]
     },
     {
       "id": "dunland",
       "cardTitle": "Dunland",
-      "imagePath": "core_set/Dunland.jpg"
+      "imagePath": "core_set/Dunland.jpg",
+      "types": [
+        "Region"
+      ],
+      "orientation": "right"
     },
     {
       "id": "dunlendings",
       "cardTitle": "Dunlendings",
-      "imagePath": "core_set/Dunlendings.jpg"
+      "imagePath": "core_set/Dunlendings.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "dunnish_clanhold",
       "cardTitle": "Dunnish Clanhold",
-      "imagePath": "core_set/DunnishClanhold.jpg"
+      "imagePath": "core_set/DunnishClanhold.jpg",
+      "types": [
+        "Site"
+      ]
     },
     {
       "id": "durins_axe",
       "cardTitle": "Durin's Axe",
-      "imagePath": "core_set/DurinsAxe.jpg"
+      "imagePath": "core_set/DurinsAxe.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "dwalin",
       "cardTitle": "Dwalin",
-      "imagePath": "core_set/Dwalin.jpg"
+      "imagePath": "core_set/Dwalin.jpg",
+      "types": [
+        "Character"
+      ]
     },
     {
       "id": "dwar_of_waw",
       "cardTitle": "Dwar of Waw",
-      "imagePath": "core_set/DwarofWaw.jpg"
+      "imagePath": "core_set/DwarofWaw.jpg",
+      "types": [
+        "Hazard"
+      ]
     },
     {
       "id": "dwarven_axe",
       "cardTitle": "Dwarven Axe",
-      "imagePath": "core_set/DwarvenAxe.jpg"
+      "imagePath": "core_set/DwarvenAxe.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "dwarven_ring_of_barins_tribe",
       "cardTitle": "Dwarven Ring of Barin's Tribe",
-      "imagePath": "core_set/DwarvenRingofBarinsTribe.jpg"
+      "imagePath": "core_set/DwarvenRingofBarinsTribe.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "dwarven_ring_of_bavors_tribe",
       "cardTitle": "Dwarven Ring of Bavor's Tribe",
-      "imagePath": "core_set/DwarvenRingofBavorsTribe.jpg"
+      "imagePath": "core_set/DwarvenRingofBavorsTribe.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "dwarven_ring_of_druins_tribe",
       "cardTitle": "Dwarven Ring of Druin's Tribe",
-      "imagePath": "core_set/DwarvenRingofDruinsTribe.jpg"
+      "imagePath": "core_set/DwarvenRingofDruinsTribe.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "dwarven_ring_of_durins_tribe",
       "cardTitle": "Dwarven Ring of Durin's Tribe",
-      "imagePath": "core_set/DwarvenRingofDurinsTribe.jpg"
+      "imagePath": "core_set/DwarvenRingofDurinsTribe.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "dwarven_ring_of_dwalins_tribe",
       "cardTitle": "Dwarven Ring of Dwalin's Tribe",
-      "imagePath": "core_set/DwarvenRingofDwalinsTribe.jpg"
+      "imagePath": "core_set/DwarvenRingofDwalinsTribe.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "dwarven_ring_of_thelors_tribe",
       "cardTitle": "Dwarven Ring of Thelor's Tribe",
-      "imagePath": "core_set/DwarvenRingofThelorsTribe.jpg"
+      "imagePath": "core_set/DwarvenRingofThelorsTribe.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "dwarven_ring_of_thrars_tribe",
       "cardTitle": "Dwarven Ring of Thrar's Tribe",
-      "imagePath": "core_set/DwarvenRingofThrarsTribe.jpg"
+      "imagePath": "core_set/DwarvenRingofThrarsTribe.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "eaglemounts",
       "cardTitle": "Eaglemounts",
-      "imagePath": "core_set/Eaglemounts.jpg"
+      "imagePath": "core_set/Eaglemounts.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "eagles_eyrie",
       "cardTitle": "Eagle's Eyrie",
-      "imagePath": "core_set/EaglesEyrie.jpg"
+      "imagePath": "core_set/EaglesEyrie.jpg",
+      "types": [
+        "Site"
+      ]
     },
     {
       "id": "earth_of_galadriels_orchard",
       "cardTitle": "Earth of Galadriel's Orchard",
-      "imagePath": "core_set/EarthofGaladrielsOrchard.jpg"
+      "imagePath": "core_set/EarthofGaladrielsOrchard.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "easterling_camp",
       "cardTitle": "Easterling Camp",
-      "imagePath": "core_set/EasterlingCamp.jpg"
+      "imagePath": "core_set/EasterlingCamp.jpg",
+      "types": [
+        "Site"
+      ]
     },
     {
       "id": "easterlings",
       "cardTitle": "Easterlings",
-      "imagePath": "core_set/Easterlings.jpg"
+      "imagePath": "core_set/Easterlings.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "edhellond",
       "cardTitle": "Edhellond",
-      "imagePath": "core_set/Edhellond.jpg"
+      "imagePath": "core_set/Edhellond.jpg",
+      "types": [
+        "Site"
+      ]
     },
     {
       "id": "edoras",
       "cardTitle": "Edoras",
-      "imagePath": "core_set/Edoras.jpg"
+      "imagePath": "core_set/Edoras.jpg",
+      "types": [
+        "Site"
+      ]
     },
     {
       "id": "elfsong",
       "cardTitle": "Elfsong",
-      "imagePath": "core_set/Elfsong.jpg"
+      "imagePath": "core_set/Elfsong.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "elfstone",
       "cardTitle": "Elfstone",
-      "imagePath": "core_set/Elfstone.jpg"
+      "imagePath": "core_set/Elfstone.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "elladan",
       "cardTitle": "Elladan",
-      "imagePath": "core_set/Elladan.jpg"
+      "imagePath": "core_set/Elladan.jpg",
+      "types": [
+        "Character"
+      ]
     },
     {
       "id": "elrohir",
       "cardTitle": "Elrohir",
-      "imagePath": "core_set/Elrohir.jpg"
+      "imagePath": "core_set/Elrohir.jpg",
+      "types": [
+        "Character"
+      ]
     },
     {
       "id": "elrond",
       "cardTitle": "Elrond",
-      "imagePath": "core_set/Elrond.jpg"
+      "imagePath": "core_set/Elrond.jpg",
+      "types": [
+        "Character"
+      ]
     },
     {
       "id": "elven_cloak",
       "cardTitle": "Elven Cloak",
-      "imagePath": "core_set/ElvenCloak.jpg"
+      "imagePath": "core_set/ElvenCloak.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "elven_shores",
       "cardTitle": "Elven Shores",
-      "imagePath": "core_set/ElvenShores.jpg"
+      "imagePath": "core_set/ElvenShores.jpg",
+      "types": [
+        "Region"
+      ]
     },
     {
       "id": "elves_of_lindon",
       "cardTitle": "Elves of Lindon",
-      "imagePath": "core_set/ElvesofLindon.jpg"
+      "imagePath": "core_set/ElvesofLindon.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "enedhwaith",
       "cardTitle": "Enedhwaith",
-      "imagePath": "core_set/Enedhwaith.jpg"
+      "imagePath": "core_set/Enedhwaith.jpg",
+      "types": [
+        "Region"
+      ],
+      "orientation": "right"
     },
     {
       "id": "entdraughts",
       "cardTitle": "Entdraughts",
-      "imagePath": "core_set/Entdraughts.jpg"
+      "imagePath": "core_set/Entdraughts.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "ents_of_fangorn",
       "cardTitle": "Ents of Fangorn",
-      "imagePath": "core_set/EntsofFangorn.jpg"
+      "imagePath": "core_set/EntsofFangorn.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "eomer",
       "cardTitle": "Eomer",
-      "imagePath": "core_set/Eomer.jpg"
+      "imagePath": "core_set/Eomer.jpg",
+      "types": [
+        "Character"
+      ]
     },
     {
       "id": "eowyn",
       "cardTitle": "Eowyn",
-      "imagePath": "core_set/Eowyn.jpg"
+      "imagePath": "core_set/Eowyn.jpg",
+      "types": [
+        "Character"
+      ]
     },
     {
       "id": "eriadoran_coast",
       "cardTitle": "Eriadoran Coast",
-      "imagePath": "core_set/EriadoranCoast.jpg"
+      "imagePath": "core_set/EriadoranCoast.jpg",
+      "types": [
+        "Region"
+      ]
     },
     {
       "id": "erkenbrand",
       "cardTitle": "Erkenbrand",
-      "imagePath": "core_set/Erkenbrand.jpg"
+      "imagePath": "core_set/Erkenbrand.jpg",
+      "types": [
+        "Character"
+      ]
     },
     {
       "id": "escape",
       "cardTitle": "Escape",
-      "imagePath": "core_set/Escape.jpg"
+      "imagePath": "core_set/Escape.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "escape_2",
       "cardTitle": "Escape",
-      "imagePath": "core_set/Escape2.jpg"
+      "imagePath": "core_set/Escape2.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "ettenmoors",
       "cardTitle": "Ettenmoors",
-      "imagePath": "core_set/Ettenmoors.jpg"
+      "imagePath": "core_set/Ettenmoors.jpg",
+      "types": [
+        "Site"
+      ]
     },
     {
       "id": "eye_of_sauron",
       "cardTitle": "Eye of Sauron",
-      "imagePath": "core_set/EyeofSauron.jpg"
+      "imagePath": "core_set/EyeofSauron.jpg",
+      "types": [
+        "Hazard"
+      ]
     },
     {
       "id": "fair_gold_ring",
       "cardTitle": "Fair Gold Ring",
-      "imagePath": "core_set/FairGoldRing.jpg"
+      "imagePath": "core_set/FairGoldRing.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "fair_sailing",
       "cardTitle": "Fair Sailing",
-      "imagePath": "core_set/FairSailing.jpg"
+      "imagePath": "core_set/FairSailing.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "fair_travels_in_borderlands",
       "cardTitle": "Fair Travels in Borderlands",
-      "imagePath": "core_set/FairTravelsinBorderlands.jpg"
+      "imagePath": "core_set/FairTravelsinBorderlands.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "fair_travels_in_darkdomains",
       "cardTitle": "Fair Travels in Darkdomains",
-      "imagePath": "core_set/FairTravelsinDarkdomains.jpg"
+      "imagePath": "core_set/FairTravelsinDarkdomains.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "fair_travels_in_freedomains",
       "cardTitle": "Fair Travels in Freedomains",
-      "imagePath": "core_set/FairTravelsinFreedomains.jpg"
+      "imagePath": "core_set/FairTravelsinFreedomains.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "fair_travels_in_shadowlands",
       "cardTitle": "Fair Travels in Shadowlands",
-      "imagePath": "core_set/FairTravelsinShadowlands.jpg"
+      "imagePath": "core_set/FairTravelsinShadowlands.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "fair_travels_in_wilderness",
       "cardTitle": "Fair Travels in Wilderness",
-      "imagePath": "core_set/FairTravelsinWilderness.jpg"
+      "imagePath": "core_set/FairTravelsinWilderness.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "fangorn",
       "cardTitle": "Fangorn",
-      "imagePath": "core_set/Fangorn.jpg"
+      "imagePath": "core_set/Fangorn.jpg",
+      "types": [
+        "Region"
+      ]
     },
     {
       "id": "faramir",
       "cardTitle": "Faramir",
-      "imagePath": "core_set/Faramir.jpg"
+      "imagePath": "core_set/Faramir.jpg",
+      "types": [
+        "Character"
+      ]
     },
     {
       "id": "farsight",
       "cardTitle": "Farsight",
-      "imagePath": "core_set/Farsight.jpg"
+      "imagePath": "core_set/Farsight.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "fatty_bolger",
       "cardTitle": "Fatty Bolger",
-      "imagePath": "core_set/FattyBolger.jpg"
+      "imagePath": "core_set/FattyBolger.jpg",
+      "types": [
+        "Character"
+      ]
     },
     {
       "id": "favor_of_the_valar",
       "cardTitle": "Favor of the Valar",
-      "imagePath": "core_set/FavoroftheValar.jpg"
+      "imagePath": "core_set/FavoroftheValar.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "fell_beast",
       "cardTitle": "Fell Beast",
-      "imagePath": "core_set/FellBeast.jpg"
+      "imagePath": "core_set/FellBeast.jpg",
+      "types": [
+        "Hazard"
+      ]
     },
     {
       "id": "fell_turtle",
       "cardTitle": "Fell Turtle",
-      "imagePath": "core_set/FellTurtle.jpg"
+      "imagePath": "core_set/FellTurtle.jpg",
+      "types": [
+        "Hazard"
+      ]
     },
     {
       "id": "fell_winter",
       "cardTitle": "Fell Winter",
-      "imagePath": "core_set/FellWinter.jpg"
+      "imagePath": "core_set/FellWinter.jpg",
+      "types": [
+        "Hazard"
+      ]
     },
     {
       "id": "fellowship",
       "cardTitle": "Fellowship",
-      "imagePath": "core_set/Fellowship.jpg"
+      "imagePath": "core_set/Fellowship.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "fili",
       "cardTitle": "Fili",
-      "imagePath": "core_set/Fili.jpg"
+      "imagePath": "core_set/Fili.jpg",
+      "types": [
+        "Character"
+      ]
     },
     {
       "id": "fog",
       "cardTitle": "Fog",
-      "imagePath": "core_set/Fog.jpg"
+      "imagePath": "core_set/Fog.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "ford",
       "cardTitle": "Ford",
-      "imagePath": "core_set/Ford.jpg"
+      "imagePath": "core_set/Ford.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "forlong",
       "cardTitle": "Forlong",
-      "imagePath": "core_set/Forlong.jpg"
+      "imagePath": "core_set/Forlong.jpg",
+      "types": [
+        "Character"
+      ]
     },
     {
       "id": "forochel",
       "cardTitle": "Forochel",
-      "imagePath": "core_set/Forochel.jpg"
+      "imagePath": "core_set/Forochel.jpg",
+      "types": [
+        "Region"
+      ],
+      "orientation": "right"
     },
     {
       "id": "foul_fumes",
       "cardTitle": "Foul Fumes",
-      "imagePath": "core_set/FoulFumes.jpg"
+      "imagePath": "core_set/FoulFumes.jpg",
+      "types": [
+        "Hazard"
+      ]
     },
     {
       "id": "frodo",
       "cardTitle": "Frodo",
-      "imagePath": "core_set/Frodo.jpg"
+      "imagePath": "core_set/Frodo.jpg",
+      "types": [
+        "Character"
+      ]
     },
     {
       "id": "fury_of_the_iron_crown",
       "cardTitle": "Fury of the Iron Crown",
-      "imagePath": "core_set/FuryoftheIronCrown.jpg"
+      "imagePath": "core_set/FuryoftheIronCrown.jpg",
+      "types": [
+        "Hazard"
+      ]
     },
     {
       "id": "galadriel",
       "cardTitle": "Galadriel",
-      "imagePath": "core_set/Galadriel.jpg"
+      "imagePath": "core_set/Galadriel.jpg",
+      "types": [
+        "Character"
+      ]
     },
     {
       "id": "galva",
       "cardTitle": "Galva",
-      "imagePath": "core_set/Galva.jpg"
+      "imagePath": "core_set/Galva.jpg",
+      "types": [
+        "Character"
+      ]
     },
     {
       "id": "gamling_the_old",
       "cardTitle": "Gamling the Old",
-      "imagePath": "core_set/GamlingtheOld.jpg"
+      "imagePath": "core_set/GamlingtheOld.jpg",
+      "types": [
+        "Character"
+      ]
     },
     {
       "id": "gandalf",
       "cardTitle": "Gandalf",
-      "imagePath": "core_set/Gandalf.jpg"
+      "imagePath": "core_set/Gandalf.jpg",
+      "types": [
+        "Character"
+      ]
     },
     {
       "id": "gap_of_isen",
       "cardTitle": "Gap of Isen",
-      "imagePath": "core_set/GapofIsen.jpg"
+      "imagePath": "core_set/GapofIsen.jpg",
+      "types": [
+        "Region"
+      ]
     },
     {
       "id": "gates_of_morning",
       "cardTitle": "Gates of Morning",
-      "imagePath": "core_set/GatesofMorning.jpg"
+      "imagePath": "core_set/GatesofMorning.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "ghanburi_ghan",
       "cardTitle": "Ghanburi Ghan",
-      "imagePath": "core_set/GhanburiGhan.jpg"
+      "imagePath": "core_set/GhanburiGhan.jpg",
+      "types": [
+        "Character"
+      ]
     },
     {
       "id": "ghosts",
       "cardTitle": "Ghosts",
-      "imagePath": "core_set/Ghosts.jpg"
+      "imagePath": "core_set/Ghosts.jpg",
+      "types": [
+        "Hazard"
+      ]
     },
     {
       "id": "ghouls",
       "cardTitle": "Ghouls",
-      "imagePath": "core_set/Ghouls.jpg"
+      "imagePath": "core_set/Ghouls.jpg",
+      "types": [
+        "Hazard"
+      ]
     },
     {
       "id": "giant",
       "cardTitle": "Giant",
-      "imagePath": "core_set/Giant.jpg"
+      "imagePath": "core_set/Giant.jpg",
+      "types": [
+        "Hazard"
+      ]
     },
     {
       "id": "giant_spiders",
       "cardTitle": "Giant Spiders",
-      "imagePath": "core_set/GiantSpiders.jpg"
+      "imagePath": "core_set/GiantSpiders.jpg",
+      "types": [
+        "Hazard"
+      ]
     },
     {
       "id": "gildor_inglorion",
       "cardTitle": "Gildor Inglorion",
-      "imagePath": "core_set/GildorInglorion.jpg"
+      "imagePath": "core_set/GildorInglorion.jpg",
+      "types": [
+        "Character"
+      ]
     },
     {
       "id": "gimli",
       "cardTitle": "Gimli",
-      "imagePath": "core_set/Gimli.jpg"
+      "imagePath": "core_set/Gimli.jpg",
+      "types": [
+        "Character"
+      ]
     },
     {
       "id": "gladden_fields",
       "cardTitle": "Gladden Fields",
-      "imagePath": "core_set/GladdenFields.jpg"
+      "imagePath": "core_set/GladdenFields.jpg",
+      "types": [
+        "Site"
+      ]
     },
     {
       "id": "glamdring",
       "cardTitle": "Glamdring",
-      "imagePath": "core_set/Glamdring.jpg"
+      "imagePath": "core_set/Glamdring.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "glittering_caves",
       "cardTitle": "Glittering Caves",
-      "imagePath": "core_set/GlitteringCaves.jpg"
+      "imagePath": "core_set/GlitteringCaves.jpg",
+      "types": [
+        "Site"
+      ]
     },
     {
       "id": "gloin",
       "cardTitle": "Gloin",
-      "imagePath": "core_set/Gloin.jpg"
+      "imagePath": "core_set/Gloin.jpg",
+      "types": [
+        "Character"
+      ]
     },
     {
       "id": "gloom",
       "cardTitle": "Gloom",
-      "imagePath": "core_set/Gloom.jpg"
+      "imagePath": "core_set/Gloom.jpg",
+      "types": [
+        "Hazard"
+      ]
     },
     {
       "id": "glorfindel_ii",
       "cardTitle": "Glorfindel II",
-      "imagePath": "core_set/GlorfindelII.jpg"
+      "imagePath": "core_set/GlorfindelII.jpg",
+      "types": [
+        "Character"
+      ]
     },
     {
       "id": "goblingate",
       "cardTitle": "Goblingate",
-      "imagePath": "core_set/Goblingate.jpg"
+      "imagePath": "core_set/Goblingate.jpg",
+      "types": [
+        "Site"
+      ]
     },
     {
       "id": "goldberry",
       "cardTitle": "Goldberry",
-      "imagePath": "core_set/Goldberry.jpg"
+      "imagePath": "core_set/Goldberry.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "gollum",
       "cardTitle": "Gollum",
-      "imagePath": "core_set/Gollum.jpg"
+      "imagePath": "core_set/Gollum.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "gollums_fate",
       "cardTitle": "Gollum's Fate",
-      "imagePath": "core_set/GollumsFate.jpg"
+      "imagePath": "core_set/GollumsFate.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "gorgoroth",
       "cardTitle": "Gorgoroth",
-      "imagePath": "core_set/Gorgoroth.jpg"
+      "imagePath": "core_set/Gorgoroth.jpg",
+      "types": [
+        "Region"
+      ],
+      "orientation": "right"
     },
     {
       "id": "great_ship",
       "cardTitle": "Great Ship",
-      "imagePath": "core_set/GreatShip.jpg"
+      "imagePath": "core_set/GreatShip.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "greatroad",
       "cardTitle": "Greatroad",
-      "imagePath": "core_set/Greatroad.jpg"
+      "imagePath": "core_set/Greatroad.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "greatshield_of_rohan",
       "cardTitle": "Greatshield of Rohan",
-      "imagePath": "core_set/GreatshieldofRohan.jpg"
+      "imagePath": "core_set/GreatshieldofRohan.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "greed",
       "cardTitle": "Greed",
-      "imagePath": "core_set/Greed.jpg"
+      "imagePath": "core_set/Greed.jpg",
+      "types": [
+        "Hazard"
+      ]
     },
     {
       "id": "grey_havens",
       "cardTitle": "Grey Havens",
-      "imagePath": "core_set/GreyHavens.jpg"
+      "imagePath": "core_set/GreyHavens.jpg",
+      "types": [
+        "Site"
+      ]
     },
     {
       "id": "grey_mountain_narrows",
       "cardTitle": "Grey Mountain Narrows",
-      "imagePath": "core_set/GreyMountainNarrows.jpg"
+      "imagePath": "core_set/GreyMountainNarrows.jpg",
+      "types": [
+        "Region"
+      ],
+      "orientation": "right"
     },
     {
       "id": "gundabad",
       "cardTitle": "Gundabad",
-      "imagePath": "core_set/Gundabad.jpg"
+      "imagePath": "core_set/Gundabad.jpg",
+      "types": [
+        "Region"
+      ],
+      "orientation": "right"
     },
     {
       "id": "gwaihir",
       "cardTitle": "Gwaihir",
-      "imagePath": "core_set/Gwaihir.jpg"
+      "imagePath": "core_set/Gwaihir.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "halbarad",
       "cardTitle": "Halbarad",
-      "imagePath": "core_set/Halbarad.jpg"
+      "imagePath": "core_set/Halbarad.jpg",
+      "types": [
+        "Character"
+      ]
     },
     {
       "id": "haldalam",
       "cardTitle": "Haldalam",
-      "imagePath": "core_set/Haldalam.jpg"
+      "imagePath": "core_set/Haldalam.jpg",
+      "types": [
+        "Character"
+      ]
     },
     {
       "id": "haldir",
       "cardTitle": "Haldir",
-      "imagePath": "core_set/Haldir.jpg"
+      "imagePath": "core_set/Haldir.jpg",
+      "types": [
+        "Character"
+      ]
     },
     {
       "id": "halfling_stealth",
       "cardTitle": "Halfling Stealth",
-      "imagePath": "core_set/HalflingStealth.jpg"
+      "imagePath": "core_set/HalflingStealth.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "halfling_strength",
       "cardTitle": "Halfling Strength",
-      "imagePath": "core_set/HalflingStrength.jpg"
+      "imagePath": "core_set/HalflingStrength.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "halftrolls_of_far_harad",
       "cardTitle": "Halftrolls of Far Harad",
-      "imagePath": "core_set/HalftrollsofFarHarad.jpg"
+      "imagePath": "core_set/HalftrollsofFarHarad.jpg",
+      "types": [
+        "Hazard"
+      ]
     },
     {
       "id": "hama",
       "cardTitle": "Hama",
-      "imagePath": "core_set/Hama.jpg"
+      "imagePath": "core_set/Hama.jpg",
+      "types": [
+        "Character"
+      ]
     },
     {
       "id": "harondor",
       "cardTitle": "Harondor",
-      "imagePath": "core_set/Harondor.jpg"
+      "imagePath": "core_set/Harondor.jpg",
+      "types": [
+        "Region"
+      ],
+      "orientation": "right"
     },
     {
       "id": "hauberk_of_bright_mail",
       "cardTitle": "Hauberk of Bright Mail",
-      "imagePath": "core_set/HauberkofBrightMail.jpg"
+      "imagePath": "core_set/HauberkofBrightMail.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "healing_herbs",
       "cardTitle": "Healing Herbs",
-      "imagePath": "core_set/HealingHerbs.jpg"
+      "imagePath": "core_set/HealingHerbs.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "heart_of_mirkwood",
       "cardTitle": "Heart of Mirkwood",
-      "imagePath": "core_set/HeartofMirkwood.jpg"
+      "imagePath": "core_set/HeartofMirkwood.jpg",
+      "types": [
+        "Region"
+      ]
     },
     {
       "id": "henneth_annun",
       "cardTitle": "Henneth Annun",
-      "imagePath": "core_set/HennethAnnun.jpg"
+      "imagePath": "core_set/HennethAnnun.jpg",
+      "types": [
+        "Site"
+      ]
     },
     {
       "id": "hiding",
       "cardTitle": "Hiding",
-      "imagePath": "core_set/Hiding.jpg"
+      "imagePath": "core_set/Hiding.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "high_pass",
       "cardTitle": "High Pass",
-      "imagePath": "core_set/HighPass.jpg"
+      "imagePath": "core_set/HighPass.jpg",
+      "types": [
+        "Region"
+      ],
+      "orientation": "right"
     },
     {
       "id": "hillmen",
       "cardTitle": "Hillmen",
-      "imagePath": "core_set/Hillmen.jpg"
+      "imagePath": "core_set/Hillmen.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "himring",
       "cardTitle": "Himring",
-      "imagePath": "core_set/Himring.jpg"
+      "imagePath": "core_set/Himring.jpg",
+      "types": [
+        "Site"
+      ]
     },
     {
       "id": "hoarmurath_of_dir",
       "cardTitle": "Hoarmurath of Dir",
-      "imagePath": "core_set/HoarmurathofDir.jpg"
+      "imagePath": "core_set/HoarmurathofDir.jpg",
+      "types": [
+        "Hazard"
+      ]
     },
     {
       "id": "hobbits",
       "cardTitle": "Hobbits",
-      "imagePath": "core_set/Hobbits.jpg"
+      "imagePath": "core_set/Hobbits.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "hollin",
       "cardTitle": "Hollin",
-      "imagePath": "core_set/Hollin.jpg"
+      "imagePath": "core_set/Hollin.jpg",
+      "types": [
+        "Region"
+      ],
+      "orientation": "right"
     },
     {
       "id": "horn_of_anor",
       "cardTitle": "Horn of Anor",
-      "imagePath": "core_set/HornofAnor.jpg"
+      "imagePath": "core_set/HornofAnor.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "horse_plains",
       "cardTitle": "Horse Plains",
-      "imagePath": "core_set/HorsePlains.jpg"
+      "imagePath": "core_set/HorsePlains.jpg",
+      "types": [
+        "Region"
+      ],
+      "orientation": "right"
     },
     {
       "id": "horses",
       "cardTitle": "Horses",
-      "imagePath": "core_set/Horses.jpg"
+      "imagePath": "core_set/Horses.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "huorn",
       "cardTitle": "Huorn",
-      "imagePath": "core_set/Huorn.jpg"
+      "imagePath": "core_set/Huorn.jpg",
+      "types": [
+        "Hazard"
+      ]
     },
     {
       "id": "imlad_morgul",
       "cardTitle": "Imlad Morgul",
-      "imagePath": "core_set/ImladMorgul.jpg"
+      "imagePath": "core_set/ImladMorgul.jpg",
+      "types": [
+        "Region"
+      ]
     },
     {
       "id": "imrahil",
       "cardTitle": "Imrahil",
-      "imagePath": "core_set/Imrahil.jpg"
+      "imagePath": "core_set/Imrahil.jpg",
+      "types": [
+        "Character"
+      ]
     },
     {
       "id": "indur_dawndeath",
       "cardTitle": "Indur Dawndeath",
-      "imagePath": "core_set/IndurDawndeath.jpg"
+      "imagePath": "core_set/IndurDawndeath.jpg",
+      "types": [
+        "Hazard"
+      ]
     },
     {
       "id": "irerock",
       "cardTitle": "Irerock",
-      "imagePath": "core_set/Irerock.jpg"
+      "imagePath": "core_set/Irerock.jpg",
+      "types": [
+        "Site"
+      ]
     },
     {
       "id": "iron_hill_dwarfhold",
       "cardTitle": "Iron Hill Dwarfhold",
-      "imagePath": "core_set/IronHillDwarfhold.jpg"
+      "imagePath": "core_set/IronHillDwarfhold.jpg",
+      "types": [
+        "Site"
+      ]
     },
     {
       "id": "iron_hill_dwarves",
       "cardTitle": "Iron Hill Dwarves",
-      "imagePath": "core_set/IronHillDwarves.jpg"
+      "imagePath": "core_set/IronHillDwarves.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "iron_hills",
       "cardTitle": "Iron Hills",
-      "imagePath": "core_set/IronHills.jpg"
+      "imagePath": "core_set/IronHills.jpg",
+      "types": [
+        "Region"
+      ],
+      "orientation": "right"
     },
     {
       "id": "isengard",
       "cardTitle": "Isengard",
-      "imagePath": "core_set/Isengard.jpg"
+      "imagePath": "core_set/Isengard.jpg",
+      "types": [
+        "Site"
+      ]
     },
     {
       "id": "isles_of_the_dead_that_live",
       "cardTitle": "Isles of the Dead that Live",
-      "imagePath": "core_set/IslesoftheDeadthatLive.jpg"
+      "imagePath": "core_set/IslesoftheDeadthatLive.jpg",
+      "types": [
+        "Site"
+      ]
     },
     {
       "id": "ithilien",
       "cardTitle": "Ithilien",
-      "imagePath": "core_set/Ithilien.jpg"
+      "imagePath": "core_set/Ithilien.jpg",
+      "types": [
+        "Region"
+      ]
     },
     {
       "id": "khamul_the_easterling",
       "cardTitle": "Khamul the Easterling",
-      "imagePath": "core_set/KhamultheEasterling.jpg"
+      "imagePath": "core_set/KhamultheEasterling.jpg",
+      "types": [
+        "Hazard"
+      ]
     },
     {
       "id": "khand",
       "cardTitle": "Khand",
-      "imagePath": "core_set/Khand.jpg"
+      "imagePath": "core_set/Khand.jpg",
+      "types": [
+        "Region"
+      ],
+      "orientation": "right"
     },
     {
       "id": "kili",
       "cardTitle": "Kili",
-      "imagePath": "core_set/Kili.jpg"
+      "imagePath": "core_set/Kili.jpg",
+      "types": [
+        "Character"
+      ]
     },
     {
       "id": "kindling_of_the_spirit",
       "cardTitle": "Kindling of the Spirit",
-      "imagePath": "core_set/KindlingoftheSpirit.jpg"
+      "imagePath": "core_set/KindlingoftheSpirit.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "knights_of_dol_amroth",
       "cardTitle": "Knights of Dol Amroth",
-      "imagePath": "core_set/KnightsofDolAmroth.jpg"
+      "imagePath": "core_set/KnightsofDolAmroth.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "laketown",
       "cardTitle": "Laketown",
-      "imagePath": "core_set/Laketown.jpg"
+      "imagePath": "core_set/Laketown.jpg",
+      "types": [
+        "Site"
+      ]
     },
     {
       "id": "lamedon",
       "cardTitle": "Lamedon",
-      "imagePath": "core_set/Lamedon.jpg"
+      "imagePath": "core_set/Lamedon.jpg",
+      "types": [
+        "Region"
+      ],
+      "orientation": "right"
     },
     {
       "id": "lapse_of_will",
       "cardTitle": "Lapse of Will",
-      "imagePath": "core_set/LapseofWill.jpg"
+      "imagePath": "core_set/LapseofWill.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "leaflock",
       "cardTitle": "Leaflock",
-      "imagePath": "core_set/Leaflock.jpg"
+      "imagePath": "core_set/Leaflock.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "lebennin",
       "cardTitle": "Lebennin",
-      "imagePath": "core_set/Lebennin.jpg"
+      "imagePath": "core_set/Lebennin.jpg",
+      "types": [
+        "Region"
+      ]
     },
     {
       "id": "legolas",
       "cardTitle": "Legolas",
-      "imagePath": "core_set/Legolas.jpg"
+      "imagePath": "core_set/Legolas.jpg",
+      "types": [
+        "Character"
+      ]
     },
     {
       "id": "lesser_ring",
       "cardTitle": "Lesser Ring",
-      "imagePath": "core_set/LesserRing.jpg"
+      "imagePath": "core_set/LesserRing.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "leucaruth",
       "cardTitle": "Leucaruth",
-      "imagePath": "core_set/Leucaruth.jpg"
+      "imagePath": "core_set/Leucaruth.jpg",
+      "types": [
+        "Hazard"
+      ]
     },
     {
       "id": "lindon",
       "cardTitle": "Lindon",
-      "imagePath": "core_set/Lindon.jpg"
+      "imagePath": "core_set/Lindon.jpg",
+      "types": [
+        "Region"
+      ]
     },
     {
       "id": "lond_galen",
       "cardTitle": "Lond Galen",
-      "imagePath": "core_set/LondGalen.jpg"
+      "imagePath": "core_set/LondGalen.jpg",
+      "types": [
+        "Site"
+      ]
     },
     {
       "id": "long_winter",
       "cardTitle": "Long Winter",
-      "imagePath": "core_set/LongWinter.jpg"
+      "imagePath": "core_set/LongWinter.jpg",
+      "types": [
+        "Hazard"
+      ]
     },
     {
       "id": "lordly_presence",
       "cardTitle": "Lordly Presence",
-      "imagePath": "core_set/LordlyPresence.jpg"
+      "imagePath": "core_set/LordlyPresence.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "lorien",
       "cardTitle": "Lorien",
-      "imagePath": "core_set/Lorien.jpg"
+      "imagePath": "core_set/Lorien.jpg",
+      "types": [
+        "Site"
+      ]
     },
     {
       "id": "lossadan_cairn",
       "cardTitle": "Lossadan Cairn",
-      "imagePath": "core_set/LossadanCairn.jpg"
+      "imagePath": "core_set/LossadanCairn.jpg",
+      "types": [
+        "Site"
+      ]
     },
     {
       "id": "lossadan_camp",
       "cardTitle": "Lossadan Camp",
-      "imagePath": "core_set/LossadanCamp.jpg"
+      "imagePath": "core_set/LossadanCamp.jpg",
+      "types": [
+        "Site"
+      ]
     },
     {
       "id": "lossoth",
       "cardTitle": "Lossoth",
-      "imagePath": "core_set/Lossoth.jpg"
+      "imagePath": "core_set/Lossoth.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "lost_at_sea",
       "cardTitle": "Lost at Sea",
-      "imagePath": "core_set/LostatSea.jpg"
+      "imagePath": "core_set/LostatSea.jpg",
+      "types": [
+        "Hazard"
+      ]
     },
     {
       "id": "lost_in_borderlands",
       "cardTitle": "Lost in Borderlands",
-      "imagePath": "core_set/LostinBorderlands.jpg"
+      "imagePath": "core_set/LostinBorderlands.jpg",
+      "types": [
+        "Hazard"
+      ]
     },
     {
       "id": "lost_in_darkdomains",
       "cardTitle": "Lost in Darkdomains",
-      "imagePath": "core_set/LostinDarkdomains.jpg"
+      "imagePath": "core_set/LostinDarkdomains.jpg",
+      "types": [
+        "Hazard"
+      ]
     },
     {
       "id": "lost_in_freedomains",
       "cardTitle": "Lost in Freedomains",
-      "imagePath": "core_set/LostinFreedomains.jpg"
+      "imagePath": "core_set/LostinFreedomains.jpg",
+      "types": [
+        "Hazard"
+      ]
     },
     {
       "id": "lost_in_shadowlands",
       "cardTitle": "Lost in Shadowlands",
-      "imagePath": "core_set/LostinShadowlands.jpg"
+      "imagePath": "core_set/LostinShadowlands.jpg",
+      "types": [
+        "Hazard"
+      ]
     },
     {
       "id": "lost_in_the_wilderness",
       "cardTitle": "Lost in the Wilderness",
-      "imagePath": "core_set/LostintheWilderness.jpg"
+      "imagePath": "core_set/LostintheWilderness.jpg",
+      "types": [
+        "Hazard"
+      ]
     },
     {
       "id": "lucky_search",
       "cardTitle": "Lucky Search",
-      "imagePath": "core_set/LuckySearch.jpg"
+      "imagePath": "core_set/LuckySearch.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "lucky_strike",
       "cardTitle": "Lucky Strike",
-      "imagePath": "core_set/LuckyStrike.jpg"
+      "imagePath": "core_set/LuckyStrike.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "lure_of_creation",
       "cardTitle": "Lure of Creation",
-      "imagePath": "core_set/LureofCreation.jpg"
+      "imagePath": "core_set/LureofCreation.jpg",
+      "types": [
+        "Hazard"
+      ]
     },
     {
       "id": "lure_of_expedience",
       "cardTitle": "Lure of Expedience",
-      "imagePath": "core_set/LureofExpedience.jpg"
+      "imagePath": "core_set/LureofExpedience.jpg",
+      "types": [
+        "Hazard"
+      ]
     },
     {
       "id": "lure_of_meccg",
       "cardTitle": "Lure of MECCG",
-      "imagePath": "core_set/LureofMECCG.jpg"
+      "imagePath": "core_set/LureofMECCG.jpg",
+      "types": [
+        "Hazard"
+      ]
     },
     {
       "id": "lure_of_nature",
       "cardTitle": "Lure of Nature",
-      "imagePath": "core_set/LureofNature.jpg"
+      "imagePath": "core_set/LureofNature.jpg",
+      "types": [
+        "Hazard"
+      ]
     },
     {
       "id": "lure_of_power",
       "cardTitle": "Lure of Power",
-      "imagePath": "core_set/LureofPower.jpg"
+      "imagePath": "core_set/LureofPower.jpg",
+      "types": [
+        "Hazard"
+      ]
     },
     {
       "id": "lure_of_the_senses",
       "cardTitle": "Lure of the Senses",
-      "imagePath": "core_set/LureoftheSenses.jpg"
+      "imagePath": "core_set/LureoftheSenses.jpg",
+      "types": [
+        "Hazard"
+      ]
     },
     {
       "id": "mablung",
       "cardTitle": "Mablung",
-      "imagePath": "core_set/Mablung.jpg"
+      "imagePath": "core_set/Mablung.jpg",
+      "types": [
+        "Character"
+      ]
     },
     {
       "id": "magic_ring_of_courage",
       "cardTitle": "Magic Ring of Courage",
-      "imagePath": "core_set/MagicRingofCourage.jpg"
+      "imagePath": "core_set/MagicRingofCourage.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "magic_ring_of_lore",
       "cardTitle": "Magic Ring of Lore",
-      "imagePath": "core_set/MagicRingofLore.jpg"
+      "imagePath": "core_set/MagicRingofLore.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "magic_ring_of_nature",
       "cardTitle": "Magic Ring of Nature",
-      "imagePath": "core_set/MagicRingofNature.jpg"
+      "imagePath": "core_set/MagicRingofNature.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "magic_ring_of_stealth",
       "cardTitle": "Magic Ring of Stealth",
-      "imagePath": "core_set/MagicRingofStealth.jpg"
+      "imagePath": "core_set/MagicRingofStealth.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "magic_ring_of_words",
       "cardTitle": "Magic Ring of Words",
-      "imagePath": "core_set/MagicRingofWords.jpg"
+      "imagePath": "core_set/MagicRingofWords.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "men_of_anfalas",
       "cardTitle": "Men of Anfalas",
-      "imagePath": "core_set/MenofAnfalas.jpg"
+      "imagePath": "core_set/MenofAnfalas.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "men_of_anorien",
       "cardTitle": "Men of Anorien",
-      "imagePath": "core_set/MenofAnorien.jpg"
+      "imagePath": "core_set/MenofAnorien.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "men_of_dorwinion",
       "cardTitle": "Men of Dorwinion",
-      "imagePath": "core_set/MenofDorwinion.jpg"
+      "imagePath": "core_set/MenofDorwinion.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "men_of_lamedon",
       "cardTitle": "Men of Lamedon",
-      "imagePath": "core_set/MenofLamedon.jpg"
+      "imagePath": "core_set/MenofLamedon.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "men_of_lebennin",
       "cardTitle": "Men of Lebennin",
-      "imagePath": "core_set/MenofLebennin.jpg"
+      "imagePath": "core_set/MenofLebennin.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "men_of_northern_rhovanion",
       "cardTitle": "Men of Northern Rhovanion",
-      "imagePath": "core_set/MenofNorthernRhovanion.jpg"
+      "imagePath": "core_set/MenofNorthernRhovanion.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "merry",
       "cardTitle": "Merry",
-      "imagePath": "core_set/Merry.jpg"
+      "imagePath": "core_set/Merry.jpg",
+      "types": [
+        "Character"
+      ]
     },
     {
       "id": "minas_morgul",
       "cardTitle": "Minas Morgul",
-      "imagePath": "core_set/MinasMorgul.jpg"
+      "imagePath": "core_set/MinasMorgul.jpg",
+      "types": [
+        "Site"
+      ]
     },
     {
       "id": "minas_tirith",
       "cardTitle": "Minas Tirith",
-      "imagePath": "core_set/MinasTirith.jpg"
+      "imagePath": "core_set/MinasTirith.jpg",
+      "types": [
+        "Site"
+      ]
     },
     {
       "id": "minions_stir",
       "cardTitle": "Minions Stir",
-      "imagePath": "core_set/MinionsStir.jpg"
+      "imagePath": "core_set/MinionsStir.jpg",
+      "types": [
+        "Hazard"
+      ]
     },
     {
       "id": "mirror_of_galadriel",
       "cardTitle": "Mirror of Galadriel",
-      "imagePath": "core_set/MirrorofGaladriel.jpg"
+      "imagePath": "core_set/MirrorofGaladriel.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "miruvor",
       "cardTitle": "Miruvor",
-      "imagePath": "core_set/Miruvor.jpg"
+      "imagePath": "core_set/Miruvor.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "misty_mountains",
       "cardTitle": "Misty Mountains",
-      "imagePath": "core_set/MistyMountains.jpg"
+      "imagePath": "core_set/MistyMountains.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "moon",
       "cardTitle": "Moon",
-      "imagePath": "core_set/Moon.jpg"
+      "imagePath": "core_set/Moon.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "morannon",
       "cardTitle": "Morannon",
-      "imagePath": "core_set/Morannon.jpg"
+      "imagePath": "core_set/Morannon.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "morgul_night",
       "cardTitle": "Morgul Night",
-      "imagePath": "core_set/MorgulNight.jpg"
+      "imagePath": "core_set/MorgulNight.jpg",
+      "types": [
+        "Hazard"
+      ]
     },
     {
       "id": "morgulhorse",
       "cardTitle": "Morgulhorse",
-      "imagePath": "core_set/Morgulhorse.jpg"
+      "imagePath": "core_set/Morgulhorse.jpg",
+      "types": [
+        "Hazard"
+      ]
     },
     {
       "id": "morgulknife",
       "cardTitle": "Morgulknife",
-      "imagePath": "core_set/Morgulknife.jpg"
+      "imagePath": "core_set/Morgulknife.jpg",
+      "types": [
+        "Hazard"
+      ]
     },
     {
       "id": "moria",
       "cardTitle": "Moria",
-      "imagePath": "core_set/Moria.jpg"
+      "imagePath": "core_set/Moria.jpg",
+      "types": [
+        "Site"
+      ]
     },
     {
       "id": "mount_doom",
       "cardTitle": "Mount Doom",
-      "imagePath": "core_set/MountDoom.jpg"
+      "imagePath": "core_set/MountDoom.jpg",
+      "types": [
+        "Site"
+      ]
     },
     {
       "id": "mount_gram",
       "cardTitle": "Mount Gram",
-      "imagePath": "core_set/MountGram.jpg"
+      "imagePath": "core_set/MountGram.jpg",
+      "types": [
+        "Site"
+      ]
     },
     {
       "id": "mount_gundabad",
       "cardTitle": "Mount Gundabad",
-      "imagePath": "core_set/MountGundabad.jpg"
+      "imagePath": "core_set/MountGundabad.jpg",
+      "types": [
+        "Site"
+      ]
     },
     {
       "id": "mountains_of_shadow",
       "cardTitle": "Mountains of Shadow",
-      "imagePath": "core_set/MountainsofShadow.jpg"
+      "imagePath": "core_set/MountainsofShadow.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "mouth_of_sauron",
       "cardTitle": "Mouth of Sauron",
-      "imagePath": "core_set/MouthofSauron.jpg"
+      "imagePath": "core_set/MouthofSauron.jpg",
+      "types": [
+        "Hazard"
+      ]
     },
     {
       "id": "mouths_of_the_anduin",
       "cardTitle": "Mouths of the Anduin",
-      "imagePath": "core_set/MouthsoftheAnduin.jpg"
+      "imagePath": "core_set/MouthsoftheAnduin.jpg",
+      "types": [
+        "Region"
+      ]
     },
     {
       "id": "mumak_oliphant",
       "cardTitle": "Mumak Oliphant",
-      "imagePath": "core_set/MumakOliphant.jpg"
+      "imagePath": "core_set/MumakOliphant.jpg",
+      "types": [
+        "Hazard"
+      ]
     },
     {
       "id": "muster",
       "cardTitle": "Muster",
-      "imagePath": "core_set/Muster.jpg"
+      "imagePath": "core_set/Muster.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "muster_disperses",
       "cardTitle": "Muster Disperses",
-      "imagePath": "core_set/MusterDisperses.jpg"
+      "imagePath": "core_set/MusterDisperses.jpg",
+      "types": [
+        "Hazard"
+      ]
     },
     {
       "id": "narsil",
       "cardTitle": "Narsil",
-      "imagePath": "core_set/Narsil.jpg"
+      "imagePath": "core_set/Narsil.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "narya",
       "cardTitle": "Narya",
-      "imagePath": "core_set/Narya.jpg"
+      "imagePath": "core_set/Narya.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "neekerbreekers",
       "cardTitle": "Neekerbreekers",
-      "imagePath": "core_set/Neekerbreekers.jpg"
+      "imagePath": "core_set/Neekerbreekers.jpg",
+      "types": [
+        "Hazard"
+      ]
     },
     {
       "id": "nenya",
       "cardTitle": "Nenya",
-      "imagePath": "core_set/Nenya.jpg"
+      "imagePath": "core_set/Nenya.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "new_friendship",
       "cardTitle": "New Friendship",
-      "imagePath": "core_set/NewFriendship.jpg"
+      "imagePath": "core_set/NewFriendship.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "new_moon",
       "cardTitle": "New Moon",
-      "imagePath": "core_set/NewMoon.jpg"
+      "imagePath": "core_set/NewMoon.jpg",
+      "types": [
+        "Hazard"
+      ]
     },
     {
       "id": "night",
       "cardTitle": "Night",
-      "imagePath": "core_set/Night.jpg"
+      "imagePath": "core_set/Night.jpg",
+      "types": [
+        "Hazard"
+      ]
     },
     {
       "id": "nori",
       "cardTitle": "Nori",
-      "imagePath": "core_set/Nori.jpg"
+      "imagePath": "core_set/Nori.jpg",
+      "types": [
+        "Character"
+      ]
     },
     {
       "id": "northern_rhovanion",
       "cardTitle": "Northern Rhovanion",
-      "imagePath": "core_set/NorthernRhovanion.jpg"
+      "imagePath": "core_set/NorthernRhovanion.jpg",
+      "types": [
+        "Region"
+      ],
+      "orientation": "right"
     },
     {
       "id": "numeriador",
       "cardTitle": "Numeriador",
-      "imagePath": "core_set/Numeriador.jpg"
+      "imagePath": "core_set/Numeriador.jpg",
+      "types": [
+        "Region"
+      ]
     },
     {
       "id": "nurn",
       "cardTitle": "Nurn",
-      "imagePath": "core_set/Nurn.jpg"
+      "imagePath": "core_set/Nurn.jpg",
+      "types": [
+        "Region"
+      ],
+      "orientation": "right"
     },
     {
       "id": "oin",
       "cardTitle": "Oin",
-      "imagePath": "core_set/Oin.jpg"
+      "imagePath": "core_set/Oin.jpg",
+      "types": [
+        "Character"
+      ]
     },
     {
       "id": "old_forest",
       "cardTitle": "Old Forest",
-      "imagePath": "core_set/OldForest.jpg"
+      "imagePath": "core_set/OldForest.jpg",
+      "types": [
+        "Site"
+      ]
     },
     {
       "id": "old_friendship",
       "cardTitle": "Old Friendship",
-      "imagePath": "core_set/OldFriendship.jpg"
+      "imagePath": "core_set/OldFriendship.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "old_man_willow",
       "cardTitle": "Old Man Willow",
-      "imagePath": "core_set/OldManWillow.jpg"
+      "imagePath": "core_set/OldManWillow.jpg",
+      "types": [
+        "Hazard"
+      ]
     },
     {
       "id": "old_pukel_gap",
       "cardTitle": "Old Pukel Gap",
-      "imagePath": "core_set/OldPukelGap.jpg"
+      "imagePath": "core_set/OldPukelGap.jpg",
+      "types": [
+        "Region"
+      ]
     },
     {
       "id": "old_pukelland",
       "cardTitle": "Old Pukelland",
-      "imagePath": "core_set/OldPukelland.jpg"
+      "imagePath": "core_set/OldPukelland.jpg",
+      "types": [
+        "Region"
+      ],
+      "orientation": "right"
     },
     {
       "id": "old_road",
       "cardTitle": "Old Road",
-      "imagePath": "core_set/OldRoad.jpg"
+      "imagePath": "core_set/OldRoad.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "ologhai_trolls",
       "cardTitle": "Ologhai Trolls",
-      "imagePath": "core_set/OloghaiTrolls.jpg"
+      "imagePath": "core_set/OloghaiTrolls.jpg",
+      "types": [
+        "Hazard"
+      ]
     },
     {
       "id": "orcguard",
       "cardTitle": "Orcguard",
-      "imagePath": "core_set/Orcguard.jpg"
+      "imagePath": "core_set/Orcguard.jpg",
+      "types": [
+        "Hazard"
+      ]
     },
     {
       "id": "orclieutenant",
       "cardTitle": "Orclieutenant",
-      "imagePath": "core_set/Orclieutenant.jpg"
+      "imagePath": "core_set/Orclieutenant.jpg",
+      "types": [
+        "Hazard"
+      ]
     },
     {
       "id": "orcpatrol",
       "cardTitle": "Orcpatrol",
-      "imagePath": "core_set/Orcpatrol.jpg"
+      "imagePath": "core_set/Orcpatrol.jpg",
+      "types": [
+        "Hazard"
+      ]
     },
     {
       "id": "orcraiders",
       "cardTitle": "Orcraiders",
-      "imagePath": "core_set/Orcraiders.jpg"
+      "imagePath": "core_set/Orcraiders.jpg",
+      "types": [
+        "Hazard"
+      ]
     },
     {
       "id": "orcrist",
       "cardTitle": "Orcrist",
-      "imagePath": "core_set/Orcrist.jpg"
+      "imagePath": "core_set/Orcrist.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "orcwarband",
       "cardTitle": "Orcwarband",
-      "imagePath": "core_set/Orcwarband.jpg"
+      "imagePath": "core_set/Orcwarband.jpg",
+      "types": [
+        "Hazard"
+      ]
     },
     {
       "id": "orcwarriors",
       "cardTitle": "Orcwarriors",
-      "imagePath": "core_set/Orcwarriors.jpg"
+      "imagePath": "core_set/Orcwarriors.jpg",
+      "types": [
+        "Hazard"
+      ]
     },
     {
       "id": "orcwatch",
       "cardTitle": "Orcwatch",
-      "imagePath": "core_set/Orcwatch.jpg"
+      "imagePath": "core_set/Orcwatch.jpg",
+      "types": [
+        "Hazard"
+      ]
     },
     {
       "id": "ori",
       "cardTitle": "Ori",
-      "imagePath": "core_set/Ori.jpg"
+      "imagePath": "core_set/Ori.jpg",
+      "types": [
+        "Character"
+      ]
     },
     {
       "id": "orophin",
       "cardTitle": "Orophin",
-      "imagePath": "core_set/Orophin.jpg"
+      "imagePath": "core_set/Orophin.jpg",
+      "types": [
+        "Character"
+      ]
     },
     {
       "id": "ost_in_edhil",
       "cardTitle": "Ost-in-Edhil",
-      "imagePath": "core_set/OstinEdhil.jpg"
+      "imagePath": "core_set/OstinEdhil.jpg",
+      "types": [
+        "Site"
+      ]
     },
     {
       "id": "palantir_of_amon_sul",
       "cardTitle": "Palantir of Amon Sul",
-      "imagePath": "core_set/PalantirofAmonSul.jpg"
+      "imagePath": "core_set/PalantirofAmonSul.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "palantir_of_annuminas",
       "cardTitle": "Palantir of Annuminas",
-      "imagePath": "core_set/PalantirofAnnuminas.jpg"
+      "imagePath": "core_set/PalantirofAnnuminas.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "palantir_of_elostirion",
       "cardTitle": "Palantir of Elostirion",
-      "imagePath": "core_set/PalantirofElostirion.jpg"
+      "imagePath": "core_set/PalantirofElostirion.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "palantir_of_minas_tirith",
       "cardTitle": "Palantir of Minas Tirith",
-      "imagePath": "core_set/PalantirofMinasTirith.jpg"
+      "imagePath": "core_set/PalantirofMinasTirith.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "palantir_of_orthanc",
       "cardTitle": "Palantir of Orthanc",
-      "imagePath": "core_set/PalantirofOrthanc.jpg"
+      "imagePath": "core_set/PalantirofOrthanc.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "palantir_of_osgiliath",
       "cardTitle": "Palantir of Osgiliath",
-      "imagePath": "core_set/PalantirofOsgiliath.jpg"
+      "imagePath": "core_set/PalantirofOsgiliath.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "pallando",
       "cardTitle": "Pallando",
-      "imagePath": "core_set/Pallando.jpg"
+      "imagePath": "core_set/Pallando.jpg",
+      "types": [
+        "Character"
+      ]
     },
     {
       "id": "paths_of_the_dead",
       "cardTitle": "Paths of the Dead",
-      "imagePath": "core_set/PathsoftheDead.jpg"
+      "imagePath": "core_set/PathsoftheDead.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "peath",
       "cardTitle": "Peath",
-      "imagePath": "core_set/Peath.jpg"
+      "imagePath": "core_set/Peath.jpg",
+      "types": [
+        "Character"
+      ]
     },
     {
       "id": "pelargir",
       "cardTitle": "Pelargir",
-      "imagePath": "core_set/Pelargir.jpg"
+      "imagePath": "core_set/Pelargir.jpg",
+      "types": [
+        "Site"
+      ]
     },
     {
       "id": "persuasive_words",
       "cardTitle": "Persuasive Words",
-      "imagePath": "core_set/PersuasiveWords.jpg"
+      "imagePath": "core_set/PersuasiveWords.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "pickpocket",
       "cardTitle": "Pickpocket",
-      "imagePath": "core_set/Pickpocket.jpg"
+      "imagePath": "core_set/Pickpocket.jpg",
+      "types": [
+        "Hazard"
+      ]
     },
     {
       "id": "pickpocket_2",
       "cardTitle": "Pickpocket",
-      "imagePath": "core_set/Pickpocket2.jpg"
+      "imagePath": "core_set/Pickpocket2.jpg",
+      "types": [
+        "Hazard"
+      ]
     },
     {
       "id": "pippin",
       "cardTitle": "Pippin",
-      "imagePath": "core_set/Pippin.jpg"
+      "imagePath": "core_set/Pippin.jpg",
+      "types": [
+        "Character"
+      ]
     },
     {
       "id": "plague_of_wights",
       "cardTitle": "Plague of Wights",
-      "imagePath": "core_set/PlagueofWights.jpg"
+      "imagePath": "core_set/PlagueofWights.jpg",
+      "types": [
+        "Hazard"
+      ]
     },
     {
       "id": "potion_of_prowess",
       "cardTitle": "Potion of Prowess",
-      "imagePath": "core_set/PotionofProwess.jpg"
+      "imagePath": "core_set/PotionofProwess.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "praise_to_elbereth",
       "cardTitle": "Praise to Elbereth",
-      "imagePath": "core_set/PraisetoElbereth.jpg"
+      "imagePath": "core_set/PraisetoElbereth.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "precious_gold_ring",
       "cardTitle": "Precious Gold Ring",
-      "imagePath": "core_set/PreciousGoldRing.jpg"
+      "imagePath": "core_set/PreciousGoldRing.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "pukelmen",
       "cardTitle": "Pukelmen",
-      "imagePath": "core_set/Pukelmen.jpg"
+      "imagePath": "core_set/Pukelmen.jpg",
+      "types": [
+        "Hazard"
+      ]
     },
     {
       "id": "quickbeam",
       "cardTitle": "Quickbeam",
-      "imagePath": "core_set/Quickbeam.jpg"
+      "imagePath": "core_set/Quickbeam.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "quickbeam_2",
       "cardTitle": "Quickbeam",
-      "imagePath": "core_set/Quickbeam2.jpg"
+      "imagePath": "core_set/Quickbeam2.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "quiet_lands",
       "cardTitle": "Quiet Lands",
-      "imagePath": "core_set/QuietLands.jpg"
+      "imagePath": "core_set/QuietLands.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "radagast",
       "cardTitle": "Radagast",
-      "imagePath": "core_set/Radagast.jpg"
+      "imagePath": "core_set/Radagast.jpg",
+      "types": [
+        "Character"
+      ]
     },
     {
       "id": "rangers_of_ithilien",
       "cardTitle": "Rangers of Ithilien",
-      "imagePath": "core_set/RangersofIthilien.jpg"
+      "imagePath": "core_set/RangersofIthilien.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "rangers_of_the_north",
       "cardTitle": "Rangers of the North",
-      "imagePath": "core_set/RangersoftheNorth.jpg"
+      "imagePath": "core_set/RangersoftheNorth.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "red_arrow",
       "cardTitle": "Red Arrow",
-      "imagePath": "core_set/RedArrow.jpg"
+      "imagePath": "core_set/RedArrow.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "red_book_of_westmarch",
       "cardTitle": "Red Book of Westmarch",
-      "imagePath": "core_set/RedBookofWestmarch.jpg"
+      "imagePath": "core_set/RedBookofWestmarch.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "redhorn_gate",
       "cardTitle": "Redhorn Gate",
-      "imagePath": "core_set/RedhornGate.jpg"
+      "imagePath": "core_set/RedhornGate.jpg",
+      "types": [
+        "Region"
+      ]
     },
     {
       "id": "reforging",
       "cardTitle": "Reforging",
-      "imagePath": "core_set/Reforging.jpg"
+      "imagePath": "core_set/Reforging.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "ren_the_unclean",
       "cardTitle": "Ren the Unclean",
-      "imagePath": "core_set/RentheUnclean.jpg"
+      "imagePath": "core_set/RentheUnclean.jpg",
+      "types": [
+        "Hazard"
+      ]
     },
     {
       "id": "rescue_prisoners",
       "cardTitle": "Rescue Prisoners",
-      "imagePath": "core_set/RescuePrisoners.jpg"
+      "imagePath": "core_set/RescuePrisoners.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "return_of_the_king",
       "cardTitle": "Return of the King",
-      "imagePath": "core_set/ReturnoftheKing.jpg"
+      "imagePath": "core_set/ReturnoftheKing.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "rhosgobel",
       "cardTitle": "Rhosgobel",
-      "imagePath": "core_set/Rhosgobel.jpg"
+      "imagePath": "core_set/Rhosgobel.jpg",
+      "types": [
+        "Site"
+      ]
     },
     {
       "id": "rhudaur",
       "cardTitle": "Rhudaur",
-      "imagePath": "core_set/Rhudaur.jpg"
+      "imagePath": "core_set/Rhudaur.jpg",
+      "types": [
+        "Region"
+      ]
     },
     {
       "id": "riders_of_rohan",
       "cardTitle": "Riders of Rohan",
-      "imagePath": "core_set/RidersofRohan.jpg"
+      "imagePath": "core_set/RidersofRohan.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "ringlore",
       "cardTitle": "Ringlore",
-      "imagePath": "core_set/Ringlore.jpg"
+      "imagePath": "core_set/Ringlore.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "risky_blow",
       "cardTitle": "Risky Blow",
-      "imagePath": "core_set/RiskyBlow.jpg"
+      "imagePath": "core_set/RiskyBlow.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "rivendell",
       "cardTitle": "Rivendell",
-      "imagePath": "core_set/Rivendell.jpg"
+      "imagePath": "core_set/Rivendell.jpg",
+      "types": [
+        "Site"
+      ]
     },
     {
       "id": "river",
       "cardTitle": "River",
-      "imagePath": "core_set/River.jpg"
+      "imagePath": "core_set/River.jpg",
+      "types": [
+        "Hazard"
+      ]
     },
     {
       "id": "roac_the_raven",
       "cardTitle": "Roac the Raven",
-      "imagePath": "core_set/RoactheRaven.jpg"
+      "imagePath": "core_set/RoactheRaven.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "robin_smallburrow",
       "cardTitle": "Robin Smallburrow",
-      "imagePath": "core_set/RobinSmallburrow.jpg"
+      "imagePath": "core_set/RobinSmallburrow.jpg",
+      "types": [
+        "Character"
+      ]
     },
     {
       "id": "rogrog",
       "cardTitle": "Rogrog",
-      "imagePath": "core_set/Rogrog.jpg"
+      "imagePath": "core_set/Rogrog.jpg",
+      "types": [
+        "Hazard"
+      ]
     },
     {
       "id": "rohan",
       "cardTitle": "Rohan",
-      "imagePath": "core_set/Rohan.jpg"
+      "imagePath": "core_set/Rohan.jpg",
+      "types": [
+        "Region"
+      ],
+      "orientation": "right"
     },
     {
       "id": "ruined_signal_tower",
       "cardTitle": "Ruined Signal Tower",
-      "imagePath": "core_set/RuinedSignalTower.jpg"
+      "imagePath": "core_set/RuinedSignalTower.jpg",
+      "types": [
+        "Site"
+      ]
     },
     {
       "id": "sacrifice_of_form",
       "cardTitle": "Sacrifice of Form",
-      "imagePath": "core_set/SacrificeofForm.jpg"
+      "imagePath": "core_set/SacrificeofForm.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "sam_gamgee",
       "cardTitle": "Sam Gamgee",
-      "imagePath": "core_set/SamGamgee.jpg"
+      "imagePath": "core_set/SamGamgee.jpg",
+      "types": [
+        "Character"
+      ]
     },
     {
       "id": "sapling_of_the_white_tree",
       "cardTitle": "Sapling of the White Tree",
-      "imagePath": "core_set/SaplingoftheWhiteTree.jpg"
+      "imagePath": "core_set/SaplingoftheWhiteTree.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "sarn_goriwing",
       "cardTitle": "Sarn Goriwing",
-      "imagePath": "core_set/SarnGoriwing.jpg"
+      "imagePath": "core_set/SarnGoriwing.jpg",
+      "types": [
+        "Site"
+      ]
     },
     {
       "id": "saruman",
       "cardTitle": "Saruman",
-      "imagePath": "core_set/Saruman.jpg"
+      "imagePath": "core_set/Saruman.jpg",
+      "types": [
+        "Character"
+      ]
     },
     {
       "id": "scroll_of_isildur",
       "cardTitle": "Scroll of Isildur",
-      "imagePath": "core_set/ScrollofIsildur.jpg"
+      "imagePath": "core_set/ScrollofIsildur.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "secret_entrance",
       "cardTitle": "Secret Entrance",
-      "imagePath": "core_set/SecretEntrance.jpg"
+      "imagePath": "core_set/SecretEntrance.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "secret_passage",
       "cardTitle": "Secret Passage",
-      "imagePath": "core_set/SecretPassage.jpg"
+      "imagePath": "core_set/SecretPassage.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "shadowfax",
       "cardTitle": "Shadowfax",
-      "imagePath": "core_set/Shadowfax.jpg"
+      "imagePath": "core_set/Shadowfax.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "shelob",
       "cardTitle": "Shelob",
-      "imagePath": "core_set/Shelob.jpg"
+      "imagePath": "core_set/Shelob.jpg",
+      "types": [
+        "Hazard"
+      ]
     },
     {
       "id": "shelobs_lair",
       "cardTitle": "Shelob's Lair",
-      "imagePath": "core_set/ShelobsLair.jpg"
+      "imagePath": "core_set/ShelobsLair.jpg",
+      "types": [
+        "Site"
+      ]
     },
     {
       "id": "shield_of_ironbound_ash",
       "cardTitle": "Shield of Ironbound Ash",
-      "imagePath": "core_set/ShieldofIronboundAsh.jpg"
+      "imagePath": "core_set/ShieldofIronboundAsh.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "shrel_kain",
       "cardTitle": "Shrel Kain",
-      "imagePath": "core_set/ShrelKain.jpg"
+      "imagePath": "core_set/ShrelKain.jpg",
+      "types": [
+        "Site"
+      ]
     },
     {
       "id": "siege",
       "cardTitle": "Siege",
-      "imagePath": "core_set/Siege.jpg"
+      "imagePath": "core_set/Siege.jpg",
+      "types": [
+        "Hazard"
+      ]
     },
     {
       "id": "silent_watcher",
       "cardTitle": "Silent Watcher",
-      "imagePath": "core_set/SilentWatcher.jpg"
+      "imagePath": "core_set/SilentWatcher.jpg",
+      "types": [
+        "Hazard"
+      ]
     },
     {
       "id": "skinbark",
       "cardTitle": "Skinbark",
-      "imagePath": "core_set/Skinbark.jpg"
+      "imagePath": "core_set/Skinbark.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "slayer",
       "cardTitle": "Slayer",
-      "imagePath": "core_set/Slayer.jpg"
+      "imagePath": "core_set/Slayer.jpg",
+      "types": [
+        "Hazard"
+      ]
     },
     {
       "id": "smaug",
       "cardTitle": "Smaug",
-      "imagePath": "core_set/Smaug.jpg"
+      "imagePath": "core_set/Smaug.jpg",
+      "types": [
+        "Hazard"
+      ]
     },
     {
       "id": "snowstorm",
       "cardTitle": "Snowstorm",
-      "imagePath": "core_set/Snowstorm.jpg"
+      "imagePath": "core_set/Snowstorm.jpg",
+      "types": [
+        "Hazard"
+      ]
     },
     {
       "id": "southern_mirkwood",
       "cardTitle": "Southern Mirkwood",
-      "imagePath": "core_set/SouthernMirkwood.jpg"
+      "imagePath": "core_set/SouthernMirkwood.jpg",
+      "types": [
+        "Region"
+      ],
+      "orientation": "right"
     },
     {
       "id": "southern_rhovanion",
       "cardTitle": "Southern Rhovanion",
-      "imagePath": "core_set/SouthernRhovanion.jpg"
+      "imagePath": "core_set/SouthernRhovanion.jpg",
+      "types": [
+        "Region"
+      ]
     },
     {
       "id": "southron_oasis",
       "cardTitle": "Southron Oasis",
-      "imagePath": "core_set/SouthronOasis.jpg"
+      "imagePath": "core_set/SouthronOasis.jpg",
+      "types": [
+        "Site"
+      ]
     },
     {
       "id": "southrons",
       "cardTitle": "Southrons",
-      "imagePath": "core_set/Southrons.jpg"
+      "imagePath": "core_set/Southrons.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "starglass",
       "cardTitle": "Starglass",
-      "imagePath": "core_set/Starglass.jpg"
+      "imagePath": "core_set/Starglass.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "stars",
       "cardTitle": "Stars",
-      "imagePath": "core_set/Stars.jpg"
+      "imagePath": "core_set/Stars.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "stealth",
       "cardTitle": "Stealth",
-      "imagePath": "core_set/Stealth.jpg"
+      "imagePath": "core_set/Stealth.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "sting",
       "cardTitle": "Sting",
-      "imagePath": "core_set/Sting.jpg"
+      "imagePath": "core_set/Sting.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "stonecircle",
       "cardTitle": "Stonecircle",
-      "imagePath": "core_set/Stonecircle.jpg"
+      "imagePath": "core_set/Stonecircle.jpg",
+      "types": [
+        "Site"
+      ]
     },
     {
       "id": "stone_of_erech",
       "cardTitle": "Stone of Erech",
-      "imagePath": "core_set/StoneofErech.jpg"
+      "imagePath": "core_set/StoneofErech.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "storms_of_osse",
       "cardTitle": "Storms of Osse",
-      "imagePath": "core_set/StormsofOsse.jpg"
+      "imagePath": "core_set/StormsofOsse.jpg",
+      "types": [
+        "Hazard"
+      ]
     },
     {
       "id": "sun",
       "cardTitle": "Sun",
-      "imagePath": "core_set/Sun.jpg"
+      "imagePath": "core_set/Sun.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "swordmaster",
       "cardTitle": "Swordmaster",
-      "imagePath": "core_set/Swordmaster.jpg"
+      "imagePath": "core_set/Swordmaster.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "sword_of_gondolin",
       "cardTitle": "Sword of Gondolin",
-      "imagePath": "core_set/SwordofGondolin.jpg"
+      "imagePath": "core_set/SwordofGondolin.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "tempering_friendship",
       "cardTitle": "Tempering Friendship",
-      "imagePath": "core_set/TemperingFriendship.jpg"
+      "imagePath": "core_set/TemperingFriendship.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "test_of_form",
       "cardTitle": "Test of Form",
-      "imagePath": "core_set/TestofForm.jpg"
+      "imagePath": "core_set/TestofForm.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "test_of_form_2",
       "cardTitle": "Test of Form",
-      "imagePath": "core_set/TestofForm2.jpg"
+      "imagePath": "core_set/TestofForm2.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "test_of_lore",
       "cardTitle": "Test of Lore",
-      "imagePath": "core_set/TestofLore.jpg"
+      "imagePath": "core_set/TestofLore.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "the_arkenstone",
       "cardTitle": "The Arkenstone",
-      "imagePath": "core_set/TheArkenstone.jpg"
+      "imagePath": "core_set/TheArkenstone.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "the_balance_of_things",
       "cardTitle": "The Balance of Things",
-      "imagePath": "core_set/TheBalanceofThings.jpg"
+      "imagePath": "core_set/TheBalanceofThings.jpg",
+      "types": [
+        "Hazard"
+      ]
     },
     {
       "id": "the_burden_of_time",
       "cardTitle": "The Burden of Time",
-      "imagePath": "core_set/TheBurdenofTime.jpg"
+      "imagePath": "core_set/TheBurdenofTime.jpg",
+      "types": [
+        "Hazard"
+      ]
     },
     {
       "id": "the_cock_crows",
       "cardTitle": "The Cock Crows",
-      "imagePath": "core_set/TheCockCrows.jpg"
+      "imagePath": "core_set/TheCockCrows.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "the_evenstar",
       "cardTitle": "The Evenstar",
-      "imagePath": "core_set/TheEvenstar.jpg"
+      "imagePath": "core_set/TheEvenstar.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "the_great_eagles",
       "cardTitle": "The Great Eagles",
-      "imagePath": "core_set/TheGreatEagles.jpg"
+      "imagePath": "core_set/TheGreatEagles.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "the_great_goblin",
       "cardTitle": "The Great Goblin",
-      "imagePath": "core_set/TheGreatGoblin.jpg"
+      "imagePath": "core_set/TheGreatGoblin.jpg",
+      "types": [
+        "Hazard"
+      ]
     },
     {
       "id": "the_iron_crown",
       "cardTitle": "The Iron Crown",
-      "imagePath": "core_set/TheIronCrown.jpg"
+      "imagePath": "core_set/TheIronCrown.jpg",
+      "types": [
+        "Hazard"
+      ]
     },
     {
       "id": "the_lonely_mountain",
       "cardTitle": "The Lonely Mountain",
-      "imagePath": "core_set/TheLonelyMountain.jpg"
+      "imagePath": "core_set/TheLonelyMountain.jpg",
+      "types": [
+        "Site"
+      ]
     },
     {
       "id": "the_mithrilcoat",
       "cardTitle": "The Mithrilcoat",
-      "imagePath": "core_set/TheMithrilcoat.jpg"
+      "imagePath": "core_set/TheMithrilcoat.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "the_nazgul_are_abroad",
       "cardTitle": "The Nazgul are Abroad",
-      "imagePath": "core_set/TheNazgulareAbroad.jpg"
+      "imagePath": "core_set/TheNazgulareAbroad.jpg",
+      "types": [
+        "Hazard"
+      ]
     },
     {
       "id": "the_old_thrush",
       "cardTitle": "The Old Thrush",
-      "imagePath": "core_set/TheOldThrush.jpg"
+      "imagePath": "core_set/TheOldThrush.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "the_one_ring",
       "cardTitle": "The One Ring",
-      "imagePath": "core_set/TheOneRing.jpg"
+      "imagePath": "core_set/TheOneRing.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "the_pale_sword",
       "cardTitle": "The Pale Sword",
-      "imagePath": "core_set/ThePaleSword.jpg"
+      "imagePath": "core_set/ThePaleSword.jpg",
+      "types": [
+        "Hazard"
+      ]
     },
     {
       "id": "the_precious",
       "cardTitle": "The Precious",
-      "imagePath": "core_set/ThePrecious.jpg"
+      "imagePath": "core_set/ThePrecious.jpg",
+      "types": [
+        "Hazard"
+      ]
     },
     {
       "id": "the_rings_betrayal",
       "cardTitle": "The Ring's Betrayal",
-      "imagePath": "core_set/TheRingsBetrayal.jpg"
+      "imagePath": "core_set/TheRingsBetrayal.jpg",
+      "types": [
+        "Hazard"
+      ]
     },
     {
       "id": "the_shire",
       "cardTitle": "The Shire",
-      "imagePath": "core_set/TheShire.jpg"
+      "imagePath": "core_set/TheShire.jpg",
+      "types": [
+        "Region"
+      ]
     },
     {
       "id": "the_stones",
       "cardTitle": "The Stones",
-      "imagePath": "core_set/TheStones.jpg"
+      "imagePath": "core_set/TheStones.jpg",
+      "types": [
+        "Site"
+      ]
     },
     {
       "id": "the_white_towers",
       "cardTitle": "The White Towers",
-      "imagePath": "core_set/TheWhiteTowers.jpg"
+      "imagePath": "core_set/TheWhiteTowers.jpg",
+      "types": [
+        "Site"
+      ]
     },
     {
       "id": "the_white_tree",
       "cardTitle": "The White Tree",
-      "imagePath": "core_set/TheWhiteTree.jpg"
+      "imagePath": "core_set/TheWhiteTree.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "the_will_of_sauron",
       "cardTitle": "The Will of Sauron",
-      "imagePath": "core_set/TheWillofSauron.jpg"
+      "imagePath": "core_set/TheWillofSauron.jpg",
+      "types": [
+        "Hazard"
+      ]
     },
     {
       "id": "the_will_of_the_ring",
       "cardTitle": "The Will of the Ring",
-      "imagePath": "core_set/TheWilloftheRing.jpg"
+      "imagePath": "core_set/TheWilloftheRing.jpg",
+      "types": [
+        "Hazard"
+      ]
     },
     {
       "id": "the_wind_throne",
       "cardTitle": "The Wind Throne",
-      "imagePath": "core_set/TheWindThrone.jpg"
+      "imagePath": "core_set/TheWindThrone.jpg",
+      "types": [
+        "Site"
+      ]
     },
     {
       "id": "theoden",
       "cardTitle": "Theoden",
-      "imagePath": "core_set/Theoden.jpg"
+      "imagePath": "core_set/Theoden.jpg",
+      "types": [
+        "Character"
+      ]
     },
     {
       "id": "thief",
       "cardTitle": "Thief",
-      "imagePath": "core_set/Thief.jpg"
+      "imagePath": "core_set/Thief.jpg",
+      "types": [
+        "Hazard"
+      ]
     },
     {
       "id": "thorin_ii",
       "cardTitle": "Thorin II",
-      "imagePath": "core_set/ThorinII.jpg"
+      "imagePath": "core_set/ThorinII.jpg",
+      "types": [
+        "Character"
+      ]
     },
     {
       "id": "thorough_search",
       "cardTitle": "Thorough Search",
-      "imagePath": "core_set/ThoroughSearch.jpg"
+      "imagePath": "core_set/ThoroughSearch.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "thranduil",
       "cardTitle": "Thranduil",
-      "imagePath": "core_set/Thranduil.jpg"
+      "imagePath": "core_set/Thranduil.jpg",
+      "types": [
+        "Character"
+      ]
     },
     {
       "id": "thranduils_halls",
       "cardTitle": "Thranduil's Halls",
-      "imagePath": "core_set/ThranduilsHalls.jpg"
+      "imagePath": "core_set/ThranduilsHalls.jpg",
+      "types": [
+        "Site"
+      ]
     },
     {
       "id": "tolfalas",
       "cardTitle": "Tolfalas",
-      "imagePath": "core_set/Tolfalas.jpg"
+      "imagePath": "core_set/Tolfalas.jpg",
+      "types": [
+        "Site"
+      ]
     },
     {
       "id": "tom_bombadil",
       "cardTitle": "Tom Bombadil",
-      "imagePath": "core_set/TomBombadil.jpg"
+      "imagePath": "core_set/TomBombadil.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "tom_tuma",
       "cardTitle": "Tom Tuma",
-      "imagePath": "core_set/TomTuma.jpg"
+      "imagePath": "core_set/TomTuma.jpg",
+      "types": [
+        "Hazard"
+      ]
     },
     {
       "id": "tookish_blood",
       "cardTitle": "Tookish Blood",
-      "imagePath": "core_set/TookishBlood.jpg"
+      "imagePath": "core_set/TookishBlood.jpg",
+      "types": [
+        "Hazard"
+      ]
     },
     {
       "id": "torque_of_hues",
       "cardTitle": "Torque of Hues",
-      "imagePath": "core_set/TorqueofHues.jpg"
+      "imagePath": "core_set/TorqueofHues.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "tower_guard_of_minas_tirith",
       "cardTitle": "Tower Guard of Minas Tirith",
-      "imagePath": "core_set/TowerGuardofMinasTirith.jpg"
+      "imagePath": "core_set/TowerGuardofMinasTirith.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "traitor",
       "cardTitle": "Traitor",
-      "imagePath": "core_set/Traitor.jpg"
+      "imagePath": "core_set/Traitor.jpg",
+      "types": [
+        "Hazard"
+      ]
     },
     {
       "id": "treebeard",
       "cardTitle": "Treebeard",
-      "imagePath": "core_set/Treebeard.jpg"
+      "imagePath": "core_set/Treebeard.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "true_fana",
       "cardTitle": "True Fana",
-      "imagePath": "core_set/TrueFana.jpg"
+      "imagePath": "core_set/TrueFana.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "twilight",
       "cardTitle": "Twilight",
-      "imagePath": "core_set/Twilight.jpg"
+      "imagePath": "core_set/Twilight.jpg",
+      "types": [
+        "Hazard"
+      ]
     },
     {
       "id": "udun",
       "cardTitle": "Udun",
-      "imagePath": "core_set/Udun.jpg"
+      "imagePath": "core_set/Udun.jpg",
+      "types": [
+        "Region"
+      ]
     },
     {
       "id": "use_palantir",
       "cardTitle": "Use Palantir",
-      "imagePath": "core_set/UsePalantir.jpg"
+      "imagePath": "core_set/UsePalantir.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "uvatha_the_horseman",
       "cardTitle": "Uvatha the Horseman",
-      "imagePath": "core_set/UvathatheHorseman.jpg"
+      "imagePath": "core_set/UvathatheHorseman.jpg",
+      "types": [
+        "Hazard"
+      ]
     },
     {
       "id": "vale_of_erech",
       "cardTitle": "Vale of Erech",
-      "imagePath": "core_set/ValeofErech.jpg"
+      "imagePath": "core_set/ValeofErech.jpg",
+      "types": [
+        "Site"
+      ]
     },
     {
       "id": "vanishment",
       "cardTitle": "Vanishment",
-      "imagePath": "core_set/Vanishment.jpg"
+      "imagePath": "core_set/Vanishment.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "variag_camp",
       "cardTitle": "Variag Camp",
-      "imagePath": "core_set/VariagCamp.jpg"
+      "imagePath": "core_set/VariagCamp.jpg",
+      "types": [
+        "Site"
+      ]
     },
     {
       "id": "variags_of_khand",
       "cardTitle": "Variags of Khand",
-      "imagePath": "core_set/VariagsofKhand.jpg"
+      "imagePath": "core_set/VariagsofKhand.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "vilya",
       "cardTitle": "Vilya",
-      "imagePath": "core_set/Vilya.jpg"
+      "imagePath": "core_set/Vilya.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "voteli",
       "cardTitle": "Voteli",
-      "imagePath": "core_set/Voteli.jpg"
+      "imagePath": "core_set/Voteli.jpg",
+      "types": [
+        "Character"
+      ]
     },
     {
       "id": "vygavril",
       "cardTitle": "Vygavril",
-      "imagePath": "core_set/Vygavril.jpg"
+      "imagePath": "core_set/Vygavril.jpg",
+      "types": [
+        "Character"
+      ]
     },
     {
       "id": "wacho",
       "cardTitle": "Wacho",
-      "imagePath": "core_set/Wacho.jpg"
+      "imagePath": "core_set/Wacho.jpg",
+      "types": [
+        "Character"
+      ]
     },
     {
       "id": "wake_of_war",
       "cardTitle": "Wake of War",
-      "imagePath": "core_set/WakeofWar.jpg"
+      "imagePath": "core_set/WakeofWar.jpg",
+      "types": [
+        "Hazard"
+      ]
     },
     {
       "id": "wargs",
       "cardTitle": "Wargs",
-      "imagePath": "core_set/Wargs.jpg"
+      "imagePath": "core_set/Wargs.jpg",
+      "types": [
+        "Hazard"
+      ]
     },
     {
       "id": "watcher_in_the_water",
       "cardTitle": "Watcher in the Water",
-      "imagePath": "core_set/WatcherintheWater.jpg"
+      "imagePath": "core_set/WatcherintheWater.jpg",
+      "types": [
+        "Hazard"
+      ]
     },
     {
       "id": "weariness_of_the_heart",
       "cardTitle": "Weariness of the Heart",
-      "imagePath": "core_set/WearinessoftheHeart.jpg"
+      "imagePath": "core_set/WearinessoftheHeart.jpg",
+      "types": [
+        "Hazard"
+      ]
     },
     {
       "id": "weathertop",
       "cardTitle": "Weathertop",
-      "imagePath": "core_set/Weathertop.jpg"
+      "imagePath": "core_set/Weathertop.jpg",
+      "types": [
+        "Site"
+      ]
     },
     {
       "id": "wellinghall",
       "cardTitle": "Wellinghall",
-      "imagePath": "core_set/Wellinghall.jpg"
+      "imagePath": "core_set/Wellinghall.jpg",
+      "types": [
+        "Site"
+      ]
     },
     {
       "id": "western_mirkwood",
       "cardTitle": "Western Mirkwood",
-      "imagePath": "core_set/WesternMirkwood.jpg"
+      "imagePath": "core_set/WesternMirkwood.jpg",
+      "types": [
+        "Region"
+      ]
     },
     {
       "id": "white_mountains",
       "cardTitle": "White Mountains",
-      "imagePath": "core_set/WhiteMountains.jpg"
+      "imagePath": "core_set/WhiteMountains.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "william_wuluag",
       "cardTitle": "William Wuluag",
-      "imagePath": "core_set/WilliamWuluag.jpg"
+      "imagePath": "core_set/WilliamWuluag.jpg",
+      "types": [
+        "Hazard"
+      ]
     },
     {
       "id": "witchking_of_angmar",
       "cardTitle": "Witchking of Angmar",
-      "imagePath": "core_set/WitchkingofAngmar.jpg"
+      "imagePath": "core_set/WitchkingofAngmar.jpg",
+      "types": [
+        "Hazard"
+      ]
     },
     {
       "id": "withered_heath",
       "cardTitle": "Withered Heath",
-      "imagePath": "core_set/WitheredHeath.jpg"
+      "imagePath": "core_set/WitheredHeath.jpg",
+      "types": [
+        "Region"
+      ],
+      "orientation": "right"
     },
     {
       "id": "wizards_fire",
       "cardTitle": "Wizard's Fire",
-      "imagePath": "core_set/WizardsFire.jpg"
+      "imagePath": "core_set/WizardsFire.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "wizards_flame",
       "cardTitle": "Wizard's Flame",
-      "imagePath": "core_set/WizardsFlame.jpg"
+      "imagePath": "core_set/WizardsFlame.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "wizards_laughter",
       "cardTitle": "Wizard's Laughter",
-      "imagePath": "core_set/WizardsLaughter.jpg"
+      "imagePath": "core_set/WizardsLaughter.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "wizards_ring",
       "cardTitle": "Wizard's Ring",
-      "imagePath": "core_set/WizardsRing.jpg"
+      "imagePath": "core_set/WizardsRing.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "wizards_riverhorses",
       "cardTitle": "Wizard's Riverhorses",
-      "imagePath": "core_set/WizardsRiverhorses.jpg"
+      "imagePath": "core_set/WizardsRiverhorses.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "wizards_test",
       "cardTitle": "Wizard's Test",
-      "imagePath": "core_set/WizardsTest.jpg"
+      "imagePath": "core_set/WizardsTest.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "wizards_voice",
       "cardTitle": "Wizard's Voice",
-      "imagePath": "core_set/WizardsVoice.jpg"
+      "imagePath": "core_set/WizardsVoice.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "wold_foothills",
       "cardTitle": "Wold Foothills",
-      "imagePath": "core_set/WoldFoothills.jpg"
+      "imagePath": "core_set/WoldFoothills.jpg",
+      "types": [
+        "Region"
+      ],
+      "orientation": "right"
     },
     {
       "id": "wolves",
       "cardTitle": "Wolves",
-      "imagePath": "core_set/Wolves.jpg"
+      "imagePath": "core_set/Wolves.jpg",
+      "types": [
+        "Hazard"
+      ]
     },
     {
       "id": "woodelves",
       "cardTitle": "Woodelves",
-      "imagePath": "core_set/Woodelves.jpg"
+      "imagePath": "core_set/Woodelves.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "woodland_realm",
       "cardTitle": "Woodland Realm",
-      "imagePath": "core_set/WoodlandRealm.jpg"
+      "imagePath": "core_set/WoodlandRealm.jpg",
+      "types": [
+        "Region"
+      ],
+      "orientation": "right"
     },
     {
       "id": "woodmen",
       "cardTitle": "Woodmen",
-      "imagePath": "core_set/Woodmen.jpg"
+      "imagePath": "core_set/Woodmen.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "woodmentown",
       "cardTitle": "Woodmentown",
-      "imagePath": "core_set/Woodmentown.jpg"
+      "imagePath": "core_set/Woodmentown.jpg",
+      "types": [
+        "Site"
+      ]
     },
     {
       "id": "words_of_power_and_terror",
       "cardTitle": "Words of Power and Terror",
-      "imagePath": "core_set/WordsofPowerandTerror.jpg"
+      "imagePath": "core_set/WordsofPowerandTerror.jpg",
+      "types": [
+        "Hazard"
+      ]
     },
     {
       "id": "wose_passagehold",
       "cardTitle": "Wose Passagehold",
-      "imagePath": "core_set/WosePassagehold.jpg"
+      "imagePath": "core_set/WosePassagehold.jpg",
+      "types": [
+        "Site"
+      ]
     },
     {
       "id": "woses_of_old_pukelland",
       "cardTitle": "Woses of Old Pukelland",
-      "imagePath": "core_set/WosesofOldPukelland.jpg"
+      "imagePath": "core_set/WosesofOldPukelland.jpg",
+      "types": [
+        "Resource"
+      ]
     },
     {
       "id": "woses_of_the_druadan_forest",
       "cardTitle": "Woses of the Druadan Forest",
-      "imagePath": "core_set/WosesoftheDruadanForest.jpg"
+      "imagePath": "core_set/WosesoftheDruadanForest.jpg",
+      "types": [
+        "Resource"
+      ]
     }
   ]
 }

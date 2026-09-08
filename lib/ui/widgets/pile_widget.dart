@@ -42,6 +42,7 @@ class PileWidget extends StatefulWidget {
     required this.onShuffle,
     this.isMirrored = false,
     this.interactable = true,
+    this.applyOrientation = false,
     this.topRotationTurns = 0,
     this.topBorderColor,
     this.onHover,
@@ -61,6 +62,11 @@ class PileWidget extends StatefulWidget {
   /// copy of this concept (used to block acting on a pile owned by the other
   /// player). Hover still fires either way.
   final bool interactable;
+
+  /// Folds `topDefinition.orientation` into the rotation -- see
+  /// `DraggableCard`'s own copy of this concept. Only ever true for a
+  /// free-table pile.
+  final bool applyOrientation;
 
   /// The top card's `CardInstance.rotationTurns` -- see `DraggableCard`'s own
   /// copy of this concept.
@@ -112,7 +118,9 @@ class _PileWidgetState extends State<PileWidget> with SingleTickerProviderStateM
             ),
             child: content,
           );
-    final turns = (widget.isMirrored ? 0.5 : 0.0) + widget.topRotationTurns / 4;
+    final orientation =
+        widget.applyOrientation ? (widget.topDefinition?.orientation ?? CardOrientation.portrait) : CardOrientation.portrait;
+    final turns = (widget.isMirrored ? 0.5 : 0.0) + orientationTurns(orientation) + widget.topRotationTurns / 4;
     return AnimatedRotation(turns: turns, duration: rotationAnimationDuration, curve: Curves.easeOut, child: bordered);
   }
 

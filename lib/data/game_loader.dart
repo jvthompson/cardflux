@@ -71,6 +71,8 @@ class GameLoader {
         rank: c.rank,
         imagePath: '$folderPath${Platform.pathSeparator}$imagePath',
         extraFields: c.extraFields,
+        types: c.types,
+        orientation: c.orientation,
       );
     }).toList();
     final cardBackImagePath = game.cardBackImagePath;
@@ -80,6 +82,8 @@ class GameLoader {
       cards: cards,
       cardBackImagePath: cardBackImagePath == null ? null : '$folderPath${Platform.pathSeparator}$cardBackImagePath',
       zones: game.zones,
+      opponentCardBorderColor: game.opponentCardBorderColor,
+      cardTypes: game.cardTypes,
     );
   }
 }
