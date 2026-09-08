@@ -169,6 +169,22 @@ class HostGameEngine {
           msg.payload['textColor'] as int,
         );
         break;
+      case NetMessageType.requestDuplicateWidget:
+        session.duplicateWidget(
+          msg.payload['sourceInstanceId'] as String,
+          msg.payload['newInstanceId'] as String,
+          (msg.payload['x'] as num).toDouble(),
+          (msg.payload['y'] as num).toDouble(),
+        );
+        break;
+      case NetMessageType.requestAttachWidgetToCard:
+        session.attachWidgetToCard(
+          msg.payload['instanceId'] as String,
+          msg.payload['cardId'] as String,
+          (msg.payload['x'] as num).toDouble(),
+          (msg.payload['y'] as num).toDouble(),
+        );
+        break;
       case NetMessageType.hello:
       case NetMessageType.welcome:
       case NetMessageType.gameData:

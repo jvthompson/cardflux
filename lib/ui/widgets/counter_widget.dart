@@ -7,12 +7,13 @@ import '../../models/board_widget_instance.dart';
 const double counterWidgetWidth = 80;
 const double counterWidgetHeight = 80;
 
-/// Preset swatches offered by the "Set Colors" prompt (see
-/// `TableScreen._promptSetColors`) -- a small fixed palette rather than a
-/// full color picker, since this app has no color-picker dependency and a
-/// board widget's color is a cosmetic touch, not something that needs an
-/// arbitrary RGB value.
-const List<int> counterColorPalette = [
+/// Preset swatches offered by every board widget's color prompt (see
+/// `TableScreen._colorSwatchRow`, used by both `_promptSetColors` for a
+/// Simple Counter and `_promptSetTokenColor` for a Token) -- a small fixed
+/// palette rather than a full color picker, since this app has no
+/// color-picker dependency and a board widget's color is a cosmetic touch,
+/// not something that needs an arbitrary RGB value.
+const List<int> boardWidgetColorPalette = [
   0xFF455A64, // blueGrey (default background)
   0xFFFFFFFF, // white (default text)
   0xFF000000, // black

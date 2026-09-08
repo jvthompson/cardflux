@@ -39,6 +39,8 @@ enum NetMessageType {
   requestSetWidgetValue,
   requestDeleteWidget,
   requestSetWidgetColors,
+  requestDuplicateWidget,
+  requestAttachWidgetToCard,
   ping,
   pong,
   disconnect;

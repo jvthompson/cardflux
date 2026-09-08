@@ -269,6 +269,16 @@ class GameSession extends ChangeNotifier {
     notifyListeners();
   }
 
+  void duplicateWidget(String sourceInstanceId, String newInstanceId, double x, double y) {
+    _state = _actions.duplicateWidget(_state, sourceInstanceId: sourceInstanceId, newInstanceId: newInstanceId, x: x, y: y);
+    notifyListeners();
+  }
+
+  void attachWidgetToCard(String instanceId, String cardId, double x, double y) {
+    _state = _actions.attachWidgetToCard(_state, instanceId: instanceId, cardId: cardId, x: x, y: y);
+    notifyListeners();
+  }
+
   /// Replaces the entire state wholesale — used once networking lands (M4)
   /// to apply an incoming `fullState` snapshot from the host.
   void applyRemoteState(TableState newState) {

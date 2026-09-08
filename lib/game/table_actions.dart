@@ -26,6 +26,32 @@ class TableActions {
     return null;
   }
 
+  /// Repositions every widget attached to a card (see
+  /// [BoardWidgetInstance.attachedCardId]) to that card's current position
+  /// plus its own fixed [BoardWidgetInstance.attachOffsetX]/[attachOffsetY]
+  /// -- called after any action that changes a table card's x/y, so an
+  /// attached widget always travels with whatever card/pile it's resting
+  /// on, preserving exactly where on the card it was originally dropped
+  /// rather than snapping to the card's center. A widget whose attached
+  /// card no longer exists is left exactly where it was -- only
+  /// [moveWidget]/an explicit re-drag ever clears the attachment itself.
+  TableState _syncAttachedWidgets(TableState state) {
+    if (state.widgets.isEmpty) return state;
+    var changed = false;
+    final widgets = state.widgets.map((w) {
+      final attachedId = w.attachedCardId;
+      if (attachedId == null) return w;
+      final card = _findById(state, attachedId);
+      if (card == null) return w;
+      final newX = card.x + w.attachOffsetX;
+      final newY = card.y + w.attachOffsetY;
+      if (w.x == newX && w.y == newY) return w;
+      changed = true;
+      return w.copyWith(x: newX, y: newY);
+    }).toList();
+    return changed ? state.copyWith(widgets: widgets) : state;
+  }
+
   /// Moves a card to a free table position, detaching it from any stack or
   /// zone (clearing [CardInstance.zoneId] -- leaving it stale would make the
   /// card linger in its old zone's grouping even though [CardZone.table]
@@ -36,7 +62,7 @@ class TableActions {
       if (c.instanceId != instanceId) return c;
       return c.copyWith(x: x, y: y, zone: CardZone.table, stackParentId: null, zoneId: null, zIndex: nextZ);
     }).toList();
-    return state.copyWith(cards: cards, revision: state.revision + 1);
+    return _syncAttachedWidgets(state.copyWith(cards: cards, revision: state.revision + 1));
   }
 
   /// Repositions every card in the stack rooted at [rootInstanceId] to
@@ -63,7 +89,7 @@ class TableActions {
       final zIndex = c.instanceId == currentTopId ? nextZ : c.zIndex;
       return c.copyWith(x: x, y: y, zIndex: zIndex);
     }).toList();
-    return state.copyWith(cards: cards, revision: state.revision + 1);
+    return _syncAttachedWidgets(state.copyWith(cards: cards, revision: state.revision + 1));
   }
 
   /// Rotates every card in the stack rooted at [rootInstanceId] by one
@@ -179,7 +205,7 @@ class TableActions {
         zIndex: nextZ,
       );
     }).toList();
-    return state.copyWith(cards: cards, revision: state.revision + 1);
+    return _syncAttachedWidgets(state.copyWith(cards: cards, revision: state.revision + 1));
   }
 
   /// Moves [primaryInstanceId] to `x`/`y` exactly like [moveCard] (fully
@@ -230,7 +256,7 @@ class TableActions {
       }
       return c;
     }).toList();
-    return state.copyWith(cards: cards, revision: state.revision + 1);
+    return _syncAttachedWidgets(state.copyWith(cards: cards, revision: state.revision + 1));
   }
 
   /// Moves the topmost card of the free-table pile rooted at [pileInstanceId]
@@ -404,11 +430,42 @@ class TableActions {
   }
 
   /// Repositions a widget -- structurally like [moveCard] minus the zone/
-  /// stack detachment, since a widget has neither.
+  /// stack detachment, since a widget has neither. Always clears
+  /// [BoardWidgetInstance.attachedCardId]: dragging the widget itself to a
+  /// new spot is what detaches it from whatever card it was resting on (see
+  /// [attachWidgetToCard] for the opposite operation).
   TableState moveWidget(TableState state, {required String instanceId, required double x, required double y}) {
     final nextZ = _nextWidgetZIndex(state);
     final widgets = state.widgets
-        .map((w) => w.instanceId == instanceId ? w.copyWith(x: x, y: y, zIndex: nextZ) : w)
+        .map((w) => w.instanceId == instanceId
+            ? w.copyWith(x: x, y: y, zIndex: nextZ, attachedCardId: null, attachOffsetX: 0, attachOffsetY: 0)
+            : w)
+        .toList();
+    return state.copyWith(widgets: widgets, revision: state.revision + 1);
+  }
+
+  /// Attaches [instanceId] to ride along with [cardId] from now on, leaving
+  /// it exactly at the dropped canonical position ([x]/[y]) rather than
+  /// snapping to the card's center -- the fixed offset between that drop
+  /// point and the card's own current position is recorded
+  /// ([BoardWidgetInstance.attachOffsetX]/[attachOffsetY]) so
+  /// [_syncAttachedWidgets] can keep reapplying it as the card/pile moves.
+  /// A no-op if [cardId] doesn't exist.
+  TableState attachWidgetToCard(TableState state, {required String instanceId, required String cardId, required double x, required double y}) {
+    final card = _findById(state, cardId);
+    if (card == null) return state;
+    final nextZ = _nextWidgetZIndex(state);
+    final widgets = state.widgets
+        .map((w) => w.instanceId == instanceId
+            ? w.copyWith(
+                x: x,
+                y: y,
+                zIndex: nextZ,
+                attachedCardId: cardId,
+                attachOffsetX: x - card.x,
+                attachOffsetY: y - card.y,
+              )
+            : w)
         .toList();
     return state.copyWith(widgets: widgets, revision: state.revision + 1);
   }
@@ -436,5 +493,31 @@ class TableActions {
         .map((w) => w.instanceId == instanceId ? w.copyWith(backgroundColor: backgroundColor, textColor: textColor) : w)
         .toList();
     return state.copyWith(widgets: widgets, revision: state.revision + 1);
+  }
+
+  /// Creates a copy of [sourceInstanceId] (same kind/value/colors) at
+  /// canonical [x]/[y], on top of every existing widget -- used for a
+  /// Ctrl+drag duplicate (see `TableScreen`'s token drag handling). A no-op
+  /// if [sourceInstanceId] doesn't exist.
+  TableState duplicateWidget(TableState state, {required String sourceInstanceId, required String newInstanceId, required double x, required double y}) {
+    BoardWidgetInstance? source;
+    for (final w in state.widgets) {
+      if (w.instanceId == sourceInstanceId) {
+        source = w;
+        break;
+      }
+    }
+    if (source == null) return state;
+    final copy = BoardWidgetInstance(
+      instanceId: newInstanceId,
+      kind: source.kind,
+      x: x,
+      y: y,
+      zIndex: _nextWidgetZIndex(state),
+      value: source.value,
+      backgroundColor: source.backgroundColor,
+      textColor: source.textColor,
+    );
+    return state.copyWith(widgets: [...state.widgets, copy], revision: state.revision + 1);
   }
 }

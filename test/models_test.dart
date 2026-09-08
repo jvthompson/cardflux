@@ -207,6 +207,42 @@ void main() {
       expect(roundTripped.backgroundColor, 0xFFD32F2F);
       expect(roundTripped.textColor, 0xFF000000);
     });
+
+    test('attachedCardId defaults to null, is omitted from JSON, and round-trips a value', () {
+      final instance = BoardWidgetInstance(instanceId: 'w1', kind: BoardWidgetKind.token, x: 0, y: 0, zIndex: 0);
+      expect(instance.attachedCardId, isNull);
+      expect(instance.toJson().containsKey('attachedCardId'), isFalse);
+
+      final attached = instance.copyWith(attachedCardId: 'c1');
+      expect(attached.attachedCardId, 'c1');
+      final roundTripped = BoardWidgetInstance.fromJson(attached.toJson());
+      expect(roundTripped.attachedCardId, 'c1');
+    });
+
+    test('copyWith can explicitly clear attachedCardId back to null', () {
+      final instance = BoardWidgetInstance(instanceId: 'w1', kind: BoardWidgetKind.token, x: 0, y: 0, zIndex: 0, attachedCardId: 'c1');
+      final detached = instance.copyWith(attachedCardId: null);
+      expect(detached.attachedCardId, isNull);
+    });
+
+    test('attachOffsetX/attachOffsetY default to 0, are omitted from JSON, and round-trip a value', () {
+      final instance = BoardWidgetInstance(instanceId: 'w1', kind: BoardWidgetKind.token, x: 0, y: 0, zIndex: 0);
+      expect(instance.attachOffsetX, 0);
+      expect(instance.attachOffsetY, 0);
+      expect(instance.toJson().containsKey('attachOffsetX'), isFalse);
+      expect(instance.toJson().containsKey('attachOffsetY'), isFalse);
+
+      final offset = instance.copyWith(attachOffsetX: 0.1, attachOffsetY: -0.2);
+      final roundTripped = BoardWidgetInstance.fromJson(offset.toJson());
+      expect(roundTripped.attachOffsetX, closeTo(0.1, 1e-9));
+      expect(roundTripped.attachOffsetY, closeTo(-0.2, 1e-9));
+    });
+
+    test('token kind round-trips through JSON', () {
+      final instance = BoardWidgetInstance(instanceId: 'w1', kind: BoardWidgetKind.token, x: 0.2, y: 0.3, zIndex: 0);
+      final roundTripped = BoardWidgetInstance.fromJson(instance.toJson());
+      expect(roundTripped.kind, BoardWidgetKind.token);
+    });
   });
 
   group('PlayerInfo', () {

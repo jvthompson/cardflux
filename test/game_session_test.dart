@@ -356,5 +356,42 @@ void main() {
       expect(session.state.widgets.single.textColor, 0xFF000000);
       expect(notified, isTrue);
     });
+
+    test('duplicateWidget adds a copy at the given position and notifies listeners', () {
+      final session = emptySession();
+      session.createWidget('w1', BoardWidgetKind.token, 0.1, 0.1);
+      var notified = false;
+      session.addListener(() => notified = true);
+      session.duplicateWidget('w1', 'w2', 0.9, 0.9);
+      expect(session.state.widgets, hasLength(2));
+      final copy = session.state.widgets.firstWhere((w) => w.instanceId == 'w2');
+      expect(copy.kind, BoardWidgetKind.token);
+      expect(copy.x, 0.9);
+      expect(copy.y, 0.9);
+      expect(notified, isTrue);
+    });
+
+    test('attachWidgetToCard leaves the widget at the drop point and notifies listeners', () {
+      const game = GameDefinition(id: 'g1', name: 'G', cards: _cards);
+      final session = GameSession(
+        game: game,
+        localPlayerId: 'p1',
+        initialState: TableState(
+          gameId: 'g1',
+          players: const [],
+          cards: [CardInstance(instanceId: 'c1', definitionId: 'a', x: 0.4, y: 0.5, zIndex: 0, faceUp: true, zone: CardZone.table)],
+          revision: 0,
+        ),
+      );
+      session.createWidget('w1', BoardWidgetKind.token, 0, 0);
+      var notified = false;
+      session.addListener(() => notified = true);
+      session.attachWidgetToCard('w1', 'c1', 0.42, 0.53);
+      final token = session.state.widgets.single;
+      expect(token.x, closeTo(0.42, 1e-9));
+      expect(token.y, closeTo(0.53, 1e-9));
+      expect(token.attachedCardId, 'c1');
+      expect(notified, isTrue);
+    });
   });
 }

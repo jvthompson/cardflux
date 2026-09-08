@@ -26,6 +26,8 @@ abstract class TableController {
   void setWidgetValue(String instanceId, int value);
   void deleteWidget(String instanceId);
   void setWidgetColors(String instanceId, int backgroundColor, int textColor);
+  void duplicateWidget(String sourceInstanceId, String newInstanceId, double x, double y);
+  void attachWidgetToCard(String instanceId, String cardId, double x, double y);
 }
 
 /// The host applies actions directly to its own authoritative [GameSession]
@@ -126,6 +128,14 @@ class HostTableController implements TableController {
   @override
   void setWidgetColors(String instanceId, int backgroundColor, int textColor) =>
       _session.setWidgetColors(instanceId, backgroundColor, textColor);
+
+  @override
+  void duplicateWidget(String sourceInstanceId, String newInstanceId, double x, double y) =>
+      _session.duplicateWidget(sourceInstanceId, newInstanceId, x, y);
+
+  @override
+  void attachWidgetToCard(String instanceId, String cardId, double x, double y) =>
+      _session.attachWidgetToCard(instanceId, cardId, x, y);
 }
 
 /// A client never mutates its local [GameSession] directly from a gesture
@@ -261,6 +271,22 @@ class ClientTableController implements TableController {
     _client.send(NetMessage(
       type: NetMessageType.requestSetWidgetColors,
       payload: {'instanceId': instanceId, 'backgroundColor': backgroundColor, 'textColor': textColor},
+    ));
+  }
+
+  @override
+  void duplicateWidget(String sourceInstanceId, String newInstanceId, double x, double y) {
+    _client.send(NetMessage(
+      type: NetMessageType.requestDuplicateWidget,
+      payload: {'sourceInstanceId': sourceInstanceId, 'newInstanceId': newInstanceId, 'x': x, 'y': y},
+    ));
+  }
+
+  @override
+  void attachWidgetToCard(String instanceId, String cardId, double x, double y) {
+    _client.send(NetMessage(
+      type: NetMessageType.requestAttachWidgetToCard,
+      payload: {'instanceId': instanceId, 'cardId': cardId, 'x': x, 'y': y},
     ));
   }
 }

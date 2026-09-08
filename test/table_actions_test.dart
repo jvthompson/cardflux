@@ -54,6 +54,38 @@ void main() {
       expect(moved.zone, CardZone.table);
       expect(moved.zoneId, isNull);
     });
+
+    test('drags along any widget attached to the moved card', () {
+      final withToken = _threeCardPile().copyWith(
+        widgets: [BoardWidgetInstance(instanceId: 'w1', kind: BoardWidgetKind.token, x: 0, y: 0, zIndex: 0, attachedCardId: 'a')],
+      );
+      final next = _actions.moveCard(withToken, instanceId: 'a', x: 0.7, y: 0.8);
+      final token = next.widgets.single;
+      expect(token.x, 0.7);
+      expect(token.y, 0.8);
+      expect(token.attachedCardId, 'a');
+    });
+
+    test('preserves a nonzero attach offset -- doesn\'t re-center onto the card', () {
+      final withToken = _threeCardPile().copyWith(
+        widgets: [
+          BoardWidgetInstance(
+            instanceId: 'w1',
+            kind: BoardWidgetKind.token,
+            x: 0,
+            y: 0,
+            zIndex: 0,
+            attachedCardId: 'a',
+            attachOffsetX: 0.02,
+            attachOffsetY: -0.03,
+          ),
+        ],
+      );
+      final next = _actions.moveCard(withToken, instanceId: 'a', x: 0.7, y: 0.8);
+      final token = next.widgets.single;
+      expect(token.x, closeTo(0.72, 1e-9));
+      expect(token.y, closeTo(0.77, 1e-9));
+    });
   });
 
   group('moveStack', () {
@@ -88,6 +120,16 @@ void main() {
       final state = _threeCardPile();
       final next = _actions.moveStack(state, rootInstanceId: 'nonexistent', x: 0.3, y: 0.4);
       expect(next, same(state));
+    });
+
+    test('drags along any widget attached to a member of the stack', () {
+      final withToken = _threeCardPile().copyWith(
+        widgets: [BoardWidgetInstance(instanceId: 'w1', kind: BoardWidgetKind.token, x: 0, y: 0, zIndex: 0, attachedCardId: 'b')],
+      );
+      final next = _actions.moveStack(withToken, rootInstanceId: 'root', x: 0.3, y: 0.4);
+      final token = next.widgets.single;
+      expect(token.x, 0.3);
+      expect(token.y, 0.4);
     });
   });
 
@@ -187,6 +229,23 @@ void main() {
       final state = twoLooseCardsAndAPile();
       final next = _actions.moveGroup(state, primaryInstanceId: 'nonexistent', passengerRootInstanceIds: const [], x: 0, y: 0);
       expect(next, same(state));
+    });
+
+    test('drags along a widget attached to a passenger card, following its translated position', () {
+      final withToken = twoLooseCardsAndAPile().copyWith(
+        widgets: [BoardWidgetInstance(instanceId: 'w1', kind: BoardWidgetKind.token, x: 0, y: 0, zIndex: 0, attachedCardId: 'passenger')],
+      );
+      final next = _actions.moveGroup(
+        withToken,
+        primaryInstanceId: 'primary',
+        passengerRootInstanceIds: const ['passenger', 'pRoot'],
+        x: 0.15,
+        y: 0.25,
+      );
+      final passenger = next.cards.firstWhere((c) => c.instanceId == 'passenger');
+      final token = next.widgets.single;
+      expect(token.x, passenger.x);
+      expect(token.y, passenger.y);
     });
   });
 
@@ -324,6 +383,23 @@ void main() {
       final state = _threeCardPile();
       final next = _actions.stackCard(state, instanceId: 'a', ontoInstanceId: 'nope');
       expect(next, same(state));
+    });
+
+    test('drags along a widget attached to the card being stacked', () {
+      final state = TableState(
+        gameId: 'g',
+        players: const [],
+        cards: [
+          CardInstance(instanceId: 'x', definitionId: 'd1', x: 10, y: 10, zIndex: 0, faceUp: false, zone: CardZone.table),
+          CardInstance(instanceId: 'y', definitionId: 'd2', x: 99, y: 99, zIndex: 1, faceUp: false, zone: CardZone.table),
+        ],
+        revision: 0,
+        widgets: [BoardWidgetInstance(instanceId: 'w1', kind: BoardWidgetKind.token, x: 99, y: 99, zIndex: 0, attachedCardId: 'y')],
+      );
+      final next = _actions.stackCard(state, instanceId: 'y', ontoInstanceId: 'x');
+      final token = next.widgets.single;
+      expect(token.x, 10);
+      expect(token.y, 10);
     });
   });
 
@@ -697,6 +773,44 @@ void main() {
       expect(next.widgets.single.x, 0);
       expect(next.widgets.single.y, 0);
     });
+
+    test('clears attachedCardId -- dragging the widget itself always detaches it', () {
+      final state = TableState(
+        gameId: 'g',
+        players: const [],
+        cards: const [],
+        revision: 0,
+        widgets: [BoardWidgetInstance(instanceId: 'w1', kind: BoardWidgetKind.token, x: 0, y: 0, zIndex: 0, attachedCardId: 'c1')],
+      );
+      final next = _actions.moveWidget(state, instanceId: 'w1', x: 0.7, y: 0.8);
+      expect(next.widgets.single.attachedCardId, isNull);
+    });
+  });
+
+  group('attachWidgetToCard', () {
+    test('leaves the widget exactly at the drop point (not snapped to the card center) and records the offset', () {
+      final state = TableState(
+        gameId: 'g',
+        players: const [],
+        cards: [CardInstance(instanceId: 'c1', definitionId: 'd1', x: 0.4, y: 0.5, zIndex: 0, faceUp: true, zone: CardZone.table)],
+        revision: 0,
+        widgets: [BoardWidgetInstance(instanceId: 'w1', kind: BoardWidgetKind.token, x: 0, y: 0, zIndex: 0)],
+      );
+      final next = _actions.attachWidgetToCard(state, instanceId: 'w1', cardId: 'c1', x: 0.42, y: 0.53);
+      final token = next.widgets.single;
+      expect(token.x, closeTo(0.42, 1e-9));
+      expect(token.y, closeTo(0.53, 1e-9));
+      expect(token.attachedCardId, 'c1');
+      expect(token.attachOffsetX, closeTo(0.02, 1e-9));
+      expect(token.attachOffsetY, closeTo(0.03, 1e-9));
+      expect(next.revision, state.revision + 1);
+    });
+
+    test('is a no-op for an unknown card id', () {
+      const state = TableState(gameId: 'g', players: [], cards: [], revision: 0);
+      final next = _actions.attachWidgetToCard(state, instanceId: 'w1', cardId: 'nonexistent', x: 0.5, y: 0.5);
+      expect(next, same(state));
+    });
   });
 
   group('setWidgetValue', () {
@@ -760,6 +874,46 @@ void main() {
       expect(w.backgroundColor, 0xFFD32F2F);
       expect(w.textColor, 0xFF000000);
       expect(next.revision, state.revision + 1);
+    });
+  });
+
+  group('duplicateWidget', () {
+    test('creates a copy of the source at the given position, on top, with a new id', () {
+      final state = TableState(
+        gameId: 'g',
+        players: const [],
+        cards: const [],
+        revision: 0,
+        widgets: [
+          BoardWidgetInstance(
+            instanceId: 'w1',
+            kind: BoardWidgetKind.token,
+            x: 0.1,
+            y: 0.1,
+            zIndex: 0,
+            backgroundColor: 0xFFD32F2F,
+            textColor: 0xFF000000,
+          ),
+        ],
+      );
+      final next = _actions.duplicateWidget(state, sourceInstanceId: 'w1', newInstanceId: 'w2', x: 0.5, y: 0.6);
+      expect(next.widgets, hasLength(2));
+      final copy = next.widgets.firstWhere((w) => w.instanceId == 'w2');
+      expect(copy.kind, BoardWidgetKind.token);
+      expect(copy.x, 0.5);
+      expect(copy.y, 0.6);
+      expect(copy.backgroundColor, 0xFFD32F2F);
+      expect(copy.textColor, 0xFF000000);
+      final source = next.widgets.firstWhere((w) => w.instanceId == 'w1');
+      expect(source.x, 0.1);
+      expect(source.y, 0.1);
+      expect(next.revision, state.revision + 1);
+    });
+
+    test('is a no-op for an unknown source id', () {
+      const state = TableState(gameId: 'g', players: [], cards: [], revision: 0);
+      final next = _actions.duplicateWidget(state, sourceInstanceId: 'nonexistent', newInstanceId: 'w2', x: 0.5, y: 0.5);
+      expect(next, same(state));
     });
   });
 }

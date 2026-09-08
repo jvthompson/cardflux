@@ -20,6 +20,7 @@ import 'widgets/hand_zone_widget.dart';
 import 'widgets/opponent_hand_zone_widget.dart';
 import 'widgets/opponent_zone_stack_widget.dart';
 import 'widgets/pile_widget.dart';
+import 'widgets/token_widget.dart';
 import 'widgets/zone_stack_widget.dart';
 
 const StackUtils _stackUtils = StackUtils();
@@ -630,25 +631,74 @@ class _TableScreenState extends State<TableScreen> with SingleTickerProviderStat
     widget.controller.moveStack(rootId, fx, fy);
   }
 
-  /// Repositions a placed board widget after a drag release -- structurally
-  /// like [_handleDragEnd]'s plain-move branch, minus every card-specific
-  /// concern (hand/zone drop targets, stacking) a widget has none of.
-  void _handleWidgetDragEnd(String instanceId, Offset globalTopLeft) {
+  /// Shared position math for a board widget drag release -- converts a
+  /// drag's raw global top-left into the canonical center position a widget
+  /// of [widgetWidth]/[widgetHeight] should land at, clamped clear of the
+  /// hand-zone bands via [clampCardCenterY] just like a card drop.
+  (double, double) _widgetDropPosition(Offset globalTopLeft, double widgetWidth, double widgetHeight) {
     final local = _globalToTableLocal(globalTopLeft);
-    final rawCenter = Offset(local.dx + counterWidgetWidth / 2, local.dy + counterWidgetHeight / 2);
+    final rawCenter = Offset(local.dx + widgetWidth / 2, local.dy + widgetHeight / 2);
     final clampedY = clampCardCenterY(
       proposedCenterY: rawCenter.dy,
       tableHeight: _tableSize.height,
-      cardHeight: counterWidgetHeight,
+      cardHeight: widgetHeight,
     );
-    final (fx, fy) = localPixelToCanonical(
+    return localPixelToCanonical(
       pixelX: rawCenter.dx,
       pixelY: clampedY,
       tableWidth: _tableSize.width,
       tableHeight: _tableSize.height,
       isMirrored: widget.isMirrored,
     );
+  }
+
+  /// Repositions a placed board widget after a drag release -- structurally
+  /// like [_handleDragEnd]'s plain-move branch, minus every card-specific
+  /// concern (hand/zone drop targets, stacking) a widget has none of.
+  void _handleWidgetDragEnd(String instanceId, Offset globalTopLeft, {required double widgetWidth, required double widgetHeight}) {
+    final (fx, fy) = _widgetDropPosition(globalTopLeft, widgetWidth, widgetHeight);
     widget.controller.moveWidget(instanceId, fx, fy);
+  }
+
+  /// A plain (non-Ctrl) drag release on a [TokenWidget]: if the drop lands
+  /// on a card (within [_stackHitRadius], same hit-test [_findStackTarget]
+  /// uses for card-onto-card stacking), the token attaches to it instead of
+  /// just moving there -- left exactly where it was dropped (not snapped to
+  /// the card's center), then carried along at that same offset by
+  /// `TableActions`'s attached-widget sync on every future move of that
+  /// card/pile. See `TableActions.attachWidgetToCard`. Dropping on empty
+  /// space instead falls back to a plain [_handleWidgetDragEnd], which
+  /// detaches any previous attachment.
+  void _handleTokenDragEnd(String instanceId, Offset globalTopLeft, {required List<CardInstance> tableTops}) {
+    final local = _globalToTableLocal(globalTopLeft);
+    final rawCenter = Offset(local.dx + tokenWidgetSize / 2, local.dy + tokenWidgetSize / 2);
+    final target = _findStackTarget(tableTops: tableTops, excludingInstanceId: instanceId, center: rawCenter);
+    if (target != null) {
+      final (fx, fy) = _widgetDropPosition(globalTopLeft, tokenWidgetSize, tokenWidgetSize);
+      widget.controller.attachWidgetToCard(instanceId, target.instanceId, fx, fy);
+    } else {
+      _handleWidgetDragEnd(instanceId, globalTopLeft, widgetWidth: tokenWidgetSize, widgetHeight: tokenWidgetSize);
+    }
+  }
+
+  /// Ctrl+drag on a [TokenWidget]: creates a copy at the drop position
+  /// (mirroring `TableActions.duplicateWidget`, leaving [instanceId] exactly
+  /// where it was), and -- if the drop lands on a card -- attaches that new
+  /// copy to it too, exactly like [_handleTokenDragEnd]'s plain-drag
+  /// attachment. Without this, a Ctrl-duplicate released directly onto a
+  /// card would create a free-floating clone right where a plain drag would
+  /// have attached, which reads as broken since the two gestures otherwise
+  /// behave identically except for leaving the original in place.
+  void _duplicateTokenAt(String instanceId, Offset globalTopLeft, {required List<CardInstance> tableTops}) {
+    final local = _globalToTableLocal(globalTopLeft);
+    final rawCenter = Offset(local.dx + tokenWidgetSize / 2, local.dy + tokenWidgetSize / 2);
+    final target = _findStackTarget(tableTops: tableTops, excludingInstanceId: instanceId, center: rawCenter);
+    final (fx, fy) = _widgetDropPosition(globalTopLeft, tokenWidgetSize, tokenWidgetSize);
+    final newInstanceId = _uuid.v4();
+    widget.controller.duplicateWidget(instanceId, newInstanceId, fx, fy);
+    if (target != null) {
+      widget.controller.attachWidgetToCard(newInstanceId, target.instanceId, fx, fy);
+    }
   }
 
   /// Right-clicking empty table space: a first menu picking a category (just
@@ -670,7 +720,10 @@ class _TableScreenState extends State<TableScreen> with SingleTickerProviderStat
     final kind = await showMenu<BoardWidgetKind>(
       context: context,
       position: RelativeRect.fromLTRB(globalPosition.dx, globalPosition.dy, globalPosition.dx, globalPosition.dy),
-      items: const [PopupMenuItem(value: BoardWidgetKind.simpleCounter, child: Text('Simple Counter'))],
+      items: const [
+        PopupMenuItem(value: BoardWidgetKind.simpleCounter, child: Text('Simple Counter')),
+        PopupMenuItem(value: BoardWidgetKind.token, child: Text('Token')),
+      ],
     );
     if (kind == null || !mounted) return;
 
@@ -774,7 +827,7 @@ class _TableScreenState extends State<TableScreen> with SingleTickerProviderStat
   }
 
   /// A modal prompt to set a widget's background/text color from a small
-  /// fixed palette ([counterColorPalette]) -- there's no color-picker
+  /// fixed palette ([boardWidgetColorPalette]) -- there's no color-picker
   /// dependency in this app, and a preset swatch grid is simpler than
   /// building/adding one for a cosmetic setting.
   Future<void> _promptSetColors(BoardWidgetInstance instance) async {
@@ -812,14 +865,62 @@ class _TableScreenState extends State<TableScreen> with SingleTickerProviderStat
     }
   }
 
-  /// One row of tappable swatches from [counterColorPalette] -- the
+  /// Right-clicking a placed [TokenWidget]: Set Color opens
+  /// [_promptSetTokenColor], Delete removes it outright. A token has no
+  /// numeric state, so unlike [_showCounterMenu] there's no Increment/
+  /// Decrement/Set Value.
+  Future<void> _showTokenMenu(Offset globalPosition, BoardWidgetInstance instance) async {
+    final action = await showMenu<String>(
+      context: context,
+      position: RelativeRect.fromLTRB(globalPosition.dx, globalPosition.dy, globalPosition.dx, globalPosition.dy),
+      items: const [
+        PopupMenuItem(value: 'setColor', child: Text('Set Color')),
+        PopupMenuItem(value: 'delete', child: Text('Delete')),
+      ],
+    );
+    if (!mounted) return;
+    switch (action) {
+      case 'setColor':
+        await _promptSetTokenColor(instance);
+      case 'delete':
+        widget.controller.deleteWidget(instance.instanceId);
+    }
+  }
+
+  /// Like [_promptSetColors] but for a single color -- a token has no text
+  /// to color, just its own fill. [BoardWidgetInstance.textColor] is left
+  /// untouched (meaningless for a token, but preserved rather than
+  /// overwritten in case a future kind change ever wants it back).
+  Future<void> _promptSetTokenColor(BoardWidgetInstance instance) async {
+    int color = instance.backgroundColor;
+    final result = await showDialog<int>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: const Text('Set Color'),
+          content: SingleChildScrollView(
+            child: _colorSwatchRow(selected: color, onSelected: (c) => setState(() => color = c)),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Cancel')),
+            FilledButton(onPressed: () => Navigator.of(context).pop(color), child: const Text('Set')),
+          ],
+        ),
+      ),
+    );
+    if (result != null && mounted) {
+      widget.controller.setWidgetColors(instance.instanceId, result, instance.textColor);
+    }
+  }
+
+  /// One row of tappable swatches from [boardWidgetColorPalette] -- the
   /// currently [selected] one gets a highlighted ring.
   Widget _colorSwatchRow({required int selected, required ValueChanged<int> onSelected}) {
     return Wrap(
       spacing: 8,
       runSpacing: 8,
       children: [
-        for (final c in counterColorPalette)
+        for (final c in boardWidgetColorPalette)
           GestureDetector(
             onTap: () => onSelected(c),
             child: Container(
@@ -1157,14 +1258,38 @@ class _TableScreenState extends State<TableScreen> with SingleTickerProviderStat
                                     for (final w in state.widgets)
                                       Builder(builder: (context) {
                                         final pos = _toScreenPixel(w.x, w.y);
+                                        final (widgetWidth, widgetHeight) = switch (w.kind) {
+                                          BoardWidgetKind.simpleCounter => (counterWidgetWidth, counterWidgetHeight),
+                                          BoardWidgetKind.token => (tokenWidgetSize, tokenWidgetSize),
+                                        };
                                         return Positioned(
-                                          left: pos.dx - counterWidgetWidth / 2,
-                                          top: pos.dy - counterWidgetHeight / 2,
+                                          left: pos.dx - widgetWidth / 2,
+                                          top: pos.dy - widgetHeight / 2,
                                           child: switch (w.kind) {
                                             BoardWidgetKind.simpleCounter => CounterWidget(
                                                 instance: w,
-                                                onDragEnd: (offset) => _handleWidgetDragEnd(w.instanceId, offset),
+                                                onDragEnd: (offset) => _handleWidgetDragEnd(
+                                                  w.instanceId,
+                                                  offset,
+                                                  widgetWidth: widgetWidth,
+                                                  widgetHeight: widgetHeight,
+                                                ),
                                                 onSecondaryTapUp: (globalPos) => _showCounterMenu(globalPos, w),
+                                              ),
+                                            // Ctrl+drag duplicates instead of moving -- see
+                                            // _duplicateTokenAt; a plain drag either attaches to
+                                            // whatever card it lands on (see _handleTokenDragEnd) or
+                                            // just moves normally.
+                                            BoardWidgetKind.token => TokenWidget(
+                                                instance: w,
+                                                onDragEnd: (offset) {
+                                                  if (HardwareKeyboard.instance.isControlPressed) {
+                                                    _duplicateTokenAt(w.instanceId, offset, tableTops: tableTops);
+                                                  } else {
+                                                    _handleTokenDragEnd(w.instanceId, offset, tableTops: tableTops);
+                                                  }
+                                                },
+                                                onSecondaryTapUp: (globalPos) => _showTokenMenu(globalPos, w),
                                               ),
                                           },
                                         );
