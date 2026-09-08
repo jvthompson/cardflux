@@ -45,11 +45,13 @@ class GameSession extends ChangeNotifier {
   /// Deals every [player]'s zones from [game]'s [GameDefinition.zones]:
   /// for each player, each owned zone (`!shared`) gets either that player's
   /// entry in [deckConfigsByPlayerId] (if the zone is marked
-  /// [ZoneDefinition.dealsBuiltDeck] -- falling back to one of every card in
-  /// [game] if no config was supplied, e.g. Practice Mode) or its own static
-  /// [ZoneDefinition.entries] (typically empty, e.g. a discard pile starting
-  /// empty). Each shared zone is dealt once, unowned, at its own canonical
-  /// position (clustered around the host's middle-right, mirrored
+  /// [ZoneDefinition.dealsBuiltDeck] -- looked up by *both* player id and
+  /// zone id, since a game can have more than one such zone, e.g. METW's
+  /// Draw Deck and Location Deck; falls back to one of every card in [game]
+  /// if no config was supplied for that zone, e.g. Practice Mode) or its own
+  /// static [ZoneDefinition.entries] (typically empty, e.g. a discard pile
+  /// starting empty). Each shared zone is dealt once, unowned, at its own
+  /// canonical position (clustered around the host's middle-right, mirrored
   /// automatically for the client -- see [_sharedZonePosition|), from its
   /// own [ZoneDefinition.entries] (empty meaning one of every card, same
   /// convention the old `FixedDeckDefinition` used). Entries referencing an
@@ -63,7 +65,7 @@ class GameSession extends ChangeNotifier {
     required GameDefinition game,
     required List<PlayerInfo> players,
     required String localPlayerId,
-    Map<String, DeckConfig>? deckConfigsByPlayerId,
+    Map<String, Map<String, DeckConfig>>? deckConfigsByPlayerId,
   }) {
     final validIds = {for (final c in game.cards) c.id};
     final fullDeckEntries = [for (final c in game.cards) DeckEntry(definitionId: c.id, quantity: 1)];
@@ -99,7 +101,8 @@ class GameSession extends ChangeNotifier {
 
     for (final player in players) {
       for (final zone in game.zones.where((z) => !z.shared)) {
-        final entries = zone.dealsBuiltDeck ? (deckConfigsByPlayerId?[player.id]?.entries ?? fullDeckEntries) : zone.entries;
+        final entries =
+            zone.dealsBuiltDeck ? (deckConfigsByPlayerId?[player.id]?[zone.id]?.entries ?? fullDeckEntries) : zone.entries;
         deal(entries, zoneId: zone.id, ownerId: player.id, x: 0.5, y: 0.5, faceUp: zone.faceUp);
       }
     }

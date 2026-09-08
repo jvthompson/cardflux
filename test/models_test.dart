@@ -345,6 +345,22 @@ void main() {
       expect(sharedBuiltFlag.needsDeckBuilding, isFalse);
     });
 
+    test('deckBuildingZones enumerates every owned dealsBuiltDeck zone, in JSON order', () {
+      const game = GameDefinition(
+        id: 'g1',
+        name: 'G',
+        cards: [],
+        zones: [
+          ZoneDefinition(id: 'draw_deck', name: 'Draw Deck', dealsBuiltDeck: true),
+          ZoneDefinition(id: 'location_deck', name: 'Location Deck', dealsBuiltDeck: true),
+          ZoneDefinition(id: 'discard_pile', name: 'Discard Pile'),
+          ZoneDefinition(id: 'deck', name: 'Deck', shared: true, dealsBuiltDeck: true),
+        ],
+      );
+      expect(game.deckBuildingZones.map((z) => z.id), ['draw_deck', 'location_deck']);
+      expect(game.needsDeckBuilding, isTrue);
+    });
+
     test('toJson omits zones when empty', () {
       const game = GameDefinition(
         id: 'g1',

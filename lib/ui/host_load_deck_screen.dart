@@ -29,8 +29,8 @@ class HostLoadDeckScreen extends StatefulWidget {
 }
 
 class _HostLoadDeckScreenState extends State<HostLoadDeckScreen> {
-  DeckConfig? _hostDeck;
-  DeckConfig? _clientDeck;
+  final Map<String, DeckConfig> _hostDecks = {};
+  final Map<String, DeckConfig> _clientDecks = {};
   StreamSubscription<NetMessage>? _sub;
   StreamSubscription<HostConnectionStatus>? _statusSub;
   bool _navigatedAway = false;
@@ -49,20 +49,23 @@ class _HostLoadDeckScreenState extends State<HostLoadDeckScreen> {
 
   void _handleMessage(NetMessage msg) {
     if (msg.type != NetMessageType.requestDeckChosen) return;
-    setState(() => _clientDeck = DeckConfig.fromJson(msg.payload));
+    final zoneId = msg.payload['zoneId'] as String;
+    final deck = DeckConfig.fromJson((msg.payload['deck'] as Map).cast<String, dynamic>());
+    setState(() => _clientDecks[zoneId] = deck);
     _maybeStart();
   }
 
-  void _chooseHostDeck(DeckConfig deck) {
-    setState(() => _hostDeck = deck);
+  void _chooseHostDeck(String zoneId, DeckConfig deck) {
+    setState(() => _hostDecks[zoneId] = deck);
     _maybeStart();
   }
 
   void _maybeStart() {
-    final hostDeck = _hostDeck;
-    final clientDeck = _clientDeck;
+    final zoneCount = widget.game.deckBuildingZones.length;
     final clientId = widget.hostServer.opponentPlayerId;
-    if (hostDeck == null || clientDeck == null || clientId == null || _navigatedAway || !mounted) return;
+    if (_hostDecks.length < zoneCount || _clientDecks.length < zoneCount || clientId == null || _navigatedAway || !mounted) {
+      return;
+    }
     _navigatedAway = true;
     _sub?.cancel();
     _statusSub?.cancel();
@@ -71,7 +74,7 @@ class _HostLoadDeckScreenState extends State<HostLoadDeckScreen> {
         hostServer: widget.hostServer,
         hostPlayerId: widget.hostPlayerId,
         game: widget.game,
-        deckConfigsByPlayerId: {widget.hostPlayerId: hostDeck, clientId: clientDeck},
+        deckConfigsByPlayerId: {widget.hostPlayerId: _hostDecks, clientId: _clientDecks},
       ),
     ));
   }
@@ -96,20 +99,23 @@ class _HostLoadDeckScreenState extends State<HostLoadDeckScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final zones = widget.game.deckBuildingZones;
+    final hostDone = _hostDecks.length >= zones.length;
+    final clientDone = _clientDecks.length >= zones.length;
     return Scaffold(
       appBar: AppBar(title: Text('Load Deck -- ${widget.game.name}')),
       body: Column(
         children: [
-          Expanded(child: LoadDeckScreen(game: widget.game, onDeckChosen: _chooseHostDeck)),
-          if (_hostDeck != null && _clientDeck == null)
-            const Padding(
-              padding: EdgeInsets.only(bottom: 32),
+          Expanded(child: LoadDeckScreen(game: widget.game, zones: zones, onDeckChosen: _chooseHostDeck)),
+          if (hostDone && !clientDone)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 32),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  CircularProgressIndicator(),
-                  SizedBox(height: 12),
-                  Text('Waiting for opponent to load their deck...'),
+                  const CircularProgressIndicator(),
+                  const SizedBox(height: 12),
+                  Text('Waiting for opponent to load their deck(s)... (${_clientDecks.length}/${zones.length})'),
                 ],
               ),
             ),

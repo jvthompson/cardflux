@@ -33,9 +33,9 @@ class ZoneDefinition {
 
   /// Only meaningful when [shared] is false: this zone receives the local
   /// player's own chosen deck (from the Load Deck screen) at deal time,
-  /// instead of starting from [entries]. Exactly one owned zone per game
-  /// should set this -- a game needs no other flag to mark itself
-  /// deck-building, see `GameDefinition.needsDeckBuilding`.
+  /// instead of starting from [entries]. A game can set this on more than
+  /// one owned zone (e.g. METW's Draw Deck and Location Deck) -- each gets
+  /// its own separately loaded deck file, see `GameDefinition.deckBuildingZones`.
   final bool dealsBuiltDeck;
 
   /// Static starting contents, dealt once at game start. Ignored when

@@ -16,6 +16,11 @@
       "dealsBuiltDeck": true
     },
     {
+      "id": "location_deck",
+      "name": "Location Deck",
+      "dealsBuiltDeck": true
+    },
+    {
       "id": "discard_pile",
       "name": "Discard Pile",
       "faceUp": true,

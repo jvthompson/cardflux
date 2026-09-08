@@ -21,11 +21,13 @@ import 'table_screen.dart';
 /// session -- and the game state it holds -- survives unrelated rebuilds.
 ///
 /// When `game.needsDeckBuilding`, [deckConfigsByPlayerId] holds each
-/// player's own deck (chosen on [GameSelectScreen]/`HostLoadDeckScreen`,
-/// which already sent the client [game] before either player picked a deck).
-/// Otherwise [GameSelectScreen] skips straight here with
-/// [deckConfigsByPlayerId] null -- nobody built anything, so this screen
-/// sends [game] itself and every zone deals from its own static entries.
+/// player's own deck(s), keyed by player id then by zone id (a game can have
+/// more than one deck-building zone, see `GameDefinition.deckBuildingZones`)
+/// -- chosen on [GameSelectScreen]/`HostLoadDeckScreen`, which already sent
+/// the client [game] before either player picked a deck. Otherwise
+/// [GameSelectScreen] skips straight here with [deckConfigsByPlayerId] null
+/// -- nobody built anything, so this screen sends [game] itself and every
+/// zone deals from its own static entries.
 class HostGameScreen extends StatefulWidget {
   const HostGameScreen({
     super.key,
@@ -38,7 +40,7 @@ class HostGameScreen extends StatefulWidget {
   final HostServer hostServer;
   final String hostPlayerId;
   final GameDefinition game;
-  final Map<String, DeckConfig>? deckConfigsByPlayerId;
+  final Map<String, Map<String, DeckConfig>>? deckConfigsByPlayerId;
 
   @override
   State<HostGameScreen> createState() => _HostGameScreenState();

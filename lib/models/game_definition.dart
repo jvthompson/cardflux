@@ -45,12 +45,17 @@ class GameDefinition {
   /// red; a game's JSON can override it.
   final String opponentCardBorderColor;
 
-  /// Whether starting this game requires each player to pick their own deck
-  /// on the Load Deck screen first -- true iff some owned zone is marked
-  /// [ZoneDefinition.dealsBuiltDeck]. A game with no such zone (e.g.
-  /// Standard 52, whose only zone is a shared deck) deals automatically
-  /// with no per-player choice.
-  bool get needsDeckBuilding => zones.any((z) => !z.shared && z.dealsBuiltDeck);
+  /// Every owned zone marked [ZoneDefinition.dealsBuiltDeck] -- each one
+  /// needs its own separate deck file loaded per player (e.g. METW's Draw
+  /// Deck and Location Deck), not just one deck for the whole game. Empty
+  /// for a game with no such zone (e.g. Standard 52).
+  List<ZoneDefinition> get deckBuildingZones => zones.where((z) => !z.shared && z.dealsBuiltDeck).toList();
+
+  /// Whether starting this game requires each player to pick their own
+  /// deck(s) on the Load Deck screen first -- true iff [deckBuildingZones]
+  /// is non-empty. A game with no such zone (e.g. Standard 52, whose only
+  /// zone is a shared deck) deals automatically with no per-player choice.
+  bool get needsDeckBuilding => deckBuildingZones.isNotEmpty;
 
   factory GameDefinition.fromJson(Map<String, dynamic> json) {
     return GameDefinition(

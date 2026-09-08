@@ -39,7 +39,7 @@ class _ClientGameScreenState extends State<ClientGameScreen> {
   StreamSubscription<NetMessage>? _sub;
   StreamSubscription<ClientConnectionStatus>? _statusSub;
   GameDefinition? _game;
-  DeckConfig? _localDeck;
+  final Map<String, DeckConfig> _localDecks = {};
   bool _navigatedHome = false;
 
   @override
@@ -88,9 +88,12 @@ class _ClientGameScreenState extends State<ClientGameScreen> {
     }
   }
 
-  void _chooseDeck(DeckConfig deck) {
-    setState(() => _localDeck = deck);
-    widget.gameClient.send(NetMessage(type: NetMessageType.requestDeckChosen, payload: deck.toJson()));
+  void _chooseDeck(String zoneId, DeckConfig deck) {
+    setState(() => _localDecks[zoneId] = deck);
+    widget.gameClient.send(NetMessage(
+      type: NetMessageType.requestDeckChosen,
+      payload: {'zoneId': zoneId, 'deck': deck.toJson()},
+    ));
   }
 
   @override
@@ -106,10 +109,10 @@ class _ClientGameScreenState extends State<ClientGameScreen> {
     final session = _session;
     if (session == null) {
       final game = _game;
-      if (game != null && game.needsDeckBuilding && _localDeck == null) {
+      if (game != null && _localDecks.length < game.deckBuildingZones.length) {
         return Scaffold(
           appBar: AppBar(title: Text('Load Deck -- ${game.name}')),
-          body: LoadDeckScreen(game: game, onDeckChosen: _chooseDeck),
+          body: LoadDeckScreen(game: game, zones: game.deckBuildingZones, onDeckChosen: _chooseDeck),
         );
       }
       return const Scaffold(

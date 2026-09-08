@@ -32,8 +32,8 @@ void main() {
         players: _players,
         localPlayerId: 'p1',
         deckConfigsByPlayerId: {
-          'p1': const DeckConfig(gameId: 'g1', entries: [DeckEntry(definitionId: 'a', quantity: 2)]),
-          'p2': const DeckConfig(gameId: 'g1', entries: [DeckEntry(definitionId: 'b', quantity: 3)]),
+          'p1': {'draw_deck': const DeckConfig(gameId: 'g1', entries: [DeckEntry(definitionId: 'a', quantity: 2)])},
+          'p2': {'draw_deck': const DeckConfig(gameId: 'g1', entries: [DeckEntry(definitionId: 'b', quantity: 3)])},
         },
       );
 
@@ -74,7 +74,7 @@ void main() {
         players: [_players[0]],
         localPlayerId: 'p1',
         deckConfigsByPlayerId: {
-          'p1': const DeckConfig(gameId: 'g1', entries: [DeckEntry(definitionId: 'a', quantity: 1)]),
+          'p1': {'draw_deck': const DeckConfig(gameId: 'g1', entries: [DeckEntry(definitionId: 'a', quantity: 1)])},
         },
       );
       expect(session.state.cards.where((c) => c.zoneId == 'draw_deck'), hasLength(1));
@@ -93,14 +93,46 @@ void main() {
         players: [_players[0]],
         localPlayerId: 'p1',
         deckConfigsByPlayerId: {
-          'p1': const DeckConfig(
-            gameId: 'g1',
-            entries: [DeckEntry(definitionId: 'a', quantity: 1), DeckEntry(definitionId: 'nonexistent', quantity: 5)],
-          ),
+          'p1': {
+            'draw_deck': const DeckConfig(
+              gameId: 'g1',
+              entries: [DeckEntry(definitionId: 'a', quantity: 1), DeckEntry(definitionId: 'nonexistent', quantity: 5)],
+            ),
+          },
         },
       );
       expect(session.state.cards, hasLength(1));
       expect(session.state.cards.single.definitionId, 'a');
+    });
+
+    test('two dealsBuiltDeck zones each get their own distinct chosen deck, not one duplicated into both', () {
+      const game = GameDefinition(
+        id: 'g1',
+        name: 'G',
+        cards: _cards,
+        zones: [
+          ZoneDefinition(id: 'draw_deck', name: 'Draw Deck', dealsBuiltDeck: true),
+          ZoneDefinition(id: 'location_deck', name: 'Location Deck', dealsBuiltDeck: true),
+        ],
+      );
+      final session = GameSession.dealFromZones(
+        game: game,
+        players: [_players[0]],
+        localPlayerId: 'p1',
+        deckConfigsByPlayerId: {
+          'p1': {
+            'draw_deck': const DeckConfig(gameId: 'g1', entries: [DeckEntry(definitionId: 'a', quantity: 2)]),
+            'location_deck': const DeckConfig(gameId: 'g1', entries: [DeckEntry(definitionId: 'b', quantity: 1)]),
+          },
+        },
+      );
+
+      final drawDeckCards = session.state.cards.where((c) => c.zoneId == 'draw_deck').toList();
+      final locationDeckCards = session.state.cards.where((c) => c.zoneId == 'location_deck').toList();
+      expect(drawDeckCards, hasLength(2));
+      expect(drawDeckCards.every((c) => c.definitionId == 'a'), isTrue);
+      expect(locationDeckCards, hasLength(1));
+      expect(locationDeckCards.single.definitionId, 'b');
     });
   });
 
