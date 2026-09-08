@@ -90,6 +90,105 @@ void main() {
     });
   });
 
+  group('moveGroup', () {
+    TableState twoLooseCardsAndAPile() {
+      // 'primary' is a lone loose card; 'passenger' is another lone loose
+      // card sitting to its right; 'pRoot'/'pTop' form a 2-card official
+      // pile further right still -- a mix of loose cards and an official
+      // pile as passengers, like dragging the bottom of a cascade that also
+      // happens to have a real pile resting on part of it.
+      return TableState(
+        gameId: 'g',
+        players: const [],
+        cards: [
+          CardInstance(instanceId: 'primary', definitionId: 'd1', x: 0.1, y: 0.1, zIndex: 0, faceUp: false, zone: CardZone.table),
+          CardInstance(instanceId: 'passenger', definitionId: 'd2', x: 0.3, y: 0.1, zIndex: 1, faceUp: false, zone: CardZone.table),
+          CardInstance(instanceId: 'pRoot', definitionId: 'd3', x: 0.5, y: 0.1, zIndex: 2, faceUp: false, zone: CardZone.table),
+          CardInstance(instanceId: 'pTop', definitionId: 'd4', x: 0.5, y: 0.1, zIndex: 3, faceUp: false, zone: CardZone.table, stackParentId: 'pRoot'),
+          CardInstance(instanceId: 'untouched', definitionId: 'd5', x: 0.9, y: 0.9, zIndex: 4, faceUp: false, zone: CardZone.table),
+        ],
+        revision: 0,
+      );
+    }
+
+    test('moves the primary card to the target position and fully detaches it', () {
+      final state = _threeCardPile();
+      final next = _actions.moveGroup(state, primaryInstanceId: 'a', passengerRootInstanceIds: const [], x: 0.7, y: 0.8);
+      final moved = next.cards.firstWhere((c) => c.instanceId == 'a');
+      expect(moved.x, 0.7);
+      expect(moved.y, 0.8);
+      expect(moved.zone, CardZone.table);
+      expect(moved.stackParentId, isNull);
+    });
+
+    test('translates each passenger by the same delta the primary moved by, preserving relative offsets', () {
+      final state = twoLooseCardsAndAPile();
+      // primary moves from (0.1,0.1) to (0.15,0.25) -- delta (0.05, 0.15).
+      final next = _actions.moveGroup(
+        state,
+        primaryInstanceId: 'primary',
+        passengerRootInstanceIds: const ['passenger', 'pRoot'],
+        x: 0.15,
+        y: 0.25,
+      );
+      final passenger = next.cards.firstWhere((c) => c.instanceId == 'passenger');
+      expect(passenger.x, closeTo(0.35, 1e-9));
+      expect(passenger.y, closeTo(0.25, 1e-9));
+      final untouched = next.cards.firstWhere((c) => c.instanceId == 'untouched');
+      expect(untouched.x, 0.9);
+      expect(untouched.y, 0.9);
+    });
+
+    test('moves every member of a passenger pile as a whole, preserving its internal structure', () {
+      final state = twoLooseCardsAndAPile();
+      final next = _actions.moveGroup(
+        state,
+        primaryInstanceId: 'primary',
+        passengerRootInstanceIds: const ['passenger', 'pRoot'],
+        x: 0.15,
+        y: 0.25,
+      );
+      final pRoot = next.cards.firstWhere((c) => c.instanceId == 'pRoot');
+      final pTop = next.cards.firstWhere((c) => c.instanceId == 'pTop');
+      expect(pRoot.x, closeTo(0.55, 1e-9));
+      expect(pRoot.y, closeTo(0.25, 1e-9));
+      expect(pTop.x, pRoot.x);
+      expect(pTop.y, pRoot.y);
+      expect(pTop.stackParentId, 'pRoot');
+    });
+
+    test('bumps only the primary and each passenger stack\'s own top to a fresh ascending zIndex', () {
+      final state = twoLooseCardsAndAPile();
+      final next = _actions.moveGroup(
+        state,
+        primaryInstanceId: 'primary',
+        passengerRootInstanceIds: const ['passenger', 'pRoot'],
+        x: 0.15,
+        y: 0.25,
+      );
+      final primaryZ = next.cards.firstWhere((c) => c.instanceId == 'primary').zIndex;
+      final passengerZ = next.cards.firstWhere((c) => c.instanceId == 'passenger').zIndex;
+      final pRootZ = next.cards.firstWhere((c) => c.instanceId == 'pRoot').zIndex;
+      final pTopZ = next.cards.firstWhere((c) => c.instanceId == 'pTop').zIndex;
+      // Ascending, in the order passed in (primary first, then each
+      // passenger root in list order) and all above the pre-move max (4).
+      expect(primaryZ, greaterThan(4));
+      expect(passengerZ, greaterThan(primaryZ));
+      expect(pTopZ, greaterThan(passengerZ));
+      // Only pTop (the pile's own current top) is bumped -- pRoot keeps its
+      // original zIndex, matching moveStack's minimal-touch behavior.
+      expect(pRootZ, 2);
+      final untouchedZ = next.cards.firstWhere((c) => c.instanceId == 'untouched').zIndex;
+      expect(untouchedZ, 4);
+    });
+
+    test('is a no-op for an unknown primary', () {
+      final state = twoLooseCardsAndAPile();
+      final next = _actions.moveGroup(state, primaryInstanceId: 'nonexistent', passengerRootInstanceIds: const [], x: 0, y: 0);
+      expect(next, same(state));
+    });
+  });
+
   group('rotateStack', () {
     test('a lone card (a stack of one) rotates clockwise and wraps 3 -> 0', () {
       final state = TableState(

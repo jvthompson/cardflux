@@ -181,6 +181,57 @@ class TableActions {
     return state.copyWith(cards: cards, revision: state.revision + 1);
   }
 
+  /// Moves [primaryInstanceId] to `x`/`y` exactly like [moveCard] (fully
+  /// detaching it from any stack/zone), and translates every stack rooted at
+  /// [passengerRootInstanceIds] by the same delta the primary moved by --
+  /// preserving each passenger's position *relative to the primary* and its
+  /// own internal structure (a passenger that's itself a multi-card official
+  /// pile moves as a whole, unchanged internally). Used for dragging a loose
+  /// table card together with whatever other cards are visually overlapping
+  /// and stacked above it -- unlike [moveStack], passengers are NOT snapped
+  /// to one shared position, since they may only be loosely overlapping, not
+  /// a collapsed pile.
+  ///
+  /// Only the primary and each passenger stack's own current top (per
+  /// [StackUtils.topOf]) get a fresh, ascending zIndex (in
+  /// [passengerRootInstanceIds] order) -- same minimal-touch approach
+  /// [moveStack] uses -- so the whole group renders above every other table
+  /// pile while preserving both the group's own front-to-back order and each
+  /// passenger pile's internal order.
+  TableState moveGroup(
+    TableState state, {
+    required String primaryInstanceId,
+    required List<String> passengerRootInstanceIds,
+    required double x,
+    required double y,
+  }) {
+    final primary = _findById(state, primaryInstanceId);
+    if (primary == null) return state;
+    final dx = x - primary.x;
+    final dy = y - primary.y;
+    var nextZ = _nextZIndex(state);
+    final primaryNewZ = nextZ++;
+    final passengerTopNewZ = <String, int>{};
+    final passengerIds = <String>{};
+    for (final rootId in passengerRootInstanceIds) {
+      final stack = _stacks.stackOf(state.cards, rootId);
+      if (stack.isEmpty) continue;
+      passengerIds.addAll(stack.map((c) => c.instanceId));
+      passengerTopNewZ[_stacks.topOf(stack).instanceId] = nextZ++;
+    }
+    final cards = state.cards.map((c) {
+      if (c.instanceId == primaryInstanceId) {
+        return c.copyWith(x: x, y: y, zone: CardZone.table, stackParentId: null, zoneId: null, zIndex: primaryNewZ);
+      }
+      if (passengerIds.contains(c.instanceId)) {
+        final bumped = passengerTopNewZ[c.instanceId];
+        return c.copyWith(x: c.x + dx, y: c.y + dy, zIndex: bumped ?? c.zIndex);
+      }
+      return c;
+    }).toList();
+    return state.copyWith(cards: cards, revision: state.revision + 1);
+  }
+
   /// Moves the topmost card of the free-table pile rooted at [pileInstanceId]
   /// into [ownerId]'s hand, face-up, detached from the pile. For a zone
   /// (draw deck, discard pile, etc.), see [drawFromZone] instead.

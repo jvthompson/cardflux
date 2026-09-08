@@ -8,6 +8,7 @@ import 'game_session.dart';
 /// differ in what happens next, not in the shape of the action.
 abstract class TableController {
   void moveCard(String instanceId, double x, double y);
+  void moveGroup(String primaryInstanceId, List<String> passengerRootInstanceIds, double x, double y);
   void moveStack(String rootInstanceId, double x, double y);
   void rotateStack(String rootInstanceId, {required bool clockwise});
   void flipCard(String instanceId);
@@ -42,6 +43,11 @@ class HostTableController implements TableController {
   @override
   void moveCard(String instanceId, double x, double y) {
     if (_isOwnedOrUnowned(instanceId)) _session.moveCard(instanceId, x, y);
+  }
+
+  @override
+  void moveGroup(String primaryInstanceId, List<String> passengerRootInstanceIds, double x, double y) {
+    if (_isOwnedOrUnowned(primaryInstanceId)) _session.moveGroup(primaryInstanceId, passengerRootInstanceIds, x, y);
   }
 
   @override
@@ -107,6 +113,19 @@ class ClientTableController implements TableController {
   @override
   void moveCard(String instanceId, double x, double y) {
     _client.send(NetMessage(type: NetMessageType.requestMove, payload: {'instanceId': instanceId, 'x': x, 'y': y}));
+  }
+
+  @override
+  void moveGroup(String primaryInstanceId, List<String> passengerRootInstanceIds, double x, double y) {
+    _client.send(NetMessage(
+      type: NetMessageType.requestMoveGroup,
+      payload: {
+        'primaryInstanceId': primaryInstanceId,
+        'passengerRootInstanceIds': passengerRootInstanceIds,
+        'x': x,
+        'y': y,
+      },
+    ));
   }
 
   @override

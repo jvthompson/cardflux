@@ -55,6 +55,21 @@ class HostGameEngine {
           session.moveCard(instanceId, (msg.payload['x'] as num).toDouble(), (msg.payload['y'] as num).toDouble());
         }
         break;
+      case NetMessageType.requestMoveGroup:
+        final primaryInstanceId = msg.payload['primaryInstanceId'] as String;
+        if (_isAllowedToActOn(primaryInstanceId, clientId)) {
+          final passengerRootInstanceIds = (msg.payload['passengerRootInstanceIds'] as List)
+              .cast<String>()
+              .where((id) => _isAllowedToActOn(id, clientId))
+              .toList();
+          session.moveGroup(
+            primaryInstanceId,
+            passengerRootInstanceIds,
+            (msg.payload['x'] as num).toDouble(),
+            (msg.payload['y'] as num).toDouble(),
+          );
+        }
+        break;
       case NetMessageType.requestMoveStack:
         final rootInstanceId = msg.payload['rootInstanceId'] as String;
         if (_isAllowedToActOn(rootInstanceId, clientId)) {

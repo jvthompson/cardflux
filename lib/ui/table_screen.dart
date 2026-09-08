@@ -159,6 +159,19 @@ class _TableScreenState extends State<TableScreen> with SingleTickerProviderStat
       if (status == AnimationStatus.completed && mounted) setState(() => _flyingDiscard = null);
     });
 
+  /// The instance id of whichever free-table card is actually being dragged,
+  /// while a pickup group (see [_pickupGroup]) larger than one is in
+  /// progress -- null the rest of the time, including for an ordinary
+  /// single-card drag (which needs none of this; `Draggable`'s own
+  /// `childWhenDragging` already handles that case).
+  String? _activeDragPrimaryId;
+
+  /// Every card id in the pickup group currently being dragged (including
+  /// the primary), while such a drag is in progress -- used to ghost each
+  /// passenger in place, matching how the primary already dims itself via
+  /// `childWhenDragging`. Null the rest of the time.
+  Set<String>? _activeDragGroupIds;
+
   RenderBox get _tableBox => _tableKey.currentContext!.findRenderObject() as RenderBox;
 
   Offset _globalToTableLocal(Offset global) => _tableBox.globalToLocal(global);
@@ -301,6 +314,71 @@ class _TableScreenState extends State<TableScreen> with SingleTickerProviderStat
     );
   }
 
+  /// Records [group] (see [_pickupGroup]) as the active drag, so its
+  /// passengers can be ghosted in place -- a no-op (no ghosting) for a
+  /// lone-card group, which needs nothing beyond `Draggable`'s own
+  /// automatic dimming of the card actually being dragged.
+  void _startGroupDrag(List<CardInstance> group) {
+    if (group.length <= 1) return;
+    setState(() {
+      _activeDragPrimaryId = group.first.instanceId;
+      _activeDragGroupIds = {for (final c in group) c.instanceId};
+    });
+  }
+
+  void _endGroupDrag() {
+    if (_activeDragGroupIds == null) return;
+    setState(() {
+      _activeDragPrimaryId = null;
+      _activeDragGroupIds = null;
+    });
+  }
+
+  /// A static (non-animated -- built once when the drag starts) snapshot of
+  /// exactly what's currently visible for [c] (its real face if face-up, a
+  /// back otherwise -- same privacy rule as everywhere else), with no
+  /// rotation applied -- a deliberate simplification for this decorative
+  /// drag feedback, matching [_buildFlyingDiscard]'s own.
+  Widget _ghostFace(CardInstance c) {
+    final definition = widget.definitionsById[c.definitionId];
+    return IgnorePointer(
+      child: c.faceUp && definition != null
+          ? CardFaceWidget(definition: definition)
+          : CardBackWidget(imagePath: widget.cardBackImagePath),
+    );
+  }
+
+  /// Drag feedback for a pickup group larger than one card: every member
+  /// rendered at its position relative to [primary] (the card actually being
+  /// dragged), so the whole group appears to follow the cursor together,
+  /// preserving the same visual offsets they have on the table. The primary
+  /// itself is positioned at local (0,0) sized exactly `cardWidth` x
+  /// `cardHeight` -- matching the default single-card feedback's own box --
+  /// so `Draggable`'s default anchor strategy (which measures the drag's
+  /// start offset against the plain card widget, not this composite one)
+  /// still keeps the exact grabbed point under the cursor.
+  Widget _buildGroupFeedback(List<CardInstance> group, CardInstance primary) {
+    final primaryPos = _toScreenPixel(primary.x, primary.y);
+    return Material(
+      type: MaterialType.transparency,
+      child: SizedBox(
+        width: cardWidth,
+        height: cardHeight,
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            for (final c in group)
+              Positioned(
+                left: _toScreenPixel(c.x, c.y).dx - primaryPos.dx,
+                top: _toScreenPixel(c.x, c.y).dy - primaryPos.dy,
+                child: _ghostFace(c),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
   void _setHoveredId(String? id) {
     if (_hoveredInstanceId != id) setState(() => _hoveredInstanceId = id);
   }
@@ -370,12 +448,82 @@ class _TableScreenState extends State<TableScreen> with SingleTickerProviderStat
     return best;
   }
 
+  /// Every card in [candidates] overlapping [dragged]'s on-screen rect with a
+  /// strictly higher zIndex, transitively -- i.e. everything currently
+  /// resting on top of [dragged] as you'd pick it up off the table.
+  /// [dragged] itself is always included, first. [candidates] is expected to
+  /// already exclude shared-zone piles and any card owned by the other
+  /// player (see [pickupCandidates] at the call site) -- this method doesn't
+  /// re-check either.
+  List<CardInstance> _pickupGroup(List<CardInstance> candidates, CardInstance dragged) {
+    final posById = {for (final c in candidates) c.instanceId: _toScreenPixel(c.x, c.y)};
+    bool overlaps(CardInstance a, CardInstance b) {
+      final pa = posById[a.instanceId]!;
+      final pb = posById[b.instanceId]!;
+      return (pa.dx - pb.dx).abs() < cardWidth && (pa.dy - pb.dy).abs() < cardHeight;
+    }
+
+    final result = [dragged];
+    final visited = {dragged.instanceId};
+    final frontier = [dragged];
+    while (frontier.isNotEmpty) {
+      final current = frontier.removeLast();
+      for (final other in candidates) {
+        if (visited.contains(other.instanceId)) continue;
+        if (other.zIndex > current.zIndex && overlaps(current, other)) {
+          visited.add(other.instanceId);
+          result.add(other);
+          frontier.add(other);
+        }
+      }
+    }
+    return result;
+  }
+
   void _handleDragEnd(
     List<CardInstance> tableTops,
+    List<CardInstance> pickupCandidates,
     String instanceId,
     Offset globalTopLeft,
     List<CardInstance> localHand,
   ) {
+    CardInstance? dragged;
+    for (final c in pickupCandidates) {
+      if (c.instanceId == instanceId) {
+        dragged = c;
+        break;
+      }
+    }
+    if (dragged != null) {
+      final group = _pickupGroup(pickupCandidates, dragged);
+      if (group.length > 1) {
+        // Picking up more than one card is always a plain positional move of
+        // the whole group -- the hand/zone/stack special-case targets below
+        // only apply to a lone card with nothing above it.
+        final local = _globalToTableLocal(globalTopLeft);
+        final rawCenter = Offset(local.dx + cardWidth / 2, local.dy + cardHeight / 2);
+        final clampedY = clampCardCenterY(
+          proposedCenterY: rawCenter.dy,
+          tableHeight: _tableSize.height,
+          cardHeight: cardHeight,
+        );
+        final (fx, fy) = localPixelToCanonical(
+          pixelX: rawCenter.dx,
+          pixelY: clampedY,
+          tableWidth: _tableSize.width,
+          tableHeight: _tableSize.height,
+          isMirrored: widget.isMirrored,
+        );
+        final allCards = context.read<GameSession>().state.cards;
+        final passengerRootIds = [
+          for (final c in group)
+            if (c.instanceId != instanceId) _stackUtils.rootIdOf(allCards, c),
+        ];
+        widget.controller.moveGroup(instanceId, passengerRootIds, fx, fy);
+        return;
+      }
+    }
+
     final globalCenter = globalTopLeft + const Offset(cardWidth / 2, cardHeight / 2);
     if (_isOverLocalHandZone(globalCenter)) {
       final otherHandCards = localHand.where((c) => c.instanceId != instanceId).toList();
@@ -526,7 +674,13 @@ class _TableScreenState extends State<TableScreen> with SingleTickerProviderStat
   /// The local player's own instance of an owned [zone], wrapped in the
   /// standard translucent box every zone gets, keyed for [_localZoneIdAt] so
   /// a drop can land here.
-  Widget _buildLocalZoneWidget(ZoneDefinition zone, List<CardInstance> cards, List<CardInstance> tableTops, List<CardInstance> localHand) {
+  Widget _buildLocalZoneWidget(
+    ZoneDefinition zone,
+    List<CardInstance> cards,
+    List<CardInstance> tableTops,
+    List<CardInstance> pickupCandidates,
+    List<CardInstance> localHand,
+  ) {
     final top = cards.isEmpty ? null : _stackUtils.topOf(cards);
     return ColoredBox(
       key: _zoneKey(zone.id),
@@ -541,7 +695,7 @@ class _TableScreenState extends State<TableScreen> with SingleTickerProviderStat
           topDefinition: top == null ? null : widget.definitionsById[top.definitionId],
           onDragEnd: top == null
               ? null
-              : (offset) => _handleDragEnd(tableTops, top.instanceId, offset, localHand),
+              : (offset) => _handleDragEnd(tableTops, pickupCandidates, top.instanceId, offset, localHand),
           onShuffle: cards.isEmpty || !zone.shuffleable ? null : () => widget.controller.shuffleZone(zone.id),
           cardBackImagePath: widget.cardBackImagePath,
         ),
@@ -622,11 +776,20 @@ class _TableScreenState extends State<TableScreen> with SingleTickerProviderStat
             final sortedPileEntries = pileGroups.entries.toList()
               ..sort((a, b) => _stackUtils.topOf(a.value).zIndex.compareTo(_stackUtils.topOf(b.value).zIndex));
 
+            final freeTableTops = [for (final g in pileGroups.values) _stackUtils.topOf(g)];
             final tableTops = <CardInstance>[
-              for (final g in pileGroups.values) _stackUtils.topOf(g),
+              ...freeTableTops,
               for (final z in sharedZones)
                 if (sharedZoneCardsById[z.id]!.isNotEmpty) _stackUtils.topOf(sharedZoneCardsById[z.id]!),
             ];
+            // Candidates for a drag's pickup group (see _pickupGroup) --
+            // free-table piles only (dragging a card never rips the top card
+            // off a shared zone pile just because it's visually nearby), and
+            // never a card owned by the other player (so you can't
+            // indirectly drag an opponent's card by pulling your own card
+            // out from under it).
+            final pickupCandidates =
+                freeTableTops.where((c) => c.ownerId == null || c.ownerId == session.localPlayerId).toList();
 
             CardInstance? hoveredInstance;
             if (_hoveredInstanceId != null) {
@@ -686,6 +849,10 @@ class _TableScreenState extends State<TableScreen> with SingleTickerProviderStat
                                         // the opponent-card border and whether the local
                                         // player may interact with it at all.
                                         final ownedByOpponent = top.ownerId != null && top.ownerId != session.localPlayerId;
+                                        final pickupGroup = _pickupGroup(pickupCandidates, top);
+                                        final isGhostedPassenger = _activeDragGroupIds != null &&
+                                            _activeDragGroupIds!.contains(top.instanceId) &&
+                                            top.instanceId != _activeDragPrimaryId;
                                         if (cards.length > 1) {
                                           // PileWidget's own box is larger than a bare
                                           // card (room for its badge/shuffle button to
@@ -695,23 +862,34 @@ class _TableScreenState extends State<TableScreen> with SingleTickerProviderStat
                                           return Positioned(
                                             left: pos.dx - (cardWidth + pileWidgetExtra) / 2,
                                             top: pos.dy - (cardHeight + pileWidgetExtra) / 2,
-                                            child: PileWidget(
-                                              count: cards.length,
-                                              topInstanceId: top.instanceId,
-                                              topFaceUp: top.faceUp,
-                                              topDefinition: widget.definitionsById[top.definitionId],
-                                              topRotationTurns: top.rotationTurns,
-                                              onDraw: () => widget.controller.drawCard(group.key),
-                                              onDragEnd: (offset) => HardwareKeyboard.instance.isAltPressed
-                                                  ? _handlePileDragEnd(group.key, cards, offset)
-                                                  : _handleDragEnd(tableTops, top.instanceId, offset, localHand),
-                                              onShuffle: () => widget.controller.shufflePile(group.key),
-                                              isMirrored: ownedByOpponent,
-                                              interactable: !ownedByOpponent,
-                                              applyOrientation: true,
-                                              topBorderColor: ownedByOpponent ? opponentBorderColor : null,
-                                              onHover: (hovering) => _setHoveredId(hovering ? top.instanceId : null),
-                                              cardBackImagePath: widget.cardBackImagePath,
+                                            child: Opacity(
+                                              opacity: isGhostedPassenger ? 0.3 : 1.0,
+                                              child: PileWidget(
+                                                count: cards.length,
+                                                topInstanceId: top.instanceId,
+                                                topFaceUp: top.faceUp,
+                                                topDefinition: widget.definitionsById[top.definitionId],
+                                                topRotationTurns: top.rotationTurns,
+                                                onDraw: () => widget.controller.drawCard(group.key),
+                                                onDragStarted: () => _startGroupDrag(pickupGroup),
+                                                feedbackOverride:
+                                                    pickupGroup.length > 1 ? _buildGroupFeedback(pickupGroup, top) : null,
+                                                onDragEnd: (offset) {
+                                                  _endGroupDrag();
+                                                  if (HardwareKeyboard.instance.isAltPressed) {
+                                                    _handlePileDragEnd(group.key, cards, offset);
+                                                  } else {
+                                                    _handleDragEnd(tableTops, pickupCandidates, top.instanceId, offset, localHand);
+                                                  }
+                                                },
+                                                onShuffle: () => widget.controller.shufflePile(group.key),
+                                                isMirrored: ownedByOpponent,
+                                                interactable: !ownedByOpponent,
+                                                applyOrientation: true,
+                                                topBorderColor: ownedByOpponent ? opponentBorderColor : null,
+                                                onHover: (hovering) => _setHoveredId(hovering ? top.instanceId : null),
+                                                cardBackImagePath: widget.cardBackImagePath,
+                                              ),
                                             ),
                                           );
                                         }
@@ -727,17 +905,26 @@ class _TableScreenState extends State<TableScreen> with SingleTickerProviderStat
                                         return Positioned(
                                           left: pos.dx - cardWidth / 2,
                                           top: pos.dy - cardHeight / 2,
-                                          child: DraggableCard(
-                                            instance: top,
-                                            definition: widget.definitionsById[top.definitionId],
-                                            isMirrored: ownedByOpponent,
-                                            interactable: !ownedByOpponent,
-                                            applyOrientation: true,
-                                            opponentBorderColor: ownedByOpponent ? opponentBorderColor : null,
-                                            onTapFlip: () => widget.controller.flipCard(top.instanceId),
-                                            onDragEnd: (offset) => _handleDragEnd(tableTops, top.instanceId, offset, localHand),
-                                            onHover: (hovering) => _setHoveredId(hovering ? top.instanceId : null),
-                                            cardBackImagePath: widget.cardBackImagePath,
+                                          child: Opacity(
+                                            opacity: isGhostedPassenger ? 0.3 : 1.0,
+                                            child: DraggableCard(
+                                              instance: top,
+                                              definition: widget.definitionsById[top.definitionId],
+                                              isMirrored: ownedByOpponent,
+                                              interactable: !ownedByOpponent,
+                                              applyOrientation: true,
+                                              opponentBorderColor: ownedByOpponent ? opponentBorderColor : null,
+                                              onTapFlip: () => widget.controller.flipCard(top.instanceId),
+                                              onDragStarted: () => _startGroupDrag(pickupGroup),
+                                              feedbackOverride:
+                                                  pickupGroup.length > 1 ? _buildGroupFeedback(pickupGroup, top) : null,
+                                              onDragEnd: (offset) {
+                                                _endGroupDrag();
+                                                _handleDragEnd(tableTops, pickupCandidates, top.instanceId, offset, localHand);
+                                              },
+                                              onHover: (hovering) => _setHoveredId(hovering ? top.instanceId : null),
+                                              cardBackImagePath: widget.cardBackImagePath,
+                                            ),
                                           ),
                                         );
                                       }),
@@ -761,7 +948,7 @@ class _TableScreenState extends State<TableScreen> with SingleTickerProviderStat
                                                   topDefinition: widget.definitionsById[top.definitionId],
                                                   onDraw: () => widget.controller.drawFromZone(zone.id),
                                                   onDragEnd: (offset) =>
-                                                      _handleDragEnd(tableTops, top.instanceId, offset, localHand),
+                                                      _handleDragEnd(tableTops, pickupCandidates, top.instanceId, offset, localHand),
                                                   onShuffle:
                                                       zone.shuffleable ? () => widget.controller.shuffleZone(zone.id) : null,
                                                   cardBackImagePath: widget.cardBackImagePath,
@@ -779,7 +966,7 @@ class _TableScreenState extends State<TableScreen> with SingleTickerProviderStat
                                                 definition: widget.definitionsById[top.definitionId],
                                                 onTapFlip: () => widget.controller.flipCard(top.instanceId),
                                                 onDragEnd: (offset) =>
-                                                    _handleDragEnd(tableTops, top.instanceId, offset, localHand),
+                                                    _handleDragEnd(tableTops, pickupCandidates, top.instanceId, offset, localHand),
                                                 onHover: (hovering) => _setHoveredId(hovering ? top.instanceId : null),
                                                 cardBackImagePath: widget.cardBackImagePath,
                                               ),
@@ -800,14 +987,20 @@ class _TableScreenState extends State<TableScreen> with SingleTickerProviderStat
                                   cards: localHand,
                                   definitionsById: widget.definitionsById,
                                   onTapFlip: (id) => widget.controller.flipCard(id),
-                                  onDragEnd: (id, offset) => _handleDragEnd(tableTops, id, offset, localHand),
+                                  onDragEnd: (id, offset) => _handleDragEnd(tableTops, pickupCandidates, id, offset, localHand),
                                   onHoverCard: _setHoveredId,
                                   cardBackImagePath: widget.cardBackImagePath,
                                   cardKeyFor: _handCardKey,
                                 ),
                               ),
                               for (final zone in ownedZones)
-                                _buildLocalZoneWidget(zone, localZoneCardsById[zone.id]!, tableTops, localHand),
+                                _buildLocalZoneWidget(
+                                  zone,
+                                  localZoneCardsById[zone.id]!,
+                                  tableTops,
+                                  pickupCandidates,
+                                  localHand,
+                                ),
                             ],
                           ),
                         ],

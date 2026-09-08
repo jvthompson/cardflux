@@ -47,6 +47,8 @@ class PileWidget extends StatefulWidget {
     this.topBorderColor,
     this.onHover,
     this.cardBackImagePath,
+    this.feedbackOverride,
+    this.onDragStarted,
   });
 
   final int count;
@@ -81,6 +83,14 @@ class PileWidget extends StatefulWidget {
   /// reported against [topInstanceId] since that's the card actually shown.
   final ValueChanged<bool>? onHover;
   final String? cardBackImagePath;
+
+  /// Replaces the default single-card drag feedback -- see
+  /// `DraggableCard.feedbackOverride`'s own copy of this concept.
+  final Widget? feedbackOverride;
+
+  /// Notified when a drag on this pile's top card actually starts -- see
+  /// `DraggableCard.onDragStarted`'s own copy of this concept.
+  final VoidCallback? onDragStarted;
 
   @override
   State<PileWidget> createState() => _PileWidgetState();
@@ -154,8 +164,9 @@ class _PileWidgetState extends State<PileWidget> with SingleTickerProviderStateM
                 onTap: widget.onDraw,
                 child: Draggable<String>(
                   data: widget.topInstanceId,
-                  feedback: Material(type: MaterialType.transparency, child: _topFace()),
+                  feedback: widget.feedbackOverride ?? Material(type: MaterialType.transparency, child: _topFace()),
                   childWhenDragging: Opacity(opacity: 0.3, child: _topFace()),
+                  onDragStarted: widget.onDragStarted,
                   onDragEnd: (details) => widget.onDragEnd(details.offset),
                   child: AnimatedBuilder(
                     animation: _shuffleController,

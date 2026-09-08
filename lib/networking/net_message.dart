@@ -23,6 +23,7 @@ enum NetMessageType {
   requestDeckChosen,
   requestMove,
   requestMoveStack,
+  requestMoveGroup,
   requestRotateStack,
   requestFlip,
   requestStack,

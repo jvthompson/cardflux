@@ -140,6 +140,17 @@ class GameSession extends ChangeNotifier {
     notifyListeners();
   }
 
+  void moveGroup(String primaryInstanceId, List<String> passengerRootInstanceIds, double x, double y) {
+    _state = _actions.moveGroup(
+      _state,
+      primaryInstanceId: primaryInstanceId,
+      passengerRootInstanceIds: passengerRootInstanceIds,
+      x: x,
+      y: y,
+    );
+    notifyListeners();
+  }
+
   void rotateStack(String rootInstanceId, {required bool clockwise}) {
     _state = _actions.rotateStack(_state, rootInstanceId: rootInstanceId, clockwise: clockwise);
     notifyListeners();

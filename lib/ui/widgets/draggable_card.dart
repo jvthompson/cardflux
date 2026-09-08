@@ -49,6 +49,8 @@ class DraggableCard extends StatelessWidget {
     this.opponentBorderColor,
     this.onHover,
     this.cardBackImagePath,
+    this.feedbackOverride,
+    this.onDragStarted,
   });
 
   final CardInstance instance;
@@ -58,6 +60,18 @@ class DraggableCard extends StatelessWidget {
   final bool isMirrored;
   final bool interactable;
   final bool applyOrientation;
+
+  /// Replaces the default single-card drag feedback (this card's own face)
+  /// with a caller-supplied widget -- used to show the whole pickup group
+  /// (see `TableScreen._pickupGroup`) following the cursor together, instead
+  /// of just the card actually grabbed. Null keeps the default.
+  final Widget? feedbackOverride;
+
+  /// Notified the instant a drag gesture on this card actually starts (not
+  /// just a tap) -- used to record which other cards are being carried along
+  /// as passengers, so they can be ghosted in place for the duration of the
+  /// drag, matching this card's own automatic [childWhenDragging] dimming.
+  final VoidCallback? onDragStarted;
 
   /// Non-null when this card is owned by the other player -- painted as a
   /// thin border *inside* the same rotated subtree as the card's face/back
@@ -101,8 +115,9 @@ class DraggableCard extends StatelessWidget {
         onTap: onTapFlip,
         child: Draggable<String>(
           data: instance.instanceId,
-          feedback: Material(type: MaterialType.transparency, child: _face()),
+          feedback: feedbackOverride ?? Material(type: MaterialType.transparency, child: _face()),
           childWhenDragging: Opacity(opacity: 0.3, child: _face()),
+          onDragStarted: onDragStarted,
           onDragEnd: (details) => onDragEnd(details.offset),
           child: _face(),
         ),
