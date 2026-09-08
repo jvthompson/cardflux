@@ -36,6 +36,19 @@ class HandZoneWidget extends StatelessWidget {
   /// nothing to attach to.
   final GlobalKey Function(String instanceId)? cardKeyFor;
 
+  Widget _cardAt(int index) {
+    final card = cards[index];
+    return DraggableCard(
+      key: cardKeyFor?.call(card.instanceId),
+      instance: card,
+      definition: definitionsById[card.definitionId],
+      onTapFlip: () => onTapFlip(card.instanceId),
+      onDragEnd: (offset) => onDragEnd(card.instanceId, offset),
+      onHover: onHoverCard == null ? null : (hovering) => onHoverCard!(hovering ? card.instanceId : null),
+      cardBackImagePath: cardBackImagePath,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -44,20 +57,32 @@ class HandZoneWidget extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
       child: cards.isEmpty
           ? const Center(child: Text('Your hand is empty', style: TextStyle(color: Colors.white70)))
-          : ListView.separated(
-              scrollDirection: Axis.horizontal,
-              itemCount: cards.length,
-              separatorBuilder: (_, _) => const SizedBox(width: 6),
-              itemBuilder: (context, index) {
-                final card = cards[index];
-                return DraggableCard(
-                  key: cardKeyFor?.call(card.instanceId),
-                  instance: card,
-                  definition: definitionsById[card.definitionId],
-                  onTapFlip: () => onTapFlip(card.instanceId),
-                  onDragEnd: (offset) => onDragEnd(card.instanceId, offset),
-                  onHover: onHoverCard == null ? null : (hovering) => onHoverCard!(hovering ? card.instanceId : null),
-                  cardBackImagePath: cardBackImagePath,
+          : LayoutBuilder(
+              builder: (context, constraints) {
+                final naturalWidth = cards.length * cardWidth + (cards.length - 1) * handCardSpacing;
+                if (naturalWidth <= constraints.maxWidth) {
+                  return ListView.separated(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: cards.length,
+                    separatorBuilder: (_, _) => const SizedBox(width: handCardSpacing),
+                    itemBuilder: (context, index) => _cardAt(index),
+                  );
+                }
+                // Overflow -- fan the cards out with just enough overlap that
+                // the last card still lands flush with the zone's right edge
+                // (its normal, non-overlapping position) and the rest are
+                // evenly spaced between the first and last. Stack paint order
+                // is last-child-on-top, and cards are already left-to-right
+                // by zIndex, so this also gives the desired "rightmost cards
+                // sit above leftward ones" stacking for free.
+                final step = cards.length == 1
+                    ? 0.0
+                    : ((constraints.maxWidth - cardWidth) / (cards.length - 1)).clamp(0.0, double.infinity);
+                return Stack(
+                  children: [
+                    for (var index = 0; index < cards.length; index++)
+                      Positioned(left: index * step, top: 0, child: _cardAt(index)),
+                  ],
                 );
               },
             ),

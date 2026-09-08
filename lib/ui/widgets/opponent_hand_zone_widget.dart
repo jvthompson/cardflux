@@ -21,11 +21,28 @@ class OpponentHandZoneWidget extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
       child: count == 0
           ? const Center(child: Text("Opponent's hand is empty", style: TextStyle(color: Colors.white70)))
-          : ListView.separated(
-              scrollDirection: Axis.horizontal,
-              itemCount: count,
-              separatorBuilder: (_, _) => const SizedBox(width: 6),
-              itemBuilder: (context, index) => CardBackWidget(imagePath: cardBackImagePath),
+          : LayoutBuilder(
+              builder: (context, constraints) {
+                final naturalWidth = count * cardWidth + (count - 1) * handCardSpacing;
+                if (naturalWidth <= constraints.maxWidth) {
+                  return ListView.separated(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: count,
+                    separatorBuilder: (_, _) => const SizedBox(width: handCardSpacing),
+                    itemBuilder: (context, index) => CardBackWidget(imagePath: cardBackImagePath),
+                  );
+                }
+                // Overflow -- fan the backs out the same way HandZoneWidget
+                // does: last card flush with the right edge, rest evenly
+                // spaced between, rightmost painted on top via Stack order.
+                final step = count == 1 ? 0.0 : ((constraints.maxWidth - cardWidth) / (count - 1)).clamp(0.0, double.infinity);
+                return Stack(
+                  children: [
+                    for (var index = 0; index < count; index++)
+                      Positioned(left: index * step, top: 0, child: CardBackWidget(imagePath: cardBackImagePath)),
+                  ],
+                );
+              },
             ),
     );
   }

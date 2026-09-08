@@ -8,6 +8,10 @@ import '../../models/card_definition.dart';
 const double cardWidth = 70;
 const double cardHeight = 100;
 
+/// The gap between adjacent cards in a hand row when they all fit without
+/// overlapping. Shared by [HandZoneWidget] and [OpponentHandZoneWidget].
+const double handCardSpacing = 6;
+
 const Map<String, String> _suitGlyphs = {
   'hearts': '♥',
   'diamonds': '♦',
