@@ -1172,7 +1172,12 @@ class _TableScreenState extends State<TableScreen> with SingleTickerProviderStat
                                         // the opponent-card border and whether the local
                                         // player may interact with it at all.
                                         final ownedByOpponent = top.ownerId != null && top.ownerId != session.localPlayerId;
-                                        final pickupGroup = _pickupGroup(pickupCandidates, top);
+                                        // _pickupGroup requires dragged to be a member of candidates (see its
+                                        // doc comment), which pickupCandidates deliberately violates for an
+                                        // opponent-owned top card -- skip it here since an opponent pile is
+                                        // never interactable/draggable anyway, so pickupGroup would never be
+                                        // consulted for it.
+                                        final pickupGroup = ownedByOpponent ? <CardInstance>[top] : _pickupGroup(pickupCandidates, top);
                                         final isGhostedPassenger = _activeDragGroupIds != null &&
                                             _activeDragGroupIds!.contains(top.instanceId) &&
                                             top.instanceId != _activeDragPrimaryId;

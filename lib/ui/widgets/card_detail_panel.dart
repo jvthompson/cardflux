@@ -23,6 +23,8 @@ class CardDetailPanel extends StatefulWidget {
     required this.fileOps,
     required this.onChanged,
     required this.onDelete,
+    required this.hiddenTagGroupIds,
+    required this.onToggleTagGroupVisibility,
   });
 
   final String folderPath;
@@ -32,6 +34,13 @@ class CardDetailPanel extends StatefulWidget {
   final GameDefinitionFileOps fileOps;
   final ValueChanged<CardDefinition> onChanged;
   final VoidCallback onDelete;
+
+  /// Ids of [tagGroups] whose chip section is currently collapsed -- owned
+  /// by the parent (`CardViewTab`) so it survives this panel being torn
+  /// down and rebuilt on every card selection change (it's keyed by card
+  /// id, so its own `State` never persists across cards).
+  final Set<String> hiddenTagGroupIds;
+  final void Function(String groupId, bool visible) onToggleTagGroupVisibility;
 
   @override
   State<CardDetailPanel> createState() => _CardDetailPanelState();
@@ -246,20 +255,43 @@ class _CardDetailPanelState extends State<CardDetailPanel> {
         for (final group in widget.tagGroups)
           if (group.tags.isNotEmpty) ...[
             const SizedBox(height: 16),
-            Text(group.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
+            Row(
               children: [
-                for (final tag in group.tags)
-                  FilterChip(
-                    label: Text(tag),
-                    selected: card.types.contains(tag),
-                    onSelected: (sel) => _toggleType(tag, sel),
+                Expanded(
+                  child: Text(
+                    group.name,
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                    overflow: TextOverflow.ellipsis,
                   ),
+                ),
+                FilterChip(
+                  label: Text(widget.hiddenTagGroupIds.contains(group.id) ? 'Show' : 'Hide'),
+                  avatar: Icon(
+                    widget.hiddenTagGroupIds.contains(group.id)
+                        ? Icons.visibility_off_outlined
+                        : Icons.visibility_outlined,
+                    size: 18,
+                  ),
+                  selected: !widget.hiddenTagGroupIds.contains(group.id),
+                  onSelected: (visible) => widget.onToggleTagGroupVisibility(group.id, visible),
+                ),
               ],
             ),
+            if (!widget.hiddenTagGroupIds.contains(group.id)) ...[
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  for (final tag in group.tags)
+                    FilterChip(
+                      label: Text(tag),
+                      selected: card.types.contains(tag),
+                      onSelected: (sel) => _toggleType(tag, sel),
+                    ),
+                ],
+              ),
+            ],
           ],
         const SizedBox(height: 16),
         const Text('Extra Fields', style: TextStyle(fontWeight: FontWeight.bold)),

@@ -103,4 +103,95 @@ void main() {
     expect(find.text('Adrazar'), findsNothing);
     expect(find.text('Untagged Card'), findsWidgets);
   });
+
+  testWidgets('hiding a tag group on the detail form persists across card selection and tab switches', (tester) async {
+    // The default test surface is narrow enough that CardDetailPanel's image
+    // row overflows once a card is actually selected (a pre-existing layout
+    // issue unrelated to this test) -- widen it so that doesn't mask the
+    // behavior under test.
+    tester.view.physicalSize = const Size(2000, 900);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    const cardTypeGroup = TagGroup(id: 'card_type', name: 'Card Type', tags: ['Character', 'Resource']);
+    const adrazar = CardDefinition(id: 'adrazar', cardTitle: 'Adrazar', types: ['Character']);
+    const boromir = CardDefinition(id: 'boromir', cardTitle: 'Boromir', types: ['Character']);
+
+    Widget buildTab() => CardViewTab(
+          folderPath: '.',
+          cards: const [adrazar, boromir],
+          sets: const [],
+          tagGroups: const [cardTypeGroup],
+          fileOps: GameDefinitionFileOps(),
+          onCardsChanged: (_) {},
+        );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: DefaultTabController(
+          length: 2,
+          child: Scaffold(
+            body: Column(
+              children: [
+                const TabBar(tabs: [Tab(text: 'Other'), Tab(text: 'Card View')]),
+                Expanded(
+                  child: TabBarView(
+                    children: [const Center(child: Text('Other tab')), buildTab()],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // TabBarView starts on the first tab -- switch to Card View before
+    // interacting with it.
+    await tester.tap(find.text('Card View'));
+    await tester.pumpAndSettle();
+
+    // Select Adrazar and confirm the group's header and chips both show.
+    await tester.tap(find.text('Adrazar').first, warnIfMissed: false);
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('Card Type'), findsOneWidget);
+    expect(find.text('Character'), findsWidgets);
+    expect(find.text('Hide'), findsOneWidget);
+
+    // Hide the group -- its chips disappear, but the toggle (now "Show")
+    // stays reachable.
+    await tester.tap(find.text('Hide'));
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('Card Type'), findsOneWidget);
+    expect(find.text('Show'), findsOneWidget);
+    expect(find.text('Hide'), findsNothing);
+
+    // Switch to a different card, then back -- CardDetailPanel is torn down
+    // and rebuilt each time (keyed by card id), so this proves the hidden
+    // state lives above it, not inside it.
+    await tester.tap(find.text('Boromir').first, warnIfMissed: false);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Adrazar').first, warnIfMissed: false);
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('Show'), findsOneWidget);
+    expect(find.text('Hide'), findsNothing);
+
+    // Switch to the other tab and back -- CardViewTab's own State must
+    // survive via AutomaticKeepAliveClientMixin.
+    await tester.tap(find.text('Other'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Card View'));
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('Show'), findsOneWidget);
+    expect(find.text('Hide'), findsNothing);
+  });
 }

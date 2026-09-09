@@ -138,7 +138,8 @@
           "cardTitle": "Andrast",
           "imagePath": "Andrast.jpg",
           "types": [
-            "Region"
+            "Region",
+            "Andrast"
           ]
         },
         {
@@ -146,7 +147,8 @@
           "cardTitle": "Andrast Coast",
           "imagePath": "AndrastCoast.jpg",
           "types": [
-            "Region"
+            "Region",
+            "Andrast Coast"
           ]
         },
         {
@@ -163,7 +165,8 @@
           "cardTitle": "Anduin Vales",
           "imagePath": "AnduinVales.jpg",
           "types": [
-            "Region"
+            "Region",
+            "Anduin Vales"
           ]
         },
         {
@@ -180,7 +183,8 @@
           "cardTitle": "Anfalas",
           "imagePath": "Anfalas.jpg",
           "types": [
-            "Region"
+            "Region",
+            "Anfalas"
           ],
           "orientation": "right"
         },
@@ -189,7 +193,8 @@
           "cardTitle": "Angmar",
           "imagePath": "Angmar.jpg",
           "types": [
-            "Region"
+            "Region",
+            "Angmar"
           ],
           "orientation": "right"
         },
@@ -209,7 +214,8 @@
           "cardTitle": "Anorien",
           "imagePath": "Anorien.jpg",
           "types": [
-            "Region"
+            "Region",
+            "Anorien"
           ]
         },
         {
@@ -269,7 +275,8 @@
           "cardTitle": "Arthedain",
           "imagePath": "Arthedain.jpg",
           "types": [
-            "Region"
+            "Region",
+            "Arthedain"
           ]
         },
         {
@@ -417,7 +424,8 @@
           "cardTitle": "Barrowdowns",
           "imagePath": "Barrowdowns.jpg",
           "types": [
-            "Site"
+            "Site",
+            "Cardolan"
           ]
         },
         {
@@ -443,7 +451,8 @@
           "cardTitle": "Bay of Belfalas",
           "imagePath": "BayofBelfalas.jpg",
           "types": [
-            "Region"
+            "Region",
+            "Bay of Belfalas"
           ],
           "orientation": "right"
         },
@@ -461,7 +470,8 @@
           "cardTitle": "Belfalas",
           "imagePath": "Belfalas.jpg",
           "types": [
-            "Region"
+            "Region",
+            "Belfalas"
           ]
         },
         {
@@ -491,7 +501,9 @@
           "cardTitle": "Beorn's House",
           "imagePath": "BeornsHouse.jpg",
           "types": [
-            "Site"
+            "Site",
+            "Anduin Vale",
+            "Anduin Vales"
           ]
         },
         {
@@ -588,7 +600,8 @@
           "cardTitle": "Blue Mountain Dwarfhold",
           "imagePath": "BlueMountainDwarfhold.jpg",
           "types": [
-            "Site"
+            "Site",
+            "Numeriador"
           ]
         },
         {
@@ -656,7 +669,8 @@
           "cardTitle": "Bree",
           "imagePath": "Bree.jpg",
           "types": [
-            "Site"
+            "Site",
+            "Arthedain"
           ]
         },
         {
@@ -682,7 +696,8 @@
           "cardTitle": "Brown Lands",
           "imagePath": "BrownLands.jpg",
           "types": [
-            "Region"
+            "Region",
+            "Brown Lands"
           ],
           "orientation": "right"
         },
@@ -709,7 +724,8 @@
           "cardTitle": "Cameth Brin",
           "imagePath": "CamethBrin.jpg",
           "types": [
-            "Site"
+            "Site",
+            "Rhudaur"
           ]
         },
         {
@@ -717,7 +733,8 @@
           "cardTitle": "Cardolan",
           "imagePath": "Cardolan.jpg",
           "types": [
-            "Region"
+            "Region",
+            "Cardolan"
           ],
           "orientation": "right"
         },
@@ -872,7 +889,8 @@
           "cardTitle": "Dagorlad",
           "imagePath": "Dagorlad.jpg",
           "types": [
-            "Region"
+            "Region",
+            "Dagorlad"
           ],
           "orientation": "right"
         },
@@ -903,7 +921,8 @@
           "cardTitle": "Dancing Spire",
           "imagePath": "DancingSpire.jpg",
           "types": [
-            "Site"
+            "Site",
+            "Withered Heath"
           ]
         },
         {
@@ -929,7 +948,8 @@
           "cardTitle": "Dead Marshes",
           "imagePath": "DeadMarshes.jpg",
           "types": [
-            "Site"
+            "Site",
+            "Dagorlad"
           ]
         },
         {
@@ -957,7 +977,8 @@
           "cardTitle": "Dimrill Dale",
           "imagePath": "DimrillDale.jpg",
           "types": [
-            "Site"
+            "Site",
+            "Redhorn Gate"
           ]
         },
         {
@@ -974,7 +995,8 @@
           "cardTitle": "Dol Amroth",
           "imagePath": "DolAmroth.jpg",
           "types": [
-            "Site"
+            "Site",
+            "Belfalas"
           ]
         },
         {
@@ -982,7 +1004,8 @@
           "cardTitle": "Dol Guldur",
           "imagePath": "DolGuldur.jpg",
           "types": [
-            "Site"
+            "Site",
+            "Southern Mirkwood"
           ]
         },
         {
@@ -1009,7 +1032,8 @@
           "cardTitle": "Dorwinion",
           "imagePath": "Dorwinion.jpg",
           "types": [
-            "Region"
+            "Region",
+            "Dorwinion"
           ]
         },
         {
@@ -1044,7 +1068,8 @@
           "cardTitle": "Druadan Forest",
           "imagePath": "DruadanForest.jpg",
           "types": [
-            "Site"
+            "Site",
+            "Anorien"
           ]
         },
         {
@@ -1052,7 +1077,8 @@
           "cardTitle": "Dunharrow",
           "imagePath": "Dunharrow.jpg",
           "types": [
-            "Site"
+            "Site",
+            "Rohan"
           ]
         },
         {
@@ -1060,7 +1086,8 @@
           "cardTitle": "Dunland",
           "imagePath": "Dunland.jpg",
           "types": [
-            "Region"
+            "Region",
+            "Dunland"
           ],
           "orientation": "right"
         },
@@ -1080,7 +1107,8 @@
           "cardTitle": "Dunnish Clanhold",
           "imagePath": "DunnishClanhold.jpg",
           "types": [
-            "Site"
+            "Site",
+            "Dunland"
           ]
         },
         {
@@ -1199,7 +1227,9 @@
           "cardTitle": "Eagle's Eyrie",
           "imagePath": "EaglesEyrie.jpg",
           "types": [
-            "Site"
+            "Site",
+            "Anduin Vale",
+            "Anduin Vales"
           ]
         },
         {
@@ -1216,7 +1246,8 @@
           "cardTitle": "Easterling Camp",
           "imagePath": "EasterlingCamp.jpg",
           "types": [
-            "Site"
+            "Site",
+            "Horse Plains"
           ]
         },
         {
@@ -1235,7 +1266,8 @@
           "cardTitle": "Edhellond",
           "imagePath": "Edhellond.jpg",
           "types": [
-            "Site"
+            "Site",
+            "Anfalas"
           ]
         },
         {
@@ -1243,7 +1275,8 @@
           "cardTitle": "Edoras",
           "imagePath": "Edoras.jpg",
           "types": [
-            "Site"
+            "Site",
+            "Rohan"
           ]
         },
         {
@@ -1312,7 +1345,8 @@
           "cardTitle": "Elven Shores",
           "imagePath": "ElvenShores.jpg",
           "types": [
-            "Region"
+            "Region",
+            "Elven Shores"
           ]
         },
         {
@@ -1331,7 +1365,8 @@
           "cardTitle": "Enedhwaith",
           "imagePath": "Enedhwaith.jpg",
           "types": [
-            "Region"
+            "Region",
+            "Enedhwaith"
           ],
           "orientation": "right"
         },
@@ -1381,7 +1416,8 @@
           "cardTitle": "Eriadoran Coast",
           "imagePath": "EriadoranCoast.jpg",
           "types": [
-            "Region"
+            "Region",
+            "Eriadoran Coast"
           ]
         },
         {
@@ -1417,7 +1453,8 @@
           "cardTitle": "Ettenmoors",
           "imagePath": "Ettenmoors.jpg",
           "types": [
-            "Site"
+            "Site",
+            "Rhudaur"
           ]
         },
         {
@@ -1497,7 +1534,8 @@
           "cardTitle": "Fangorn",
           "imagePath": "Fangorn.jpg",
           "types": [
-            "Region"
+            "Region",
+            "Fangorn"
           ]
         },
         {
@@ -1619,7 +1657,8 @@
           "cardTitle": "Forochel",
           "imagePath": "Forochel.jpg",
           "types": [
-            "Region"
+            "Region",
+            "Forochel"
           ],
           "orientation": "right"
         },
@@ -1704,7 +1743,8 @@
           "cardTitle": "Gap of Isen",
           "imagePath": "GapofIsen.jpg",
           "types": [
-            "Region"
+            "Region",
+            "Gap of Isen"
           ]
         },
         {
@@ -1790,7 +1830,8 @@
           "cardTitle": "Gladden Fields",
           "imagePath": "GladdenFields.jpg",
           "types": [
-            "Site"
+            "Site",
+            "Anduin Vales"
           ]
         },
         {
@@ -1807,7 +1848,8 @@
           "cardTitle": "Glittering Caves",
           "imagePath": "GlitteringCaves.jpg",
           "types": [
-            "Site"
+            "Site",
+            "Gap of Isen"
           ]
         },
         {
@@ -1846,7 +1888,8 @@
           "cardTitle": "Goblingate",
           "imagePath": "Goblingate.jpg",
           "types": [
-            "Site"
+            "Site",
+            "High Pass"
           ]
         },
         {
@@ -1882,7 +1925,8 @@
           "cardTitle": "Gorgoroth",
           "imagePath": "Gorgoroth.jpg",
           "types": [
-            "Region"
+            "Region",
+            "Gorgoroth"
           ],
           "orientation": "right"
         },
@@ -1927,7 +1971,8 @@
           "cardTitle": "Grey Havens",
           "imagePath": "GreyHavens.jpg",
           "types": [
-            "Site"
+            "Site",
+            "Lindon"
           ]
         },
         {
@@ -1935,7 +1980,8 @@
           "cardTitle": "Grey Mountain Narrows",
           "imagePath": "GreyMountainNarrows.jpg",
           "types": [
-            "Region"
+            "Region",
+            "Grey Mountain Narrows"
           ],
           "orientation": "right"
         },
@@ -1944,7 +1990,8 @@
           "cardTitle": "Gundabad",
           "imagePath": "Gundabad.jpg",
           "types": [
-            "Region"
+            "Region",
+            "Gundabad"
           ],
           "orientation": "right"
         },
@@ -2031,7 +2078,8 @@
           "cardTitle": "Harondor",
           "imagePath": "Harondor.jpg",
           "types": [
-            "Region"
+            "Region",
+            "Harondor"
           ],
           "orientation": "right"
         },
@@ -2058,7 +2106,8 @@
           "cardTitle": "Heart of Mirkwood",
           "imagePath": "HeartofMirkwood.jpg",
           "types": [
-            "Region"
+            "Region",
+            "Heart of Mirkwood"
           ]
         },
         {
@@ -2066,7 +2115,8 @@
           "cardTitle": "Henneth Annun",
           "imagePath": "HennethAnnun.jpg",
           "types": [
-            "Site"
+            "Site",
+            "Ithilien"
           ]
         },
         {
@@ -2083,7 +2133,8 @@
           "cardTitle": "High Pass",
           "imagePath": "HighPass.jpg",
           "types": [
-            "Region"
+            "Region",
+            "High Pass"
           ],
           "orientation": "right"
         },
@@ -2102,7 +2153,8 @@
           "cardTitle": "Himring",
           "imagePath": "Himring.jpg",
           "types": [
-            "Site"
+            "Site",
+            "Elven Shores"
           ]
         },
         {
@@ -2130,7 +2182,8 @@
           "cardTitle": "Hollin",
           "imagePath": "Hollin.jpg",
           "types": [
-            "Region"
+            "Region",
+            "Hollin"
           ],
           "orientation": "right"
         },
@@ -2148,7 +2201,8 @@
           "cardTitle": "Horse Plains",
           "imagePath": "HorsePlains.jpg",
           "types": [
-            "Region"
+            "Region",
+            "Horse Plains"
           ],
           "orientation": "right"
         },
@@ -2175,7 +2229,8 @@
           "cardTitle": "Imlad Morgul",
           "imagePath": "ImladMorgul.jpg",
           "types": [
-            "Region"
+            "Region",
+            "Imlad Morgul"
           ]
         },
         {
@@ -2204,7 +2259,8 @@
           "cardTitle": "Irerock",
           "imagePath": "Irerock.jpg",
           "types": [
-            "Site"
+            "Site",
+            "Withered Heath"
           ]
         },
         {
@@ -2212,7 +2268,8 @@
           "cardTitle": "Iron Hill Dwarfhold",
           "imagePath": "IronHillDwarfhold.jpg",
           "types": [
-            "Site"
+            "Site",
+            "Iron Hills"
           ]
         },
         {
@@ -2230,7 +2287,8 @@
           "cardTitle": "Iron Hills",
           "imagePath": "IronHills.jpg",
           "types": [
-            "Region"
+            "Region",
+            "Iron Hills"
           ],
           "orientation": "right"
         },
@@ -2239,7 +2297,8 @@
           "cardTitle": "Isengard",
           "imagePath": "Isengard.jpg",
           "types": [
-            "Site"
+            "Site",
+            "Gap of Isen"
           ]
         },
         {
@@ -2247,7 +2306,8 @@
           "cardTitle": "Isles of the Dead that Live",
           "imagePath": "IslesoftheDeadthatLive.jpg",
           "types": [
-            "Site"
+            "Site",
+            "Eriadoran Coast"
           ]
         },
         {
@@ -2255,7 +2315,8 @@
           "cardTitle": "Ithilien",
           "imagePath": "Ithilien.jpg",
           "types": [
-            "Region"
+            "Region",
+            "Ithilien"
           ]
         },
         {
@@ -2273,7 +2334,8 @@
           "cardTitle": "Khand",
           "imagePath": "Khand.jpg",
           "types": [
-            "Region"
+            "Region",
+            "Khand"
           ],
           "orientation": "right"
         },
@@ -2312,7 +2374,8 @@
           "cardTitle": "Laketown",
           "imagePath": "Laketown.jpg",
           "types": [
-            "Site"
+            "Site",
+            "Northern Rhovanion"
           ]
         },
         {
@@ -2320,7 +2383,8 @@
           "cardTitle": "Lamedon",
           "imagePath": "Lamedon.jpg",
           "types": [
-            "Region"
+            "Region",
+            "Lamedon"
           ],
           "orientation": "right"
         },
@@ -2347,7 +2411,8 @@
           "cardTitle": "Lebennin",
           "imagePath": "Lebennin.jpg",
           "types": [
-            "Region"
+            "Region",
+            "Lebennin"
           ]
         },
         {
@@ -2384,7 +2449,8 @@
           "cardTitle": "Lindon",
           "imagePath": "Lindon.jpg",
           "types": [
-            "Region"
+            "Region",
+            "Lindon"
           ]
         },
         {
@@ -2392,7 +2458,8 @@
           "cardTitle": "Lond Galen",
           "imagePath": "LondGalen.jpg",
           "types": [
-            "Site"
+            "Site",
+            "Anfalas"
           ]
         },
         {
@@ -2418,7 +2485,8 @@
           "cardTitle": "Lorien",
           "imagePath": "Lorien.jpg",
           "types": [
-            "Site"
+            "Site",
+            "Wold & Foothills"
           ]
         },
         {
@@ -2426,7 +2494,8 @@
           "cardTitle": "Lossadan Cairn",
           "imagePath": "LossadanCairn.jpg",
           "types": [
-            "Site"
+            "Site",
+            "Forochel"
           ]
         },
         {
@@ -2434,7 +2503,8 @@
           "cardTitle": "Lossadan Camp",
           "imagePath": "LossadanCamp.jpg",
           "types": [
-            "Site"
+            "Site",
+            "Forochel"
           ]
         },
         {
@@ -2704,7 +2774,8 @@
           "cardTitle": "Minas Morgul",
           "imagePath": "MinasMorgul.jpg",
           "types": [
-            "Site"
+            "Site",
+            "Imlad Morgul"
           ]
         },
         {
@@ -2712,7 +2783,8 @@
           "cardTitle": "Minas Tirith",
           "imagePath": "MinasTirith.jpg",
           "types": [
-            "Site"
+            "Site",
+            "Anorien"
           ]
         },
         {
@@ -2801,7 +2873,8 @@
           "cardTitle": "Moria",
           "imagePath": "Moria.jpg",
           "types": [
-            "Site"
+            "Site",
+            "Redhorn Gate"
           ]
         },
         {
@@ -2809,7 +2882,8 @@
           "cardTitle": "Mount Doom",
           "imagePath": "MountDoom.jpg",
           "types": [
-            "Site"
+            "Site",
+            "Gorgoroth"
           ]
         },
         {
@@ -2817,7 +2891,8 @@
           "cardTitle": "Mount Gram",
           "imagePath": "MountGram.jpg",
           "types": [
-            "Site"
+            "Site",
+            "Angmar"
           ]
         },
         {
@@ -2825,7 +2900,8 @@
           "cardTitle": "Mount Gundabad",
           "imagePath": "MountGundabad.jpg",
           "types": [
-            "Site"
+            "Site",
+            "Gundabad"
           ]
         },
         {
@@ -2852,7 +2928,8 @@
           "cardTitle": "Mouths of the Anduin",
           "imagePath": "MouthsoftheAnduin.jpg",
           "types": [
-            "Region"
+            "Region",
+            "Mouths of the Anduin"
           ]
         },
         {
@@ -2960,7 +3037,8 @@
           "cardTitle": "Northern Rhovanion",
           "imagePath": "NorthernRhovanion.jpg",
           "types": [
-            "Region"
+            "Region",
+            "Northern Rhovanion"
           ],
           "orientation": "right"
         },
@@ -2969,7 +3047,8 @@
           "cardTitle": "Numeriador",
           "imagePath": "Numeriador.jpg",
           "types": [
-            "Region"
+            "Region",
+            "Numeriador"
           ]
         },
         {
@@ -2977,7 +3056,8 @@
           "cardTitle": "Nurn",
           "imagePath": "Nurn.jpg",
           "types": [
-            "Region"
+            "Region",
+            "Nurn"
           ],
           "orientation": "right"
         },
@@ -2997,7 +3077,8 @@
           "cardTitle": "Old Forest",
           "imagePath": "OldForest.jpg",
           "types": [
-            "Site"
+            "Site",
+            "Cardolan"
           ]
         },
         {
@@ -3023,7 +3104,8 @@
           "cardTitle": "Old Pukel Gap",
           "imagePath": "OldPukelGap.jpg",
           "types": [
-            "Region"
+            "Region",
+            "Old Pukel Gap"
           ]
         },
         {
@@ -3031,7 +3113,8 @@
           "cardTitle": "Old Pukelland",
           "imagePath": "OldPukelland.jpg",
           "types": [
-            "Region"
+            "Region",
+            "Old Pukel-land"
           ],
           "orientation": "right"
         },
@@ -3151,7 +3234,8 @@
           "cardTitle": "Ost-in-Edhil",
           "imagePath": "OstinEdhil.jpg",
           "types": [
-            "Site"
+            "Site",
+            "Hollin"
           ]
         },
         {
@@ -3246,7 +3330,8 @@
           "cardTitle": "Pelargir",
           "imagePath": "Pelargir.jpg",
           "types": [
-            "Site"
+            "Site",
+            "Lebennin"
           ]
         },
         {
@@ -3414,7 +3499,8 @@
           "cardTitle": "Redhorn Gate",
           "imagePath": "RedhornGate.jpg",
           "types": [
-            "Region"
+            "Region",
+            "Redhorn Gate"
           ]
         },
         {
@@ -3459,7 +3545,8 @@
           "cardTitle": "Rhosgobel",
           "imagePath": "Rhosgobel.jpg",
           "types": [
-            "Site"
+            "Site",
+            "Southern Mirkwood"
           ]
         },
         {
@@ -3467,7 +3554,8 @@
           "cardTitle": "Rhudaur",
           "imagePath": "Rhudaur.jpg",
           "types": [
-            "Region"
+            "Region",
+            "Rhudaur"
           ]
         },
         {
@@ -3503,7 +3591,8 @@
           "cardTitle": "Rivendell",
           "imagePath": "Rivendell.jpg",
           "types": [
-            "Site"
+            "Site",
+            "Rhudaur"
           ]
         },
         {
@@ -3549,7 +3638,8 @@
           "cardTitle": "Rohan",
           "imagePath": "Rohan.jpg",
           "types": [
-            "Region"
+            "Region",
+            "Rohan"
           ],
           "orientation": "right"
         },
@@ -3558,7 +3648,8 @@
           "cardTitle": "Ruined Signal Tower",
           "imagePath": "RuinedSignalTower.jpg",
           "types": [
-            "Site"
+            "Site",
+            "Enedhwaith"
           ]
         },
         {
@@ -3595,7 +3686,8 @@
           "cardTitle": "Sarn Goriwing",
           "imagePath": "SarnGoriwing.jpg",
           "types": [
-            "Site"
+            "Site",
+            "Heart of Mirkwood"
           ]
         },
         {
@@ -3662,7 +3754,8 @@
           "cardTitle": "Shelob's Lair",
           "imagePath": "ShelobsLair.jpg",
           "types": [
-            "Site"
+            "Site",
+            "Imlad Morgul"
           ]
         },
         {
@@ -3679,7 +3772,8 @@
           "cardTitle": "Shrel Kain",
           "imagePath": "ShrelKain.jpg",
           "types": [
-            "Site"
+            "Site",
+            "Dorwinion"
           ]
         },
         {
@@ -3741,7 +3835,8 @@
           "cardTitle": "Southern Mirkwood",
           "imagePath": "SouthernMirkwood.jpg",
           "types": [
-            "Region"
+            "Region",
+            "Southern Mirkwood"
           ],
           "orientation": "right"
         },
@@ -3750,7 +3845,8 @@
           "cardTitle": "Southern Rhovanion",
           "imagePath": "SouthernRhovanion.jpg",
           "types": [
-            "Region"
+            "Region",
+            "Southeron Rhovanion"
           ]
         },
         {
@@ -3758,7 +3854,8 @@
           "cardTitle": "Southron Oasis",
           "imagePath": "SouthronOasis.jpg",
           "types": [
-            "Site"
+            "Site",
+            "Harondor"
           ]
         },
         {
@@ -3812,7 +3909,8 @@
           "cardTitle": "Stonecircle",
           "imagePath": "Stonecircle.jpg",
           "types": [
-            "Site"
+            "Site",
+            "Old Pukel Gap"
           ]
         },
         {
@@ -3974,7 +4072,8 @@
           "cardTitle": "The Lonely Mountain",
           "imagePath": "TheLonelyMountain.jpg",
           "types": [
-            "Site"
+            "Site",
+            "Northern Rhovanion"
           ]
         },
         {
@@ -4045,7 +4144,8 @@
           "cardTitle": "The Shire",
           "imagePath": "TheShire.jpg",
           "types": [
-            "Region"
+            "Region",
+            "The Shire"
           ]
         },
         {
@@ -4053,7 +4153,8 @@
           "cardTitle": "The Stones",
           "imagePath": "TheStones.jpg",
           "types": [
-            "Site"
+            "Site",
+            "Andrast"
           ]
         },
         {
@@ -4061,7 +4162,8 @@
           "cardTitle": "The White Towers",
           "imagePath": "TheWhiteTowers.jpg",
           "types": [
-            "Site"
+            "Site",
+            "Arthedain"
           ]
         },
         {
@@ -4096,7 +4198,8 @@
           "cardTitle": "The Wind Throne",
           "imagePath": "TheWindThrone.jpg",
           "types": [
-            "Site"
+            "Site",
+            "Grey Mountain Narrows"
           ]
         },
         {
@@ -4157,7 +4260,8 @@
           "cardTitle": "Thranduil's Halls",
           "imagePath": "ThranduilsHalls.jpg",
           "types": [
-            "Site"
+            "Site",
+            "Woodland Realm"
           ]
         },
         {
@@ -4257,7 +4361,8 @@
           "cardTitle": "Udun",
           "imagePath": "Udun.jpg",
           "types": [
-            "Region"
+            "Region",
+            "Udun"
           ]
         },
         {
@@ -4284,7 +4389,8 @@
           "cardTitle": "Vale of Erech",
           "imagePath": "ValeofErech.jpg",
           "types": [
-            "Site"
+            "Site",
+            "Lamedon"
           ]
         },
         {
@@ -4301,7 +4407,8 @@
           "cardTitle": "Variag Camp",
           "imagePath": "VariagCamp.jpg",
           "types": [
-            "Site"
+            "Site",
+            "Khand"
           ]
         },
         {
@@ -4397,7 +4504,8 @@
           "cardTitle": "Weathertop",
           "imagePath": "Weathertop.jpg",
           "types": [
-            "Site"
+            "Site",
+            "Arthedain"
           ]
         },
         {
@@ -4405,7 +4513,8 @@
           "cardTitle": "Wellinghall",
           "imagePath": "Wellinghall.jpg",
           "types": [
-            "Site"
+            "Site",
+            "Fangorn"
           ]
         },
         {
@@ -4413,7 +4522,8 @@
           "cardTitle": "Western Mirkwood",
           "imagePath": "WesternMirkwood.jpg",
           "types": [
-            "Region"
+            "Region",
+            "Western Mirkwood"
           ]
         },
         {
@@ -4449,7 +4559,8 @@
           "cardTitle": "Withered Heath",
           "imagePath": "WitheredHeath.jpg",
           "types": [
-            "Region"
+            "Region",
+            "Withered Heath"
           ],
           "orientation": "right"
         },
@@ -4521,7 +4632,8 @@
           "cardTitle": "Wold Foothills",
           "imagePath": "WoldFoothills.jpg",
           "types": [
-            "Region"
+            "Region",
+            "Wold & Foothills"
           ],
           "orientation": "right"
         },
@@ -4549,7 +4661,8 @@
           "cardTitle": "Woodland Realm",
           "imagePath": "WoodlandRealm.jpg",
           "types": [
-            "Region"
+            "Region",
+            "Woodland Realm"
           ],
           "orientation": "right"
         },
@@ -4568,7 +4681,8 @@
           "cardTitle": "Woodmentown",
           "imagePath": "Woodmentown.jpg",
           "types": [
-            "Site"
+            "Site",
+            "Western Mirkwood"
           ]
         },
         {
@@ -4585,7 +4699,8 @@
           "cardTitle": "Wose Passagehold",
           "imagePath": "WosePassagehold.jpg",
           "types": [
-            "Site"
+            "Site",
+            "Old Pukel-land"
           ]
         },
         {
@@ -4612,267 +4727,528 @@
     },
     {
       "id": "the-lidless-eye",
-      "name": "the-lidless-eye",
+      "name": "The Lidless Eye",
       "cards": [
         {
           "id": "ALittleGoldRing",
           "cardTitle": "ALittleGoldRing",
-          "imagePath": "ALittleGoldRing.jpg"
+          "imagePath": "ALittleGoldRing.jpg",
+          "types": [
+            "Gold Ring Item",
+            "Minion",
+            "Resource"
+          ]
         },
         {
           "id": "AMaladyWithoutHealing",
           "cardTitle": "AMaladyWithoutHealing",
-          "imagePath": "AMaladyWithoutHealing.jpg"
+          "imagePath": "AMaladyWithoutHealing.jpg",
+          "types": [
+            "Short-Event",
+            "Minion",
+            "Resource"
+          ]
         },
         {
           "id": "ANicePlacetoHide",
           "cardTitle": "ANicePlacetoHide",
-          "imagePath": "ANicePlacetoHide.jpg"
+          "imagePath": "ANicePlacetoHide.jpg",
+          "types": [
+            "Short-Event",
+            "Minion",
+            "Resource"
+          ]
         },
         {
           "id": "AdunaphelUnleashed",
           "cardTitle": "AdunaphelUnleashed",
-          "imagePath": "AdunaphelUnleashed.jpg"
+          "imagePath": "AdunaphelUnleashed.jpg",
+          "types": [
+            "Short-Event",
+            "Minion",
+            "Resource"
+          ]
         },
         {
           "id": "AdunapheltheRingwraith",
           "cardTitle": "AdunapheltheRingwraith",
-          "imagePath": "AdunapheltheRingwraith.jpg"
+          "imagePath": "AdunapheltheRingwraith.jpg",
+          "types": [
+            "Ringwraith",
+            "Warrior",
+            "Scout",
+            "Diplomat",
+            "Character"
+          ]
         },
         {
           "id": "AgburanarRoused",
           "cardTitle": "AgburanarRoused",
-          "imagePath": "AgburanarRoused.jpg"
+          "imagePath": "AgburanarRoused.jpg",
+          "types": [
+            "Faction",
+            "Dragon",
+            "Minion",
+            "Resource"
+          ]
         },
         {
           "id": "AkhorahilUnleashed",
           "cardTitle": "AkhorahilUnleashed",
-          "imagePath": "AkhorahilUnleashed.jpg"
+          "imagePath": "AkhorahilUnleashed.jpg",
+          "types": [
+            "Short-Event",
+            "Minion",
+            "Resource"
+          ]
         },
         {
           "id": "AkhorahiltheRingwraith",
           "cardTitle": "AkhorahiltheRingwraith",
-          "imagePath": "AkhorahiltheRingwraith.jpg"
+          "imagePath": "AkhorahiltheRingwraith.jpg",
+          "types": [
+            "Character",
+            "Sage",
+            "Ringwraith"
+          ]
         },
         {
           "id": "AllThoughtBentuponIt",
           "cardTitle": "AllThoughtBentuponIt",
-          "imagePath": "AllThoughtBentuponIt.jpg"
+          "imagePath": "AllThoughtBentuponIt.jpg",
+          "types": [
+            "Short-Event",
+            "Minion",
+            "Resource"
+          ]
         },
         {
           "id": "Ambusher",
           "cardTitle": "Ambusher",
-          "imagePath": "Ambusher.jpg"
+          "imagePath": "Ambusher.jpg",
+          "types": [
+            "Hazard",
+            "Creature"
+          ]
         },
         {
           "id": "AmonHen",
           "cardTitle": "AmonHen",
-          "imagePath": "AmonHen.jpg"
+          "imagePath": "AmonHen.jpg",
+          "types": [
+            "Site",
+            "Minion"
+          ]
         },
         {
           "id": "AnUntimelyWhisper",
           "cardTitle": "AnUntimelyWhisper",
-          "imagePath": "AnUntimelyWhisper.jpg"
+          "imagePath": "AnUntimelyWhisper.jpg",
+          "types": [
+            "Minion",
+            "Short-Event",
+            "Resource"
+          ]
         },
         {
           "id": "ArouseDefenders",
           "cardTitle": "ArouseDefenders",
-          "imagePath": "ArouseDefenders.jpg"
+          "imagePath": "ArouseDefenders.jpg",
+          "types": [
+            "Hazard",
+            "Short-Event"
+          ]
         },
         {
           "id": "ArouseDenizens",
           "cardTitle": "ArouseDenizens",
-          "imagePath": "ArouseDenizens.jpg"
+          "imagePath": "ArouseDenizens.jpg",
+          "types": [
+            "Hazard",
+            "Short-Event"
+          ]
         },
         {
           "id": "ArthadanRangers",
           "cardTitle": "ArthadanRangers",
-          "imagePath": "ArthadanRangers.jpg"
+          "imagePath": "ArthadanRangers.jpg",
+          "types": [
+            "Hazard",
+            "Creature"
+          ]
         },
         {
           "id": "Asternak",
           "cardTitle": "Asternak",
-          "imagePath": "Asternak.jpg"
+          "imagePath": "Asternak.jpg",
+          "types": [
+            "Warrior",
+            "Diplomat",
+            "Man",
+            "Minion",
+            "Character"
+          ]
         },
         {
           "id": "AwaitingtheCall",
           "cardTitle": "AwaitingtheCall",
-          "imagePath": "AwaitingtheCall.jpg"
+          "imagePath": "AwaitingtheCall.jpg",
+          "types": [
+            "Minion",
+            "Permanent-Event"
+          ]
         },
         {
           "id": "AwakenDefenders",
           "cardTitle": "AwakenDefenders",
-          "imagePath": "AwakenDefenders.jpg"
+          "imagePath": "AwakenDefenders.jpg",
+          "types": [
+            "Hazard",
+            "Long-Event"
+          ]
         },
         {
           "id": "AwakenDenizens",
           "cardTitle": "AwakenDenizens",
-          "imagePath": "AwakenDenizens.jpg"
+          "imagePath": "AwakenDenizens.jpg",
+          "types": [
+            "Hazard",
+            "Long-Event"
+          ]
         },
         {
           "id": "BacktotheFray",
           "cardTitle": "BacktotheFray",
-          "imagePath": "BacktotheFray.jpg"
+          "imagePath": "BacktotheFray.jpg",
+          "types": [
+            "Minion",
+            "Short-Event",
+            "Resource"
+          ]
         },
         {
           "id": "BadetoRule",
           "cardTitle": "BadetoRule",
-          "imagePath": "BadetoRule.jpg"
+          "imagePath": "BadetoRule.jpg",
+          "types": [
+            "Minion",
+            "Permanent-Event",
+            "Resource"
+          ]
         },
         {
           "id": "BagEnd",
           "cardTitle": "BagEnd",
-          "imagePath": "BagEnd.jpg"
+          "imagePath": "BagEnd.jpg",
+          "types": [
+            "Minion",
+            "Site",
+            "The Shire"
+          ]
         },
         {
           "id": "Balchoth",
           "cardTitle": "Balchoth",
-          "imagePath": "Balchoth.jpg"
+          "imagePath": "Balchoth.jpg",
+          "types": [
+            "Faction",
+            "Minion",
+            "Man",
+            "Resource"
+          ]
         },
         {
           "id": "BanditLair",
           "cardTitle": "BanditLair",
-          "imagePath": "BanditLair.jpg"
+          "imagePath": "BanditLair.jpg",
+          "types": [
+            "Site",
+            "Minion",
+            "Brown Lands"
+          ]
         },
         {
           "id": "Baraddur",
           "cardTitle": "Baraddur",
-          "imagePath": "Baraddur.jpg"
+          "imagePath": "Baraddur.jpg",
+          "types": [
+            "Minion",
+            "Site",
+            "Gorgoroth"
+          ]
         },
         {
           "id": "Barrowdowns",
           "cardTitle": "Barrowdowns",
-          "imagePath": "Barrowdowns.jpg"
+          "imagePath": "Barrowdowns.jpg",
+          "types": [
+            "Cardolan",
+            "Minion",
+            "Site"
+          ]
         },
         {
           "id": "Barrowwight",
           "cardTitle": "Barrowwight",
-          "imagePath": "Barrowwight.jpg"
+          "imagePath": "Barrowwight.jpg",
+          "types": [
+            "Creature",
+            "Hazard"
+          ]
         },
         {
           "id": "Belegorn",
           "cardTitle": "Belegorn",
-          "imagePath": "Belegorn.jpg"
+          "imagePath": "Belegorn.jpg",
+          "types": [
+            "Sage",
+            "Diplomat",
+            "Dunadan",
+            "Minion",
+            "Character"
+          ]
         },
         {
           "id": "BeorningToll",
           "cardTitle": "BeorningToll",
-          "imagePath": "BeorningToll.jpg"
+          "imagePath": "BeorningToll.jpg",
+          "types": [
+            "Hazard",
+            "Creature"
+          ]
         },
         {
           "id": "Beornings",
           "cardTitle": "Beornings",
-          "imagePath": "Beornings.jpg"
+          "imagePath": "Beornings.jpg",
+          "types": [
+            "Faction",
+            "Man",
+            "Minion",
+            "Resource"
+          ]
         },
         {
           "id": "BeornsHouse",
           "cardTitle": "BeornsHouse",
-          "imagePath": "BeornsHouse.jpg"
+          "imagePath": "BeornsHouse.jpg",
+          "types": [
+            "Site",
+            "Minion",
+            "Anduin Vales"
+          ]
         },
         {
           "id": "Bindingring",
           "cardTitle": "Bindingring",
-          "imagePath": "Bindingring.jpg"
+          "imagePath": "Bindingring.jpg",
+          "types": [
+            "Minion",
+            "Resource",
+            "Minor Item"
+          ]
         },
         {
           "id": "BitterCold",
           "cardTitle": "BitterCold",
-          "imagePath": "BitterCold.jpg"
+          "imagePath": "BitterCold.jpg",
+          "types": [
+            "Minion",
+            "Short-Event",
+            "Resource"
+          ]
         },
         {
           "id": "BlackMace",
           "cardTitle": "BlackMace",
-          "imagePath": "BlackMace.jpg"
+          "imagePath": "BlackMace.jpg",
+          "types": [
+            "Minion",
+            "Resource",
+            "Greater Item"
+          ]
         },
         {
           "id": "BlackRain",
           "cardTitle": "BlackRain",
-          "imagePath": "BlackRain.jpg"
+          "imagePath": "BlackRain.jpg",
+          "types": [
+            "Minion",
+            "Resource",
+            "Short-Event"
+          ]
         },
         {
           "id": "BlackRider",
           "cardTitle": "BlackRider",
-          "imagePath": "BlackRider.jpg"
+          "imagePath": "BlackRider.jpg",
+          "types": [
+            "Minion",
+            "Resource",
+            "Permanent-Event"
+          ]
         },
         {
           "id": "BlackTrolls",
           "cardTitle": "BlackTrolls",
-          "imagePath": "BlackTrolls.jpg"
+          "imagePath": "BlackTrolls.jpg",
+          "types": [
+            "Faction",
+            "Resource",
+            "Minion",
+            "Troll"
+          ]
         },
         {
           "id": "Blackbole",
           "cardTitle": "Blackbole",
-          "imagePath": "Blackbole.jpg"
+          "imagePath": "Blackbole.jpg",
+          "types": [
+            "Minion",
+            "Resource",
+            "Ally"
+          ]
         },
         {
           "id": "BlackhideShield",
           "cardTitle": "BlackhideShield",
-          "imagePath": "BlackhideShield.jpg"
+          "imagePath": "BlackhideShield.jpg",
+          "types": [
+            "Minion",
+            "Resource",
+            "Minor Item"
+          ]
         },
         {
           "id": "BlackmailCoat",
           "cardTitle": "BlackmailCoat",
-          "imagePath": "BlackmailCoat.jpg"
+          "imagePath": "BlackmailCoat.jpg",
+          "types": [
+            "Minion",
+            "Resource",
+            "Major Item"
+          ]
         },
         {
           "id": "BlazonoftheEye",
           "cardTitle": "BlazonoftheEye",
-          "imagePath": "BlazonoftheEye.jpg"
+          "imagePath": "BlazonoftheEye.jpg",
+          "types": [
+            "Minion",
+            "Resource",
+            "Minor Item"
+          ]
         },
         {
           "id": "BlowTurned",
           "cardTitle": "BlowTurned",
-          "imagePath": "BlowTurned.jpg"
+          "imagePath": "BlowTurned.jpg",
+          "types": [
+            "Minion",
+            "Resource",
+            "Short-Event"
+          ]
         },
         {
           "id": "BlueMountainDwarfhold",
           "cardTitle": "BlueMountainDwarfhold",
-          "imagePath": "BlueMountainDwarfhold.jpg"
+          "imagePath": "BlueMountainDwarfhold.jpg",
+          "types": [
+            "Minion",
+            "Site",
+            "Numeriador"
+          ]
         },
         {
           "id": "BoldThrust",
           "cardTitle": "BoldThrust",
-          "imagePath": "BoldThrust.jpg"
+          "imagePath": "BoldThrust.jpg",
+          "types": [
+            "Minion",
+            "Resource",
+            "Short-Event"
+          ]
         },
         {
           "id": "Bree",
           "cardTitle": "Bree",
-          "imagePath": "Bree.jpg"
+          "imagePath": "Bree.jpg",
+          "types": [
+            "Minion",
+            "Site",
+            "Arthedain"
+          ]
         },
         {
           "id": "Brigands",
           "cardTitle": "Brigands",
-          "imagePath": "Brigands.jpg"
+          "imagePath": "Brigands.jpg",
+          "types": [
+            "Hazard",
+            "Creature"
+          ]
         },
         {
           "id": "BrightGoldRing",
           "cardTitle": "BrightGoldRing",
-          "imagePath": "BrightGoldRing.jpg"
+          "imagePath": "BrightGoldRing.jpg",
+          "types": [
+            "Minion",
+            "Resource",
+            "Gold Ring Item"
+          ]
         },
         {
           "id": "BroadheadedSpear",
           "cardTitle": "BroadheadedSpear",
-          "imagePath": "BroadheadedSpear.jpg"
+          "imagePath": "BroadheadedSpear.jpg",
+          "types": [
+            "Minion",
+            "Resource",
+            "Major Item"
+          ]
         },
         {
           "id": "Broin",
           "cardTitle": "Broin",
-          "imagePath": "Broin.jpg"
+          "imagePath": "Broin.jpg",
+          "types": [
+            "Warrior",
+            "Scout",
+            "Dwarf",
+            "Minion",
+            "Character"
+          ]
         },
         {
           "id": "BuhrWidu",
           "cardTitle": "BuhrWidu",
-          "imagePath": "BuhrWidu.jpg"
+          "imagePath": "BuhrWidu.jpg",
+          "types": [
+            "Site",
+            "Minion",
+            "Southeron Rhovanion"
+          ]
         },
         {
           "id": "BurningRickCotandTree",
           "cardTitle": "BurningRickCotandTree",
-          "imagePath": "BurningRickCotandTree.jpg"
+          "imagePath": "BurningRickCotandTree.jpg",
+          "types": [
+            "Minion",
+            "Resource",
+            "Permanent-Event"
+          ]
         },
         {
           "id": "BytheRingwraithsWord",
           "cardTitle": "BytheRingwraithsWord",
-          "imagePath": "BytheRingwraithsWord.jpg"
+          "imagePath": "BytheRingwraithsWord.jpg",
+          "types": [
+            "Minion",
+            "Resource",
+            "Permanent-Event"
+          ]
         },
         {
           "id": "Calendal",
@@ -6740,16 +7116,6 @@
   ],
   "tagGroups": [
     {
-      "id": "229b38c4-f8c5-4fc3-83a5-7cb08b83444c",
-      "name": "Regions",
-      "tags": [
-        "Rohan",
-        "The Shire",
-        "Brown Lands",
-        "Gorgoroth"
-      ]
-    },
-    {
       "id": "default",
       "name": "Card Type",
       "tags": [
@@ -6760,23 +7126,38 @@
         "Region",
         "Ally",
         "Faction",
-        "Creature"
+        "Creature",
+        "Hero",
+        "Minion",
+        "Fallen-wizard"
+      ]
+    },
+    {
+      "id": "388f62c3-09c6-4ebf-b651-cccd30a9f569",
+      "name": "Events",
+      "tags": [
+        "Short-Event",
+        "Long-Event",
+        "Permanent-Event"
       ]
     },
     {
       "id": "7bcd8ebc-e20f-4aa7-aac5-707ba82a1d3d",
       "name": "Race",
       "tags": [
-        "Special",
-        "Man",
-        "Elf",
-        "Dwarf",
-        "Hobbit",
-        "Dunadan",
-        "Ent",
-        "Wose",
         "Eagle",
-        "Wizard"
+        "Ent",
+        "Dragon",
+        "Dunadan",
+        "Dwarf",
+        "Elf",
+        "Hobbit",
+        "Man",
+        "Ringwraith",
+        "Troll",
+        "Wizard",
+        "Wose",
+        "Special"
       ]
     },
     {
@@ -6791,15 +7172,6 @@
       ]
     },
     {
-      "id": "388f62c3-09c6-4ebf-b651-cccd30a9f569",
-      "name": "Events",
-      "tags": [
-        "Short-Event",
-        "Long-Event",
-        "Permanent-Event"
-      ]
-    },
-    {
       "id": "0bf9c41b-24fd-49dc-a824-bd216e2d1ccb",
       "name": "Class",
       "tags": [
@@ -6808,6 +7180,64 @@
         "Scout",
         "Ranger",
         "Warrior"
+      ]
+    },
+    {
+      "id": "229b38c4-f8c5-4fc3-83a5-7cb08b83444c",
+      "name": "Regions",
+      "tags": [
+        "Andrast",
+        "Andrast Coast",
+        "Anduin Vales",
+        "Anfalas",
+        "Angmar",
+        "Anorien",
+        "Arthedain",
+        "Bay of Belfalas",
+        "Belfalas",
+        "Brown Lands",
+        "Cardolan",
+        "Dagorlad",
+        "Dorwinion",
+        "Dunland",
+        "Elven Shores",
+        "Enedhwaith",
+        "Eriadoran Coast",
+        "Fangorn",
+        "Forochel",
+        "Gap of Isen",
+        "Grey Mountain Narrows",
+        "Gorgoroth",
+        "Gundabad",
+        "Harondor",
+        "Heart of Mirkwood",
+        "High Pass",
+        "Hollin",
+        "Horse Plains",
+        "Iron Hills",
+        "Ithilien",
+        "Imlad Morgul",
+        "Khand",
+        "Lamedon",
+        "Lebennin",
+        "Lindon",
+        "Mouths of the Anduin",
+        "Northern Rhovanion",
+        "Numeriador",
+        "Nurn",
+        "Old Pukel-land",
+        "Old Pukel Gap",
+        "Rohan",
+        "Redhorn Gate",
+        "Rhudaur",
+        "Southern Mirkwood",
+        "Southeron Rhovanion",
+        "The Shire",
+        "Udun",
+        "Withered Heath",
+        "Wold & Foothills",
+        "Woodland Realm",
+        "Western Mirkwood"
       ]
     }
   ]

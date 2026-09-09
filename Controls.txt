@@ -1,0 +1,101 @@
+FlutterDeck Controls Reference
+==============================
+
+CARDS
+-----
+- Click a card: Flip face-up/down.
+  Works on table cards you own, hand cards, and shared-zone top cards.
+  NOT available on cards in your own defined zones (drag-only there).
+- Drag a lone table card: Moves it, or performs a context-sensitive drop (see below).
+- Drag a "pickup group": Moves every card stacked visually on top of the
+  dragged one, together, as a rigid unit. Detected by overlap + higher
+  z-index. Hand/zone/stack special-casing is skipped for a group -- it's
+  always a plain positional move.
+- Hover a card: No effect by itself, but drives the Space-preview and Q/E/D
+  hotkeys. Works even on opponent cards (face/back visibility is still
+  respected).
+
+Drop behavior when releasing a dragged card:
+  - Onto your hand zone       -> adds it to hand, or reorders it if it was
+                                  already there (drop position decides where
+                                  it lands in the row).
+  - Onto one of your own zones -> goes to zone top (or bottom with Alt held).
+  - Near another loose card, with Alt held -> stacks onto it.
+  - Onto a shared-zone pile on the table -> stacks onto it (Alt not required).
+  - Anywhere else             -> plain positional move on the table.
+
+PILES (2+ stacked cards)
+-------------------------
+- Click: Draws the top card straight into your hand.
+- Drag: Pulls just the top card off (normal drag rules apply).
+- Alt+drag: Moves/deals the WHOLE pile -- dropped on your hand, every card
+  is dealt individually into it; dropped elsewhere, the pile moves as one
+  unit.
+- Shuffle button (small icon on the pile): Randomizes order AND flips every
+  card face-down. Hidden for non-shuffleable piles (e.g. discard) or empty
+  piles.
+- Count badge: Read-only, shows card count.
+
+Opponent-owned piles/zones are fully read-only -- no draw, drag, shuffle, or
+flip; only hovering works (for the Space preview).
+
+ZONES & HAND
+------------
+- Dragging a card out of your own defined zone is drag-only (no
+  click-to-flip).
+- Shared zones shown on the table behave like piles (click to draw, drag to
+  move/stack), wrapped in a tooltip showing the zone's name.
+- A zone only reveals its top card's real face to the opponent if it's
+  marked visibleToAll (e.g. a shared discard); otherwise the opponent always
+  sees a back.
+
+RIGHT-CLICK MENUS
+-----------------
+- Empty table space  -> Create a board widget (Simple Counter or Token) at
+                         that point.
+- Simple Counter widget -> Increment / Decrement / Set Value / Set Colors /
+                            Delete.
+- Token widget       -> Set Color / Delete.
+- A card, pile, or zone -> No menu -- right-clicking directly on a card
+                            falls through to the table's own "create widget"
+                            menu, which can be surprising.
+
+BOARD WIDGETS
+-------------
+- Both (Counter & Token): Drag to reposition.
+- Token only: Dragging it onto a card ATTACHES it to that card (travels with
+  it from then on); dropping on empty space detaches it. Ctrl+drag
+  duplicates the token, leaving the original in place.
+- Counter only: No attach/duplicate behavior, but has the
+  Increment/Decrement/Set Value menu options Token doesn't.
+
+DECK EDITOR (separate model -- not drag-based)
+-----------------------------------------------
+In the deck-building screen, pool cards use plain click/right-click instead
+of dragging:
+  - Left-click a card in the pool  -> add one copy to the deck.
+  - Right-click                    -> remove one copy.
+  - Hovering shows a preview; a quantity badge overlays each card showing
+    how many are in the deck.
+
+KEYBOARD SHORTCUTS (during gameplay)
+-------------------------------------
+Key             | Trigger                          | Effect                                                          | Conditions
+----------------|-----------------------------------|------------------------------------------------------------------|--------------------------------------------------------------
+Space (hold)    | While hovering any card          | Shows a large centered preview of exactly what's visible (real  | Works on any card, including opponent's
+                |                                   | face if face-up, back if face-down)                              |
+Q               | Key-down while hovering a card    | Rotates that card's stack 90 degrees counterclockwise            | Only for a card on the free table that YOU OWN -- no effect
+                |                                   |                                                                    | on hand/zone cards or opponent cards
+E               | Key-down while hovering a card    | Rotates that card's stack 90 degrees clockwise                   | Same conditions as Q
+D               | Key-down while hovering a card    | Sends the card to your discard zone (with a short flight         | Same ownership/table conditions as Q, AND only if a
+                |                                   | animation)                                                        | non-shared zone is marked as your discard pile
+Alt (at drop)   | Dropping a dragged card near      | Stacks it instead of just placing it nearby                      | Not needed when the target is already a defined zone --
+                | another loose card                |                                                                    | that always stacks
+Alt (at drop)   | Dropping onto a defined zone      | Sends the card to the BOTTOM of that zone instead of the top      |
+Alt (at drag-   | Dragging a whole pile             | Moves/deals the entire pile instead of peeling off just the top  |
+release)        |                                   | card                                                              |
+Ctrl (at drop)  | Dragging a Token board widget     | Duplicates the token instead of moving it (original stays put)   | Token widgets only -- Counter widgets have no Ctrl behavior
+
+Note: Q/E/D only fire on the initial key-down (OS key-repeat while held is
+ignored), so holding one down doesn't spam-repeat the action. Double-click
+isn't used anywhere in the app.

@@ -83,9 +83,16 @@ class _CardViewTabState extends State<CardViewTab> with AutomaticKeepAliveClient
   /// starts selected, same rationale/sync as [_selectedTagsByGroup].
   late final Set<String> _selectedSetIds = widget.sets.map((s) => s.id).toSet();
 
+  /// Ids of [TagGroup]s whose tag-chip section is currently collapsed on the
+  /// [CardDetailPanel] form -- session-level UI state only (not part of the
+  /// saved game definition). An absent/unknown id simply means "visible," so
+  /// no seeding or [didUpdateWidget] sync is required for correctness.
+  final Set<String> _hiddenDetailTagGroupIds = {};
+
   @override
   void didUpdateWidget(CardViewTab oldWidget) {
     super.didUpdateWidget(oldWidget);
+    _hiddenDetailTagGroupIds.removeWhere((id) => !widget.tagGroups.any((g) => g.id == id));
     for (final group in widget.tagGroups) {
       final selected = _selectedTagsByGroup[group.id];
       if (selected == null) {
@@ -327,6 +334,14 @@ class _CardViewTabState extends State<CardViewTab> with AutomaticKeepAliveClient
                             fileOps: widget.fileOps,
                             onChanged: _updateCard,
                             onDelete: () => _deleteCard(card.id),
+                            hiddenTagGroupIds: _hiddenDetailTagGroupIds,
+                            onToggleTagGroupVisibility: (groupId, visible) => setState(() {
+                              if (visible) {
+                                _hiddenDetailTagGroupIds.remove(groupId);
+                              } else {
+                                _hiddenDetailTagGroupIds.add(groupId);
+                              }
+                            }),
                           ),
                   ),
                 ],
