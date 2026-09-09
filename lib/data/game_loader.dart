@@ -5,6 +5,7 @@ import 'package:flutter/services.dart' show rootBundle;
 
 import '../models/card_definition.dart';
 import '../models/game_definition.dart';
+import 'image_path_resolver.dart';
 
 const String standardDeckAssetPath = 'assets/games/standard_52/standard_52.json';
 
@@ -67,19 +68,17 @@ class GameLoader {
     final cards = game.cards.map((c) {
       final imagePath = c.imagePath;
       if (imagePath == null) return c;
-      final setId = c.setId;
-      final base = setId == null ? folderPath : '$folderPath${Platform.pathSeparator}$setId';
       return CardDefinition(
         id: c.id,
         cardTitle: c.cardTitle,
         colorHex: c.colorHex,
         suit: c.suit,
         rank: c.rank,
-        imagePath: '$base${Platform.pathSeparator}$imagePath',
+        imagePath: resolveBareImagePath(folderPath: folderPath, bareImagePath: imagePath, setId: c.setId),
         extraFields: c.extraFields,
         types: c.types,
         orientation: c.orientation,
-        setId: setId,
+        setId: c.setId,
       );
     }).toList();
     final cardBackImagePath = game.cardBackImagePath;
@@ -88,10 +87,12 @@ class GameLoader {
       name: game.name,
       cards: cards,
       sets: game.sets,
-      cardBackImagePath: cardBackImagePath == null ? null : '$folderPath${Platform.pathSeparator}$cardBackImagePath',
+      cardBackImagePath: cardBackImagePath == null
+          ? null
+          : resolveBareImagePath(folderPath: folderPath, bareImagePath: cardBackImagePath),
       zones: game.zones,
       opponentCardBorderColor: game.opponentCardBorderColor,
-      cardTypes: game.cardTypes,
+      tagGroups: game.tagGroups,
     );
   }
 }

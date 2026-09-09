@@ -1,5 +1,6 @@
 import 'card_definition.dart';
 import 'game_set.dart';
+import 'tag_group.dart';
 import 'zone_definition.dart';
 
 /// Default for [GameDefinition.opponentCardBorderColor] when a game's JSON
@@ -17,7 +18,7 @@ class GameDefinition {
     this.cardBackImagePath,
     this.zones = const [],
     this.opponentCardBorderColor = defaultOpponentCardBorderColor,
-    this.cardTypes = const [],
+    this.tagGroups = const [],
     this.sets = const [],
   });
 
@@ -25,11 +26,13 @@ class GameDefinition {
   final String name;
   final List<CardDefinition> cards;
 
-  /// This game's declared card-type taxonomy (e.g. "Character", "Item"),
-  /// display/toggle order matching JSON order -- see [CardDefinition.types].
-  /// Empty means this game doesn't use types at all, in which case the Deck
-  /// Editor shows no filter chips.
-  final List<String> cardTypes;
+  /// This game's declared tag taxonomy, grouped into independently-named
+  /// [TagGroup]s (e.g. "Card Type", "Mana Color") -- see
+  /// [CardDefinition.types], which stores a card's tags as one flat list
+  /// regardless of which group each tag belongs to. Empty means this game
+  /// doesn't use tags at all, in which case the Deck Editor shows no filter
+  /// buttons.
+  final List<TagGroup> tagGroups;
 
   /// This game's declared sets (e.g. METW's "Core Set", Lorcana's numbered
   /// chapters) -- see [GameSet]. Empty means this game's JSON used the flat
@@ -94,7 +97,10 @@ class GameDefinition {
               .toList() ??
           const [],
       opponentCardBorderColor: json['opponentCardBorderColor'] as String? ?? defaultOpponentCardBorderColor,
-      cardTypes: (json['cardTypes'] as List?)?.cast<String>().toList() ?? const [],
+      tagGroups: (json['tagGroups'] as List?)
+              ?.map((e) => TagGroup.fromJson((e as Map).cast<String, dynamic>()))
+              .toList() ??
+          const [],
     );
   }
 
@@ -137,7 +143,7 @@ class GameDefinition {
       if (cardBackImagePath != null) 'cardBackImagePath': cardBackImagePath,
       if (zones.isNotEmpty) 'zones': zones.map((z) => z.toJson()).toList(),
       if (opponentCardBorderColor != defaultOpponentCardBorderColor) 'opponentCardBorderColor': opponentCardBorderColor,
-      if (cardTypes.isNotEmpty) 'cardTypes': cardTypes,
+      if (tagGroups.isNotEmpty) 'tagGroups': tagGroups.map((g) => g.toJson()).toList(),
     };
   }
 }

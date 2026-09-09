@@ -7,6 +7,7 @@ import 'package:flutter_deck/models/game_definition.dart';
 import 'package:flutter_deck/models/game_set.dart';
 import 'package:flutter_deck/models/player.dart';
 import 'package:flutter_deck/models/table_state.dart';
+import 'package:flutter_deck/models/tag_group.dart';
 import 'package:flutter_deck/models/zone_definition.dart';
 
 void main() {
@@ -62,6 +63,49 @@ void main() {
       const tagged = CardDefinition(id: 'b', cardTitle: 'B', setId: 'core_set');
       final roundTripped = CardDefinition.fromJson(tagged.toJson());
       expect(roundTripped.setId, 'core_set');
+    });
+
+    test('copyWith with no arguments returns an equal-fielded copy', () {
+      const original = CardDefinition(
+        id: 'a',
+        cardTitle: 'A',
+        colorHex: '#000000',
+        suit: 'hearts',
+        rank: 'A',
+        imagePath: 'a.jpg',
+        types: ['Hearts'],
+        orientation: CardOrientation.right,
+        setId: 'core_set',
+      );
+      final copy = original.copyWith();
+      expect(copy.id, original.id);
+      expect(copy.cardTitle, original.cardTitle);
+      expect(copy.colorHex, original.colorHex);
+      expect(copy.suit, original.suit);
+      expect(copy.rank, original.rank);
+      expect(copy.imagePath, original.imagePath);
+      expect(copy.types, original.types);
+      expect(copy.orientation, original.orientation);
+      expect(copy.setId, original.setId);
+    });
+
+    test('copyWith updates only the requested field', () {
+      const original = CardDefinition(id: 'a', cardTitle: 'A');
+      final renamed = original.copyWith(cardTitle: 'New Title');
+      expect(renamed.cardTitle, 'New Title');
+      expect(renamed.id, 'a');
+    });
+
+    test('copyWith(field: null) explicitly clears a nullable field, distinct from omitting it', () {
+      const original = CardDefinition(id: 'a', cardTitle: 'A', colorHex: '#000000', setId: 'core_set');
+
+      final unchanged = original.copyWith(cardTitle: 'A2');
+      expect(unchanged.colorHex, '#000000', reason: 'omitting colorHex should leave it alone');
+      expect(unchanged.setId, 'core_set', reason: 'omitting setId should leave it alone');
+
+      final cleared = original.copyWith(colorHex: null, setId: null);
+      expect(cleared.colorHex, isNull);
+      expect(cleared.setId, isNull);
     });
   });
 
@@ -329,6 +373,40 @@ void main() {
       final roundTripped = ZoneDefinition.fromJson(marked.toJson());
       expect(roundTripped.isDiscardPile, isTrue);
     });
+
+    test('copyWith with no arguments returns an equal-fielded copy', () {
+      const original = ZoneDefinition(
+        id: 'draw_deck',
+        name: 'Draw Deck',
+        shared: true,
+        dealsBuiltDeck: true,
+        entries: [DeckEntry(definitionId: 'a', quantity: 2)],
+        faceUp: true,
+        shuffleable: false,
+        visibleToAll: true,
+        isDiscardPile: true,
+      );
+      final copy = original.copyWith();
+      expect(copy.id, original.id);
+      expect(copy.name, original.name);
+      expect(copy.shared, original.shared);
+      expect(copy.dealsBuiltDeck, original.dealsBuiltDeck);
+      expect(copy.entries, original.entries);
+      expect(copy.faceUp, original.faceUp);
+      expect(copy.shuffleable, original.shuffleable);
+      expect(copy.visibleToAll, original.visibleToAll);
+      expect(copy.isDiscardPile, original.isDiscardPile);
+    });
+
+    test('copyWith updates only the requested field', () {
+      const original = ZoneDefinition(id: 'deck', name: 'Deck');
+      final updated = original.copyWith(shuffleable: false, isDiscardPile: true);
+      expect(updated.shuffleable, isFalse);
+      expect(updated.isDiscardPile, isTrue);
+      expect(updated.id, 'deck');
+      expect(updated.name, 'Deck');
+      expect(updated.shared, isFalse);
+    });
   });
 
   group('GameDefinition', () {
@@ -382,7 +460,7 @@ void main() {
       expect(game.toJson()['opponentCardBorderColor'], '#00FF00');
     });
 
-    test('cardTypes defaults to empty when absent from JSON', () {
+    test('tagGroups defaults to empty when absent from JSON', () {
       final json = {
         'id': 'g1',
         'name': 'G',
@@ -391,19 +469,24 @@ void main() {
         ],
       };
       final game = GameDefinition.fromJson(json);
-      expect(game.cardTypes, isEmpty);
-      expect(game.toJson().containsKey('cardTypes'), isFalse);
+      expect(game.tagGroups, isEmpty);
+      expect(game.toJson().containsKey('tagGroups'), isFalse);
     });
 
-    test('cardTypes round-trips through JSON', () {
+    test('tagGroups round-trips through JSON', () {
       const game = GameDefinition(
         id: 'standard_52',
         name: 'Standard 52-Card Deck',
         cards: [CardDefinition(id: 'hearts_A', cardTitle: 'A', colorHex: '#D32F2F', types: ['Hearts'])],
-        cardTypes: ['Hearts', 'Diamonds', 'Clubs', 'Spades'],
+        tagGroups: [
+          TagGroup(id: 'suits', name: 'Suit', tags: ['Hearts', 'Diamonds', 'Clubs', 'Spades']),
+        ],
       );
       final roundTripped = GameDefinition.fromJson(game.toJson());
-      expect(roundTripped.cardTypes, ['Hearts', 'Diamonds', 'Clubs', 'Spades']);
+      expect(roundTripped.tagGroups, hasLength(1));
+      expect(roundTripped.tagGroups.single.id, 'suits');
+      expect(roundTripped.tagGroups.single.name, 'Suit');
+      expect(roundTripped.tagGroups.single.tags, ['Hearts', 'Diamonds', 'Clubs', 'Spades']);
       expect(roundTripped.cards.first.types, ['Hearts']);
     });
 

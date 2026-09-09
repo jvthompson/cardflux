@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'deck_editor_game_select_screen.dart';
+import 'game_definition_editor_entry_screen.dart';
 import 'host_setup_screen.dart';
 import 'join_screen.dart';
 import 'practice_screen.dart';
@@ -94,6 +95,12 @@ class _HomeScreenState extends State<HomeScreen> {
                     builder: (_) => const DeckEditorGameSelectScreen(),
                   )),
                   child: const Text('Deck Editor'),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+                    builder: (_) => const GameDefinitionEditorEntryScreen(),
+                  )),
+                  child: const Text('Game Definition Editor'),
                 ),
               ],
             ),

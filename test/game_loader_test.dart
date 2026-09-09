@@ -88,7 +88,7 @@ void main() {
     expect(games.single.needsDeckBuilding, isTrue);
   });
 
-  test('loadFromFolder preserves cardTypes, per-card types, and opponentCardBorderColor', () async {
+  test('loadFromFolder preserves tagGroups, per-card types, and opponentCardBorderColor', () async {
     final tempDir = await Directory.systemTemp.createTemp('flutter_deck_test_games_');
     addTearDown(() => tempDir.delete(recursive: true));
 
@@ -96,7 +96,13 @@ void main() {
     await gameFile.writeAsString(jsonEncode({
       'id': 'my_game',
       'name': 'My Custom Game',
-      'cardTypes': ['Character', 'Item'],
+      'tagGroups': [
+        {
+          'id': 'kinds',
+          'name': 'Kind',
+          'tags': ['Character', 'Item'],
+        },
+      ],
       'opponentCardBorderColor': '#00FF00',
       'cards': [
         {'id': 'c1', 'cardTitle': 'One', 'imagePath': 'one.jpg', 'types': ['Character']},
@@ -105,7 +111,10 @@ void main() {
 
     final games = await GameLoader().loadFromFolder(tempDir.path);
     final game = games.single;
-    expect(game.cardTypes, ['Character', 'Item']);
+    expect(game.tagGroups, hasLength(1));
+    expect(game.tagGroups.single.id, 'kinds');
+    expect(game.tagGroups.single.name, 'Kind');
+    expect(game.tagGroups.single.tags, ['Character', 'Item']);
     expect(game.opponentCardBorderColor, '#00FF00');
     expect(game.cards.single.types, ['Character']);
     // imagePath resolution (the reason this class exists) should still work

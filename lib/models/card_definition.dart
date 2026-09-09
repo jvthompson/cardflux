@@ -7,6 +7,11 @@
 /// renders plain portrait regardless of this.
 enum CardOrientation { portrait, left, right }
 
+/// Sentinel default for [CardDefinition.copyWith]'s nullable parameters, so
+/// "omitted" (keep current value) is distinguishable from an explicitly
+/// passed `null` (clear the field).
+const Object _unset = Object();
+
 /// A template describing one kind of card available in a [GameDefinition]'s
 /// card pool. Not a card actually on the table — see [CardInstance] for that.
 class CardDefinition {
@@ -31,11 +36,12 @@ class CardDefinition {
   final String? imagePath;
   final Map<String, String> extraFields;
 
-  /// This card's types (e.g. "Character", "Item") -- matched against
-  /// [GameDefinition.cardTypes] to drive the Deck Editor's filter chips. A
-  /// card with no types is never hidden by any filter. Not validated against
-  /// the game's declared taxonomy -- an unrecognized type just never matches
-  /// a chip.
+  /// This card's tags (e.g. "Character", "Item") -- one flat list regardless
+  /// of which [GameDefinition.tagGroups] group each tag belongs to; matched
+  /// against each group's tags to drive its own filter button. A card with
+  /// no tags in a given group is never hidden by that group's filter. Not
+  /// validated against the game's declared taxonomy -- an unrecognized tag
+  /// just never matches a chip.
   final List<String> types;
 
   /// Which of [GameDefinition.sets] this card belongs to, stamped on by
@@ -75,5 +81,34 @@ class CardDefinition {
       if (orientation != CardOrientation.portrait) 'orientation': orientation.name,
       if (setId != null) 'setId': setId,
     };
+  }
+
+  /// Returns a copy with the given fields replaced. For the nullable fields
+  /// ([colorHex], [suit], [rank], [imagePath], [setId]), omitting a
+  /// parameter keeps the current value; passing `null` explicitly clears it.
+  CardDefinition copyWith({
+    String? id,
+    String? cardTitle,
+    Object? colorHex = _unset,
+    Object? suit = _unset,
+    Object? rank = _unset,
+    Object? imagePath = _unset,
+    Map<String, String>? extraFields,
+    List<String>? types,
+    CardOrientation? orientation,
+    Object? setId = _unset,
+  }) {
+    return CardDefinition(
+      id: id ?? this.id,
+      cardTitle: cardTitle ?? this.cardTitle,
+      colorHex: identical(colorHex, _unset) ? this.colorHex : colorHex as String?,
+      suit: identical(suit, _unset) ? this.suit : suit as String?,
+      rank: identical(rank, _unset) ? this.rank : rank as String?,
+      imagePath: identical(imagePath, _unset) ? this.imagePath : imagePath as String?,
+      extraFields: extraFields ?? this.extraFields,
+      types: types ?? this.types,
+      orientation: orientation ?? this.orientation,
+      setId: identical(setId, _unset) ? this.setId : setId as String?,
+    );
   }
 }

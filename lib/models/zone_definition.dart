@@ -104,4 +104,32 @@ class ZoneDefinition {
       if (isDiscardPile) 'isDiscardPile': isDiscardPile,
     };
   }
+
+  /// Returns a copy with the given fields replaced; every field here is
+  /// non-nullable, so a plain `field ?? this.field` is sufficient -- unlike
+  /// `CardDefinition.copyWith`, no sentinel is needed to represent "clear
+  /// this field."
+  ZoneDefinition copyWith({
+    String? id,
+    String? name,
+    bool? shared,
+    bool? dealsBuiltDeck,
+    List<DeckEntry>? entries,
+    bool? faceUp,
+    bool? shuffleable,
+    bool? visibleToAll,
+    bool? isDiscardPile,
+  }) {
+    return ZoneDefinition(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      shared: shared ?? this.shared,
+      dealsBuiltDeck: dealsBuiltDeck ?? this.dealsBuiltDeck,
+      entries: entries ?? this.entries,
+      faceUp: faceUp ?? this.faceUp,
+      shuffleable: shuffleable ?? this.shuffleable,
+      visibleToAll: visibleToAll ?? this.visibleToAll,
+      isDiscardPile: isDiscardPile ?? this.isDiscardPile,
+    );
+  }
 }

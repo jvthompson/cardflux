@@ -2,7 +2,9 @@
   "id": "standard_52",
   "name": "Standard 52-Card Deck",
   "zones": [{ "id": "deck", "name": "Deck", "shared": true }],
-  "cardTypes": ["Hearts", "Diamonds", "Clubs", "Spades"],
+  "tagGroups": [
+    {"id": "default", "name": "default", "tags": ["Hearts", "Diamonds", "Clubs", "Spades"]}
+  ],
   "cards": [
     { "id": "hearts_A", "cardTitle": "A", "suit": "hearts", "rank": "A", "colorHex": "#D32F2F", "types": ["Hearts"] },
     { "id": "hearts_2", "cardTitle": "2", "suit": "hearts", "rank": "2", "colorHex": "#D32F2F", "types": ["Hearts"] },

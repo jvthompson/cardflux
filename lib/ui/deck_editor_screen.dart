@@ -8,7 +8,9 @@ import 'package:flutter/material.dart';
 import '../models/card_definition.dart';
 import '../models/deck_config.dart';
 import '../models/game_definition.dart';
+import '../models/tag_group.dart';
 import 'widgets/card_face_widget.dart';
+import 'widgets/multi_select_filter_menu.dart';
 
 const List<XTypeGroup> _deckFileTypes = [
   XTypeGroup(label: 'Deck', extensions: ['json']),
@@ -36,10 +38,23 @@ class _DeckEditorScreenState extends State<DeckEditorScreen> {
   final Map<String, int> _quantities = {};
   String? _hoveredDefinitionId;
 
-  /// Which of [GameDefinition.cardTypes] currently show in the pool -- every
-  /// type starts selected (nothing hidden). Ignored entirely when the game
-  /// declares no types at all, in which case the filter bar doesn't render.
-  late final Set<String> _selectedTypes = widget.game.cardTypes.toSet();
+  /// Per-group set of which of that group's tags currently show in the pool,
+  /// keyed by [TagGroup.id] -- every tag starts selected (nothing hidden).
+  /// A game's [GameDefinition.tagGroups] here is fixed for this screen's
+  /// lifetime (unlike the Game Definition Editor's Card View tab), so this
+  /// can be a plain `late final` seeded once, no `didUpdateWidget` sync.
+  late final Map<String, Set<String>> _selectedTagsByGroup = {
+    for (final g in widget.game.tagGroups) g.id: g.tags.toSet(),
+  };
+
+  /// Per-group set of which of that group's tags are actively excluded --
+  /// starts empty (nothing excluded) for every group. Mutually exclusive
+  /// with [_selectedTagsByGroup] per tag: toggling a tag into one clears it
+  /// from the other (see the `onToggle`/`onToggleExclude` handlers in
+  /// [_buildTagGroupFilterBars]), so a tag is never both at once.
+  late final Map<String, Set<String>> _excludedTagsByGroup = {
+    for (final g in widget.game.tagGroups) g.id: <String>{},
+  };
 
   /// Which of [GameDefinition.sets] currently show in the pool -- every set
   /// starts selected. Ignored entirely when the game declares no sets at
@@ -48,14 +63,28 @@ class _DeckEditorScreenState extends State<DeckEditorScreen> {
 
   int get _totalCards => _quantities.values.fold(0, (a, b) => a + b);
 
-  /// A card with no types of its own is never hidden by the type filter, and
-  /// a card with no set is never hidden by the set filter. The set filter
-  /// takes precedence: a card whose set is disabled stays hidden even if its
-  /// type is enabled.
+  /// Every currently-selected tag across every group, combined -- a card is
+  /// tag-visible if it has *any* one of these, regardless of which group
+  /// that tag or the card's other tags belong to. Groups only partition the
+  /// filter *buttons*; they don't each independently gate a card, since a
+  /// card commonly has tags spanning several groups at once (e.g. a
+  /// Character card that's also a Dunadan and a Scout) and requiring it to
+  /// match every group separately would hide it as soon as any one group's
+  /// selection didn't happen to include one of its tags.
+  Set<String> get _allSelectedTags => {for (final s in _selectedTagsByGroup.values) ...s};
+
+  /// Every currently-excluded tag across every group, combined -- a card
+  /// with *any* one of these is hidden outright, taking priority over
+  /// [_allSelectedTags] (see [_isVisible]).
+  Set<String> get _allExcludedTags => {for (final s in _excludedTagsByGroup.values) ...s};
+
+  /// A card with no tags at all is never hidden by the tag filters, and a
+  /// card with no set is never hidden by the set filter.
   bool _isVisible(CardDefinition card) {
-    final typeOk = widget.game.cardTypes.isEmpty || card.types.isEmpty || card.types.any(_selectedTypes.contains);
+    if (card.types.any(_allExcludedTags.contains)) return false;
+    final tagsOk = widget.game.tagGroups.isEmpty || card.types.isEmpty || card.types.any(_allSelectedTags.contains);
     final setOk = widget.game.sets.isEmpty || card.setId == null || _selectedSetIds.contains(card.setId);
-    return typeOk && setOk;
+    return tagsOk && setOk;
   }
 
   List<CardDefinition> get _visibleCards => widget.game.cards.where(_isVisible).toList();
@@ -123,55 +152,67 @@ class _DeckEditorScreenState extends State<DeckEditorScreen> {
     });
   }
 
-  /// The set-toggle filter bar shown above the type filter bar -- empty (no
-  /// widget) for a game that declares no [GameDefinition.sets]. Set
+  /// The set-filter dropdown shown above the type filter dropdown -- empty
+  /// (no widget) for a game that declares no [GameDefinition.sets]. Set
   /// filtering takes precedence over Type filtering (see [_isVisible]), so
   /// it's shown first/above.
   Widget _buildSetFilterBar() {
     if (widget.game.sets.isEmpty) return const SizedBox.shrink();
     return Padding(
       padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
-      child: Wrap(
-        spacing: 8,
-        runSpacing: 8,
-        children: [
-          for (final set in widget.game.sets)
-            FilterChip(
-              label: Text(set.name),
-              selected: _selectedSetIds.contains(set.id),
-              onSelected: (selected) => setState(() {
-                if (selected) {
-                  _selectedSetIds.add(set.id);
-                } else {
-                  _selectedSetIds.remove(set.id);
-                }
-              }),
-            ),
-        ],
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: MultiSelectFilterMenu(
+          label: 'Set',
+          options: [for (final set in widget.game.sets) (id: set.id, name: set.name)],
+          selectedIds: _selectedSetIds,
+          onToggle: (id, selected) => setState(() {
+            if (selected) {
+              _selectedSetIds.add(id);
+            } else {
+              _selectedSetIds.remove(id);
+            }
+          }),
+        ),
       ),
     );
   }
 
-  /// The type-toggle filter bar shown above the pool grid -- empty (no
-  /// widget) for a game that declares no [GameDefinition.cardTypes], so the
-  /// feature is entirely invisible unless a game opts in.
-  Widget _buildTypeFilterBar() {
-    if (widget.game.cardTypes.isEmpty) return const SizedBox.shrink();
+  /// One filter button per non-empty tag group, wrapped so any number of
+  /// groups flows onto further lines -- empty (no widget) for a game that
+  /// declares no [GameDefinition.tagGroups], so the feature is entirely
+  /// invisible unless a game opts in.
+  Widget _buildTagGroupFilterBars() {
+    final nonEmptyGroups = widget.game.tagGroups.where((g) => g.tags.isNotEmpty).toList();
+    if (nonEmptyGroups.isEmpty) return const SizedBox.shrink();
     return Padding(
       padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
       child: Wrap(
         spacing: 8,
         runSpacing: 8,
         children: [
-          for (final type in widget.game.cardTypes)
-            FilterChip(
-              label: Text(type),
-              selected: _selectedTypes.contains(type),
-              onSelected: (selected) => setState(() {
+          for (final group in nonEmptyGroups)
+            MultiSelectFilterMenu(
+              label: group.name,
+              options: [for (final tag in group.tags) (id: tag, name: tag)],
+              selectedIds: _selectedTagsByGroup[group.id]!,
+              excludedIds: _excludedTagsByGroup[group.id]!,
+              onToggle: (id, selected) => setState(() {
+                final included = _selectedTagsByGroup[group.id]!;
                 if (selected) {
-                  _selectedTypes.add(type);
+                  included.add(id);
+                  _excludedTagsByGroup[group.id]!.remove(id);
                 } else {
-                  _selectedTypes.remove(type);
+                  included.remove(id);
+                }
+              }),
+              onToggleExclude: (id, excluded) => setState(() {
+                final excludedSet = _excludedTagsByGroup[group.id]!;
+                if (excluded) {
+                  excludedSet.add(id);
+                  _selectedTagsByGroup[group.id]!.remove(id);
+                } else {
+                  excludedSet.remove(id);
                 }
               }),
             ),
@@ -314,7 +355,7 @@ class _DeckEditorScreenState extends State<DeckEditorScreen> {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       _buildSetFilterBar(),
-                      _buildTypeFilterBar(),
+                      _buildTagGroupFilterBars(),
                       Expanded(
                         child: GridView.builder(
                           padding: const EdgeInsets.all(12),
