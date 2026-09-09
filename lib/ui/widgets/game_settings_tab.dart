@@ -198,6 +198,7 @@ class _TagGroupEditorState extends State<_TagGroupEditor> {
   late final TextEditingController _nameController = TextEditingController(text: widget.group.name);
   final TextEditingController _newTagController = TextEditingController();
   bool _expanded = false;
+  bool _duplicateTag = false;
 
   @override
   void dispose() {
@@ -208,9 +209,14 @@ class _TagGroupEditorState extends State<_TagGroupEditor> {
 
   void _addTag() {
     final trimmed = _newTagController.text.trim();
-    if (trimmed.isEmpty || widget.group.tags.contains(trimmed)) return;
+    if (trimmed.isEmpty) return;
+    if (widget.group.tags.contains(trimmed)) {
+      setState(() => _duplicateTag = true);
+      return;
+    }
     widget.onChanged(widget.group.copyWith(tags: [...widget.group.tags, trimmed]));
     _newTagController.clear();
+    if (_duplicateTag) setState(() => _duplicateTag = false);
   }
 
   void _removeTag(String tag) {
@@ -280,7 +286,15 @@ class _TagGroupEditorState extends State<_TagGroupEditor> {
                     Expanded(
                       child: TextField(
                         controller: _newTagController,
-                        decoration: const InputDecoration(labelText: 'New tag', border: OutlineInputBorder(), isDense: true),
+                        decoration: InputDecoration(
+                          labelText: 'New tag',
+                          border: const OutlineInputBorder(),
+                          isDense: true,
+                          errorText: _duplicateTag ? 'Tag already exists' : null,
+                        ),
+                        onChanged: (_) {
+                          if (_duplicateTag) setState(() => _duplicateTag = false);
+                        },
                         onSubmitted: (_) => _addTag(),
                       ),
                     ),
