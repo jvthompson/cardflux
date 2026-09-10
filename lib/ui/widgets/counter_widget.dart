@@ -39,11 +39,17 @@ class CounterWidget extends StatelessWidget {
     required this.instance,
     required this.onDragEnd,
     required this.onSecondaryTapUp,
+    this.interactable = true,
   });
 
   final BoardWidgetInstance instance;
   final void Function(Offset globalPosition) onDragEnd;
   final void Function(Offset globalPosition) onSecondaryTapUp;
+
+  /// False while TAB is held table-wide (see `TableScreen`), so a
+  /// click-drag over this widget draws an arrow instead of moving it --
+  /// mirrors `DraggableCard.interactable`.
+  final bool interactable;
 
   Widget _face() {
     return Container(
@@ -57,13 +63,18 @@ class CounterWidget extends StatelessWidget {
       alignment: Alignment.center,
       child: Text(
         '${instance.value}',
-        style: TextStyle(color: Color(instance.textColor), fontSize: 22, fontWeight: FontWeight.bold),
+        style: TextStyle(
+          color: Color(instance.textColor),
+          fontSize: 22,
+          fontWeight: FontWeight.bold,
+        ),
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    if (!interactable) return _face();
     return GestureDetector(
       onSecondaryTapUp: (details) => onSecondaryTapUp(details.globalPosition),
       child: Draggable<String>(

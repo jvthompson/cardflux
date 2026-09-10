@@ -34,7 +34,11 @@ void main() {
       expect(untyped.types, isEmpty);
       expect(untyped.toJson().containsKey('types'), isFalse);
 
-      const typed = CardDefinition(id: 'b', cardTitle: 'B', types: ['Hearts', 'Face']);
+      const typed = CardDefinition(
+        id: 'b',
+        cardTitle: 'B',
+        types: ['Hearts', 'Face'],
+      );
       final roundTripped = CardDefinition.fromJson(typed.toJson());
       expect(roundTripped.types, ['Hearts', 'Face']);
     });
@@ -46,12 +50,26 @@ void main() {
     });
 
     test('orientation round-trips left and right through JSON', () {
-      const right = CardDefinition(id: 'a', cardTitle: 'A', orientation: CardOrientation.right);
-      expect(CardDefinition.fromJson(right.toJson()).orientation, CardOrientation.right);
+      const right = CardDefinition(
+        id: 'a',
+        cardTitle: 'A',
+        orientation: CardOrientation.right,
+      );
+      expect(
+        CardDefinition.fromJson(right.toJson()).orientation,
+        CardOrientation.right,
+      );
       expect(right.toJson()['orientation'], 'right');
 
-      const left = CardDefinition(id: 'b', cardTitle: 'B', orientation: CardOrientation.left);
-      expect(CardDefinition.fromJson(left.toJson()).orientation, CardOrientation.left);
+      const left = CardDefinition(
+        id: 'b',
+        cardTitle: 'B',
+        orientation: CardOrientation.left,
+      );
+      expect(
+        CardDefinition.fromJson(left.toJson()).orientation,
+        CardOrientation.left,
+      );
       expect(left.toJson()['orientation'], 'left');
     });
 
@@ -97,11 +115,24 @@ void main() {
     });
 
     test('copyWith(field: null) explicitly clears a nullable field, distinct from omitting it', () {
-      const original = CardDefinition(id: 'a', cardTitle: 'A', colorHex: '#000000', setId: 'core_set');
+      const original = CardDefinition(
+        id: 'a',
+        cardTitle: 'A',
+        colorHex: '#000000',
+        setId: 'core_set',
+      );
 
       final unchanged = original.copyWith(cardTitle: 'A2');
-      expect(unchanged.colorHex, '#000000', reason: 'omitting colorHex should leave it alone');
-      expect(unchanged.setId, 'core_set', reason: 'omitting setId should leave it alone');
+      expect(
+        unchanged.colorHex,
+        '#000000',
+        reason: 'omitting colorHex should leave it alone',
+      );
+      expect(
+        unchanged.setId,
+        'core_set',
+        reason: 'omitting setId should leave it alone',
+      );
 
       final cleared = original.copyWith(colorHex: null, setId: null);
       expect(cleared.colorHex, isNull);
@@ -224,14 +255,26 @@ void main() {
     });
 
     test('value defaults to 0 and is omitted from JSON', () {
-      final instance = BoardWidgetInstance(instanceId: 'w1', kind: BoardWidgetKind.simpleCounter, x: 0, y: 0, zIndex: 0);
+      final instance = BoardWidgetInstance(
+        instanceId: 'w1',
+        kind: BoardWidgetKind.simpleCounter,
+        x: 0,
+        y: 0,
+        zIndex: 0,
+      );
       expect(instance.value, 0);
       expect(instance.toJson().containsKey('value'), isFalse);
       expect(BoardWidgetInstance.fromJson(instance.toJson()).value, 0);
     });
 
     test('copyWith updates only requested fields', () {
-      final instance = BoardWidgetInstance(instanceId: 'w1', kind: BoardWidgetKind.simpleCounter, x: 0, y: 0, zIndex: 0);
+      final instance = BoardWidgetInstance(
+        instanceId: 'w1',
+        kind: BoardWidgetKind.simpleCounter,
+        x: 0,
+        y: 0,
+        zIndex: 0,
+      );
       final moved = instance.copyWith(x: 0.5, y: 0.5, value: 7);
       expect(moved.x, 0.5);
       expect(moved.y, 0.5);
@@ -241,30 +284,45 @@ void main() {
     });
 
     test('backgroundColor/textColor default and are omitted from JSON', () {
-      final instance = BoardWidgetInstance(instanceId: 'w1', kind: BoardWidgetKind.simpleCounter, x: 0, y: 0, zIndex: 0);
-      expect(instance.backgroundColor, defaultBoardWidgetBackgroundColor);
-      expect(instance.textColor, defaultBoardWidgetTextColor);
-      expect(instance.toJson().containsKey('backgroundColor'), isFalse);
-      expect(instance.toJson().containsKey('textColor'), isFalse);
-    });
-
-    test('backgroundColor/textColor round-trip a custom value through JSON', () {
       final instance = BoardWidgetInstance(
         instanceId: 'w1',
         kind: BoardWidgetKind.simpleCounter,
         x: 0,
         y: 0,
         zIndex: 0,
-        backgroundColor: 0xFFD32F2F,
-        textColor: 0xFF000000,
       );
-      final roundTripped = BoardWidgetInstance.fromJson(instance.toJson());
-      expect(roundTripped.backgroundColor, 0xFFD32F2F);
-      expect(roundTripped.textColor, 0xFF000000);
+      expect(instance.backgroundColor, defaultBoardWidgetBackgroundColor);
+      expect(instance.textColor, defaultBoardWidgetTextColor);
+      expect(instance.toJson().containsKey('backgroundColor'), isFalse);
+      expect(instance.toJson().containsKey('textColor'), isFalse);
     });
 
+    test(
+      'backgroundColor/textColor round-trip a custom value through JSON',
+      () {
+        final instance = BoardWidgetInstance(
+          instanceId: 'w1',
+          kind: BoardWidgetKind.simpleCounter,
+          x: 0,
+          y: 0,
+          zIndex: 0,
+          backgroundColor: 0xFFD32F2F,
+          textColor: 0xFF000000,
+        );
+        final roundTripped = BoardWidgetInstance.fromJson(instance.toJson());
+        expect(roundTripped.backgroundColor, 0xFFD32F2F);
+        expect(roundTripped.textColor, 0xFF000000);
+      },
+    );
+
     test('attachedCardId defaults to null, is omitted from JSON, and round-trips a value', () {
-      final instance = BoardWidgetInstance(instanceId: 'w1', kind: BoardWidgetKind.token, x: 0, y: 0, zIndex: 0);
+      final instance = BoardWidgetInstance(
+        instanceId: 'w1',
+        kind: BoardWidgetKind.token,
+        x: 0,
+        y: 0,
+        zIndex: 0,
+      );
       expect(instance.attachedCardId, isNull);
       expect(instance.toJson().containsKey('attachedCardId'), isFalse);
 
@@ -275,13 +333,26 @@ void main() {
     });
 
     test('copyWith can explicitly clear attachedCardId back to null', () {
-      final instance = BoardWidgetInstance(instanceId: 'w1', kind: BoardWidgetKind.token, x: 0, y: 0, zIndex: 0, attachedCardId: 'c1');
+      final instance = BoardWidgetInstance(
+        instanceId: 'w1',
+        kind: BoardWidgetKind.token,
+        x: 0,
+        y: 0,
+        zIndex: 0,
+        attachedCardId: 'c1',
+      );
       final detached = instance.copyWith(attachedCardId: null);
       expect(detached.attachedCardId, isNull);
     });
 
     test('attachOffsetX/attachOffsetY default to 0, are omitted from JSON, and round-trip a value', () {
-      final instance = BoardWidgetInstance(instanceId: 'w1', kind: BoardWidgetKind.token, x: 0, y: 0, zIndex: 0);
+      final instance = BoardWidgetInstance(
+        instanceId: 'w1',
+        kind: BoardWidgetKind.token,
+        x: 0,
+        y: 0,
+        zIndex: 0,
+      );
       expect(instance.attachOffsetX, 0);
       expect(instance.attachOffsetY, 0);
       expect(instance.toJson().containsKey('attachOffsetX'), isFalse);
@@ -294,9 +365,72 @@ void main() {
     });
 
     test('token kind round-trips through JSON', () {
-      final instance = BoardWidgetInstance(instanceId: 'w1', kind: BoardWidgetKind.token, x: 0.2, y: 0.3, zIndex: 0);
+      final instance = BoardWidgetInstance(
+        instanceId: 'w1',
+        kind: BoardWidgetKind.token,
+        x: 0.2,
+        y: 0.3,
+        zIndex: 0,
+      );
       final roundTripped = BoardWidgetInstance.fromJson(instance.toJson());
       expect(roundTripped.kind, BoardWidgetKind.token);
+    });
+
+    test('x2/y2/creatorId default to null, are omitted from JSON, and round-trip a value', () {
+      final instance = BoardWidgetInstance(
+        instanceId: 'w1',
+        kind: BoardWidgetKind.token,
+        x: 0,
+        y: 0,
+        zIndex: 0,
+      );
+      expect(instance.x2, isNull);
+      expect(instance.y2, isNull);
+      expect(instance.creatorId, isNull);
+      expect(instance.toJson().containsKey('x2'), isFalse);
+      expect(instance.toJson().containsKey('y2'), isFalse);
+      expect(instance.toJson().containsKey('creatorId'), isFalse);
+
+      final arrow = instance.copyWith(x2: 0.4, y2: 0.9, creatorId: 'p1');
+      final roundTripped = BoardWidgetInstance.fromJson(arrow.toJson());
+      expect(roundTripped.x2, closeTo(0.4, 1e-9));
+      expect(roundTripped.y2, closeTo(0.9, 1e-9));
+      expect(roundTripped.creatorId, 'p1');
+    });
+
+    test('copyWith can explicitly clear x2/y2/creatorId back to null', () {
+      final instance = BoardWidgetInstance(
+        instanceId: 'w1',
+        kind: BoardWidgetKind.arrow,
+        x: 0,
+        y: 0,
+        zIndex: 0,
+        x2: 1,
+        y2: 1,
+        creatorId: 'p1',
+      );
+      final cleared = instance.copyWith(x2: null, y2: null, creatorId: null);
+      expect(cleared.x2, isNull);
+      expect(cleared.y2, isNull);
+      expect(cleared.creatorId, isNull);
+    });
+
+    test('arrow kind round-trips through JSON with both endpoints', () {
+      final instance = BoardWidgetInstance(
+        instanceId: 'a1',
+        kind: BoardWidgetKind.arrow,
+        x: 0.1,
+        y: 0.2,
+        x2: 0.6,
+        y2: 0.7,
+        creatorId: 'p1',
+        zIndex: 0,
+      );
+      final roundTripped = BoardWidgetInstance.fromJson(instance.toJson());
+      expect(roundTripped.kind, BoardWidgetKind.arrow);
+      expect(roundTripped.x2, closeTo(0.6, 1e-9));
+      expect(roundTripped.y2, closeTo(0.7, 1e-9));
+      expect(roundTripped.creatorId, 'p1');
     });
   });
 
@@ -365,14 +499,24 @@ void main() {
       expect(json.containsKey('isDiscardPile'), isFalse);
     });
 
-    test('isDiscardPile defaults to false and round-trips true through JSON', () {
-      final zone = ZoneDefinition.fromJson({'id': 'discard_pile', 'name': 'Discard Pile'});
-      expect(zone.isDiscardPile, isFalse);
+    test(
+      'isDiscardPile defaults to false and round-trips true through JSON',
+      () {
+        final zone = ZoneDefinition.fromJson({
+          'id': 'discard_pile',
+          'name': 'Discard Pile',
+        });
+        expect(zone.isDiscardPile, isFalse);
 
-      const marked = ZoneDefinition(id: 'discard_pile', name: 'Discard Pile', isDiscardPile: true);
-      final roundTripped = ZoneDefinition.fromJson(marked.toJson());
-      expect(roundTripped.isDiscardPile, isTrue);
-    });
+        const marked = ZoneDefinition(
+          id: 'discard_pile',
+          name: 'Discard Pile',
+          isDiscardPile: true,
+        );
+        final roundTripped = ZoneDefinition.fromJson(marked.toJson());
+        expect(roundTripped.isDiscardPile, isTrue);
+      },
+    );
 
     test('copyWith with no arguments returns an equal-fielded copy', () {
       const original = ZoneDefinition(
@@ -400,7 +544,10 @@ void main() {
 
     test('copyWith updates only the requested field', () {
       const original = ZoneDefinition(id: 'deck', name: 'Deck');
-      final updated = original.copyWith(shuffleable: false, isDiscardPile: true);
+      final updated = original.copyWith(
+        shuffleable: false,
+        isDiscardPile: true,
+      );
       expect(updated.shuffleable, isFalse);
       expect(updated.isDiscardPile, isTrue);
       expect(updated.id, 'deck');
@@ -414,7 +561,9 @@ void main() {
       const game = GameDefinition(
         id: 'standard_52',
         name: 'Standard 52-Card Deck',
-        cards: [CardDefinition(id: 'hearts_A', cardTitle: 'A', colorHex: '#D32F2F')],
+        cards: [
+          CardDefinition(id: 'hearts_A', cardTitle: 'A', colorHex: '#D32F2F'),
+        ],
       );
       final roundTripped = GameDefinition.fromJson(game.toJson());
       expect(roundTripped.id, 'standard_52');
@@ -477,16 +626,32 @@ void main() {
       const game = GameDefinition(
         id: 'standard_52',
         name: 'Standard 52-Card Deck',
-        cards: [CardDefinition(id: 'hearts_A', cardTitle: 'A', colorHex: '#D32F2F', types: ['Hearts'])],
+        cards: [
+          CardDefinition(
+            id: 'hearts_A',
+            cardTitle: 'A',
+            colorHex: '#D32F2F',
+            types: ['Hearts'],
+          ),
+        ],
         tagGroups: [
-          TagGroup(id: 'suits', name: 'Suit', tags: ['Hearts', 'Diamonds', 'Clubs', 'Spades']),
+          TagGroup(
+            id: 'suits',
+            name: 'Suit',
+            tags: ['Hearts', 'Diamonds', 'Clubs', 'Spades'],
+          ),
         ],
       );
       final roundTripped = GameDefinition.fromJson(game.toJson());
       expect(roundTripped.tagGroups, hasLength(1));
       expect(roundTripped.tagGroups.single.id, 'suits');
       expect(roundTripped.tagGroups.single.name, 'Suit');
-      expect(roundTripped.tagGroups.single.tags, ['Hearts', 'Diamonds', 'Clubs', 'Spades']);
+      expect(roundTripped.tagGroups.single.tags, [
+        'Hearts',
+        'Diamonds',
+        'Clubs',
+        'Spades',
+      ]);
       expect(roundTripped.cards.first.types, ['Hearts']);
     });
 
@@ -496,7 +661,11 @@ void main() {
         name: 'METW',
         cards: [CardDefinition(id: 'a', cardTitle: 'A', colorHex: '#000000')],
         zones: [
-          ZoneDefinition(id: 'draw_deck', name: 'Draw Deck', dealsBuiltDeck: true),
+          ZoneDefinition(
+            id: 'draw_deck',
+            name: 'Draw Deck',
+            dealsBuiltDeck: true,
+          ),
           ZoneDefinition(id: 'discard_pile', name: 'Discard Pile'),
         ],
       );
@@ -508,33 +677,49 @@ void main() {
       expect(roundTripped.zones[1].dealsBuiltDeck, isFalse);
     });
 
-    test('needsDeckBuilding is true iff some owned zone deals a built deck', () {
-      const deckBuilding = GameDefinition(
-        id: 'g1',
-        name: 'G',
-        cards: [],
-        zones: [ZoneDefinition(id: 'draw_deck', name: 'Draw Deck', dealsBuiltDeck: true)],
-      );
-      expect(deckBuilding.needsDeckBuilding, isTrue);
+    test(
+      'needsDeckBuilding is true iff some owned zone deals a built deck',
+      () {
+        const deckBuilding = GameDefinition(
+          id: 'g1',
+          name: 'G',
+          cards: [],
+          zones: [
+            ZoneDefinition(
+              id: 'draw_deck',
+              name: 'Draw Deck',
+              dealsBuiltDeck: true,
+            ),
+          ],
+        );
+        expect(deckBuilding.needsDeckBuilding, isTrue);
 
-      const fixedOnly = GameDefinition(
-        id: 'g2',
-        name: 'G',
-        cards: [],
-        zones: [ZoneDefinition(id: 'deck', name: 'Deck', shared: true)],
-      );
-      expect(fixedOnly.needsDeckBuilding, isFalse);
+        const fixedOnly = GameDefinition(
+          id: 'g2',
+          name: 'G',
+          cards: [],
+          zones: [ZoneDefinition(id: 'deck', name: 'Deck', shared: true)],
+        );
+        expect(fixedOnly.needsDeckBuilding, isFalse);
 
-      // A shared zone marked dealsBuiltDeck doesn't count -- only an owned
-      // zone can receive a per-player Load Deck selection.
-      const sharedBuiltFlag = GameDefinition(
-        id: 'g3',
-        name: 'G',
-        cards: [],
-        zones: [ZoneDefinition(id: 'deck', name: 'Deck', shared: true, dealsBuiltDeck: true)],
-      );
-      expect(sharedBuiltFlag.needsDeckBuilding, isFalse);
-    });
+        // A shared zone marked dealsBuiltDeck doesn't count -- only an owned
+        // zone can receive a per-player Load Deck selection.
+        const sharedBuiltFlag = GameDefinition(
+          id: 'g3',
+          name: 'G',
+          cards: [],
+          zones: [
+            ZoneDefinition(
+              id: 'deck',
+              name: 'Deck',
+              shared: true,
+              dealsBuiltDeck: true,
+            ),
+          ],
+        );
+        expect(sharedBuiltFlag.needsDeckBuilding, isFalse);
+      },
+    );
 
     test('deckBuildingZones enumerates every owned dealsBuiltDeck zone, in JSON order', () {
       const game = GameDefinition(
@@ -542,13 +727,29 @@ void main() {
         name: 'G',
         cards: [],
         zones: [
-          ZoneDefinition(id: 'draw_deck', name: 'Draw Deck', dealsBuiltDeck: true),
-          ZoneDefinition(id: 'location_deck', name: 'Location Deck', dealsBuiltDeck: true),
+          ZoneDefinition(
+            id: 'draw_deck',
+            name: 'Draw Deck',
+            dealsBuiltDeck: true,
+          ),
+          ZoneDefinition(
+            id: 'location_deck',
+            name: 'Location Deck',
+            dealsBuiltDeck: true,
+          ),
           ZoneDefinition(id: 'discard_pile', name: 'Discard Pile'),
-          ZoneDefinition(id: 'deck', name: 'Deck', shared: true, dealsBuiltDeck: true),
+          ZoneDefinition(
+            id: 'deck',
+            name: 'Deck',
+            shared: true,
+            dealsBuiltDeck: true,
+          ),
         ],
       );
-      expect(game.deckBuildingZones.map((z) => z.id), ['draw_deck', 'location_deck']);
+      expect(game.deckBuildingZones.map((z) => z.id), [
+        'draw_deck',
+        'location_deck',
+      ]);
       expect(game.needsDeckBuilding, isTrue);
     });
 
@@ -576,32 +777,38 @@ void main() {
       expect(roundTripped.cards.single.setId, isNull);
     });
 
-    test('sets round-trip through JSON, with cards tagged and grouped by set', () {
-      const game = GameDefinition(
-        id: 'g1',
-        name: 'G',
-        sets: [GameSet(id: 's1', name: 'Set One'), GameSet(id: 's2', name: 'Set Two')],
-        cards: [
-          CardDefinition(id: 'a', cardTitle: 'A', setId: 's1'),
-          CardDefinition(id: 'b', cardTitle: 'B', setId: 's2'),
-        ],
-      );
+    test(
+      'sets round-trip through JSON, with cards tagged and grouped by set',
+      () {
+        const game = GameDefinition(
+          id: 'g1',
+          name: 'G',
+          sets: [
+            GameSet(id: 's1', name: 'Set One'),
+            GameSet(id: 's2', name: 'Set Two'),
+          ],
+          cards: [
+            CardDefinition(id: 'a', cardTitle: 'A', setId: 's1'),
+            CardDefinition(id: 'b', cardTitle: 'B', setId: 's2'),
+          ],
+        );
 
-      final json = game.toJson();
-      expect(json.containsKey('sets'), isTrue);
-      expect(json.containsKey('cards'), isFalse);
-      final setsJson = json['sets'] as List;
-      expect(setsJson, hasLength(2));
-      final firstSetCards = (setsJson[0] as Map)['cards'] as List;
-      expect((firstSetCards.single as Map).containsKey('setId'), isFalse);
+        final json = game.toJson();
+        expect(json.containsKey('sets'), isTrue);
+        expect(json.containsKey('cards'), isFalse);
+        final setsJson = json['sets'] as List;
+        expect(setsJson, hasLength(2));
+        final firstSetCards = (setsJson[0] as Map)['cards'] as List;
+        expect((firstSetCards.single as Map).containsKey('setId'), isFalse);
 
-      final roundTripped = GameDefinition.fromJson(json);
-      expect(roundTripped.sets.map((s) => s.id), ['s1', 's2']);
-      expect(roundTripped.sets.map((s) => s.name), ['Set One', 'Set Two']);
-      expect(roundTripped.cards, hasLength(2));
-      expect(roundTripped.cards[0].setId, 's1');
-      expect(roundTripped.cards[1].setId, 's2');
-    });
+        final roundTripped = GameDefinition.fromJson(json);
+        expect(roundTripped.sets.map((s) => s.id), ['s1', 's2']);
+        expect(roundTripped.sets.map((s) => s.name), ['Set One', 'Set Two']);
+        expect(roundTripped.cards, hasLength(2));
+        expect(roundTripped.cards[0].setId, 's1');
+        expect(roundTripped.cards[1].setId, 's2');
+      },
+    );
   });
 
   group('GameSet', () {
@@ -645,7 +852,9 @@ void main() {
     test('round-trips through JSON', () {
       final state = TableState(
         gameId: 'standard_52',
-        players: const [PlayerInfo(id: 'p1', name: 'Alice', role: PlayerRole.host)],
+        players: const [
+          PlayerInfo(id: 'p1', name: 'Alice', role: PlayerRole.host),
+        ],
         cards: [
           CardInstance(
             instanceId: 'i1',
@@ -681,7 +890,12 @@ void main() {
     });
 
     test('widgets defaults to empty and is omitted from JSON', () {
-      final state = TableState(gameId: 'g', players: const [], cards: const [], revision: 0);
+      final state = TableState(
+        gameId: 'g',
+        players: const [],
+        cards: const [],
+        revision: 0,
+      );
       expect(state.widgets, isEmpty);
       expect(state.toJson().containsKey('widgets'), isFalse);
     });
@@ -692,7 +906,16 @@ void main() {
         players: const [],
         cards: const [],
         revision: 0,
-        widgets: [BoardWidgetInstance(instanceId: 'w1', kind: BoardWidgetKind.simpleCounter, x: 0.2, y: 0.3, zIndex: 0, value: 5)],
+        widgets: [
+          BoardWidgetInstance(
+            instanceId: 'w1',
+            kind: BoardWidgetKind.simpleCounter,
+            x: 0.2,
+            y: 0.3,
+            zIndex: 0,
+            value: 5,
+          ),
+        ],
       );
       final roundTripped = TableState.fromJson(state.toJson());
       expect(roundTripped.widgets, hasLength(1));

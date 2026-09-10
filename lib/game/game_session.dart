@@ -17,8 +17,11 @@ const _uuid = Uuid();
 /// `fullState` messages via [applyRemoteState] instead of local action
 /// calls -- see TableController for how the two differ in practice).
 class GameSession extends ChangeNotifier {
-  GameSession({required this.game, required this.localPlayerId, required TableState initialState})
-      : _state = initialState;
+  GameSession({
+    required this.game,
+    required this.localPlayerId,
+    required TableState initialState,
+  }) : _state = initialState;
 
   /// The game this session is playing -- needed by [HostGameEngine] to
   /// resolve a zone request (`{zoneId}`, no owner in the payload) down to
@@ -35,10 +38,15 @@ class GameSession extends ChangeNotifier {
   /// with no per-player deck choice available -- any zone marked
   /// [ZoneDefinition.dealsBuiltDeck] falls back to one of every card in
   /// [game] instead of a real Load Deck selection.
-  factory GameSession.localSandbox({required GameDefinition game, required String localPlayerId}) {
+  factory GameSession.localSandbox({
+    required GameDefinition game,
+    required String localPlayerId,
+  }) {
     return GameSession.dealFromZones(
       game: game,
-      players: [PlayerInfo(id: localPlayerId, name: 'You', role: PlayerRole.host)],
+      players: [
+        PlayerInfo(id: localPlayerId, name: 'You', role: PlayerRole.host),
+      ],
       localPlayerId: localPlayerId,
     );
   }
@@ -69,7 +77,9 @@ class GameSession extends ChangeNotifier {
     Map<String, Map<String, DeckConfig>>? deckConfigsByPlayerId,
   }) {
     final validIds = {for (final c in game.cards) c.id};
-    final fullDeckEntries = [for (final c in game.cards) DeckEntry(definitionId: c.id, quantity: 1)];
+    final fullDeckEntries = [
+      for (final c in game.cards) DeckEntry(definitionId: c.id, quantity: 1),
+    ];
     final cards = <CardInstance>[];
     var i = 0;
 
@@ -84,17 +94,19 @@ class GameSession extends ChangeNotifier {
       for (final entry in entries) {
         if (!validIds.contains(entry.definitionId)) continue;
         for (var q = 0; q < entry.quantity; q++) {
-          cards.add(CardInstance(
-            instanceId: _uuid.v4(),
-            definitionId: entry.definitionId,
-            x: x,
-            y: y,
-            zIndex: i,
-            faceUp: faceUp,
-            zone: CardZone.zone,
-            zoneId: zoneId,
-            ownerId: ownerId,
-          ));
+          cards.add(
+            CardInstance(
+              instanceId: _uuid.v4(),
+              definitionId: entry.definitionId,
+              x: x,
+              y: y,
+              zIndex: i,
+              faceUp: faceUp,
+              zone: CardZone.zone,
+              zoneId: zoneId,
+              ownerId: ownerId,
+            ),
+          );
           i++;
         }
       }
@@ -102,9 +114,18 @@ class GameSession extends ChangeNotifier {
 
     for (final player in players) {
       for (final zone in game.zones.where((z) => !z.shared)) {
-        final entries =
-            zone.dealsBuiltDeck ? (deckConfigsByPlayerId?[player.id]?[zone.id]?.entries ?? fullDeckEntries) : zone.entries;
-        deal(entries, zoneId: zone.id, ownerId: player.id, x: 0.5, y: 0.5, faceUp: zone.faceUp);
+        final entries = zone.dealsBuiltDeck
+            ? (deckConfigsByPlayerId?[player.id]?[zone.id]?.entries ??
+                  fullDeckEntries)
+            : zone.entries;
+        deal(
+          entries,
+          zoneId: zone.id,
+          ownerId: player.id,
+          x: 0.5,
+          y: 0.5,
+          faceUp: zone.faceUp,
+        );
       }
     }
 
@@ -113,11 +134,27 @@ class GameSession extends ChangeNotifier {
       final zone = sharedZones[d];
       final entries = zone.entries.isNotEmpty ? zone.entries : fullDeckEntries;
       final (px, py) = _sharedZonePosition(d, sharedZones.length);
-      deal(entries, zoneId: zone.id, ownerId: null, x: px, y: py, faceUp: zone.faceUp);
+      deal(
+        entries,
+        zoneId: zone.id,
+        ownerId: null,
+        x: px,
+        y: py,
+        faceUp: zone.faceUp,
+      );
     }
 
-    final state = TableState(gameId: game.id, players: players, cards: cards, revision: 0);
-    return GameSession(game: game, localPlayerId: localPlayerId, initialState: state);
+    final state = TableState(
+      gameId: game.id,
+      players: players,
+      cards: cards,
+      revision: 0,
+    );
+    return GameSession(
+      game: game,
+      localPlayerId: localPlayerId,
+      initialState: state,
+    );
   }
 
   /// Canonical [0,1] position for the [index]th of [count] shared zones,
@@ -137,11 +174,21 @@ class GameSession extends ChangeNotifier {
   }
 
   void moveStack(String rootInstanceId, double x, double y) {
-    _state = _actions.moveStack(_state, rootInstanceId: rootInstanceId, x: x, y: y);
+    _state = _actions.moveStack(
+      _state,
+      rootInstanceId: rootInstanceId,
+      x: x,
+      y: y,
+    );
     notifyListeners();
   }
 
-  void moveGroup(String primaryInstanceId, List<String> passengerRootInstanceIds, double x, double y) {
+  void moveGroup(
+    String primaryInstanceId,
+    List<String> passengerRootInstanceIds,
+    double x,
+    double y,
+  ) {
     _state = _actions.moveGroup(
       _state,
       primaryInstanceId: primaryInstanceId,
@@ -153,7 +200,11 @@ class GameSession extends ChangeNotifier {
   }
 
   void rotateStack(String rootInstanceId, {required bool clockwise}) {
-    _state = _actions.rotateStack(_state, rootInstanceId: rootInstanceId, clockwise: clockwise);
+    _state = _actions.rotateStack(
+      _state,
+      rootInstanceId: rootInstanceId,
+      clockwise: clockwise,
+    );
     notifyListeners();
   }
 
@@ -163,7 +214,11 @@ class GameSession extends ChangeNotifier {
   }
 
   void stackCard(String instanceId, String ontoInstanceId) {
-    _state = _actions.stackCard(_state, instanceId: instanceId, ontoInstanceId: ontoInstanceId);
+    _state = _actions.stackCard(
+      _state,
+      instanceId: instanceId,
+      ontoInstanceId: ontoInstanceId,
+    );
     notifyListeners();
   }
 
@@ -183,7 +238,11 @@ class GameSession extends ChangeNotifier {
   /// Moves into [ownerId]'s hand, defaulting to this session's own local
   /// player -- see [drawCard]'s doc for why the host overrides this.
   void moveToHand(String instanceId, {String? ownerId}) {
-    _state = _actions.moveToHand(_state, instanceId: instanceId, ownerId: ownerId ?? localPlayerId);
+    _state = _actions.moveToHand(
+      _state,
+      instanceId: instanceId,
+      ownerId: ownerId ?? localPlayerId,
+    );
     notifyListeners();
   }
 
@@ -193,19 +252,30 @@ class GameSession extends ChangeNotifier {
   /// networked draw request on their behalf. For a zone (draw deck, discard
   /// pile, etc.) see [drawFromZone] instead.
   void drawCard(String pileInstanceId, {String? ownerId}) {
-    _state = _actions.drawCard(_state, pileInstanceId: pileInstanceId, ownerId: ownerId ?? localPlayerId);
+    _state = _actions.drawCard(
+      _state,
+      pileInstanceId: pileInstanceId,
+      ownerId: ownerId ?? localPlayerId,
+    );
     notifyListeners();
   }
 
   void shufflePile(String pileRootInstanceId) {
-    _state = _actions.shufflePile(_state, pileRootInstanceId: pileRootInstanceId);
+    _state = _actions.shufflePile(
+      _state,
+      pileRootInstanceId: pileRootInstanceId,
+    );
     notifyListeners();
   }
 
   /// Draws the top card of the zone [zoneId] (owned by [zoneOwnerId], null
   /// for a shared zone) into [toOwnerId]'s hand, defaulting to this
   /// session's own local player.
-  void drawFromZone(String zoneId, {required String? zoneOwnerId, String? toOwnerId}) {
+  void drawFromZone(
+    String zoneId, {
+    required String? zoneOwnerId,
+    String? toOwnerId,
+  }) {
     _state = _actions.drawFromZone(
       _state,
       zoneId: zoneId,
@@ -218,7 +288,12 @@ class GameSession extends ChangeNotifier {
   /// Returns [instanceId] to the zone [zoneId] (owned by [zoneOwnerId], null
   /// for a shared zone), detached from wherever it was, showing its face
   /// according to that zone's own [ZoneDefinition.faceUp].
-  void returnToZone(String instanceId, String zoneId, {required String? zoneOwnerId, bool toBottom = false}) {
+  void returnToZone(
+    String instanceId,
+    String zoneId, {
+    required String? zoneOwnerId,
+    bool toBottom = false,
+  }) {
     _state = _actions.returnToZone(
       _state,
       instanceId: instanceId,
@@ -236,16 +311,52 @@ class GameSession extends ChangeNotifier {
   /// randomized pool).
   void shuffleZone(String zoneId, {required String? zoneOwnerId}) {
     if (!_zoneDefinition(zoneId).shuffleable) return;
-    _state = _actions.shuffleZone(_state, zoneId: zoneId, zoneOwnerId: zoneOwnerId);
+    _state = _actions.shuffleZone(
+      _state,
+      zoneId: zoneId,
+      zoneOwnerId: zoneOwnerId,
+    );
     notifyListeners();
   }
 
-  ZoneDefinition _zoneDefinition(String zoneId) => game.zones.firstWhere((z) => z.id == zoneId);
+  ZoneDefinition _zoneDefinition(String zoneId) =>
+      game.zones.firstWhere((z) => z.id == zoneId);
 
   // --- Board widgets -----------------------------------------------
 
-  void createWidget(String instanceId, BoardWidgetKind kind, double x, double y) {
-    _state = _actions.createWidget(_state, instanceId: instanceId, kind: kind, x: x, y: y);
+  void createWidget(
+    String instanceId,
+    BoardWidgetKind kind,
+    double x,
+    double y,
+  ) {
+    _state = _actions.createWidget(
+      _state,
+      instanceId: instanceId,
+      kind: kind,
+      x: x,
+      y: y,
+    );
+    notifyListeners();
+  }
+
+  void createArrow(
+    String instanceId,
+    double x,
+    double y,
+    double x2,
+    double y2, {
+    required String creatorId,
+  }) {
+    _state = _actions.createArrow(
+      _state,
+      instanceId: instanceId,
+      x: x,
+      y: y,
+      x2: x2,
+      y2: y2,
+      creatorId: creatorId,
+    );
     notifyListeners();
   }
 
@@ -255,7 +366,11 @@ class GameSession extends ChangeNotifier {
   }
 
   void setWidgetValue(String instanceId, int value) {
-    _state = _actions.setWidgetValue(_state, instanceId: instanceId, value: value);
+    _state = _actions.setWidgetValue(
+      _state,
+      instanceId: instanceId,
+      value: value,
+    );
     notifyListeners();
   }
 
@@ -265,17 +380,44 @@ class GameSession extends ChangeNotifier {
   }
 
   void setWidgetColors(String instanceId, int backgroundColor, int textColor) {
-    _state = _actions.setWidgetColors(_state, instanceId: instanceId, backgroundColor: backgroundColor, textColor: textColor);
+    _state = _actions.setWidgetColors(
+      _state,
+      instanceId: instanceId,
+      backgroundColor: backgroundColor,
+      textColor: textColor,
+    );
     notifyListeners();
   }
 
-  void duplicateWidget(String sourceInstanceId, String newInstanceId, double x, double y) {
-    _state = _actions.duplicateWidget(_state, sourceInstanceId: sourceInstanceId, newInstanceId: newInstanceId, x: x, y: y);
+  void duplicateWidget(
+    String sourceInstanceId,
+    String newInstanceId,
+    double x,
+    double y,
+  ) {
+    _state = _actions.duplicateWidget(
+      _state,
+      sourceInstanceId: sourceInstanceId,
+      newInstanceId: newInstanceId,
+      x: x,
+      y: y,
+    );
     notifyListeners();
   }
 
-  void attachWidgetToCard(String instanceId, String cardId, double x, double y) {
-    _state = _actions.attachWidgetToCard(_state, instanceId: instanceId, cardId: cardId, x: x, y: y);
+  void attachWidgetToCard(
+    String instanceId,
+    String cardId,
+    double x,
+    double y,
+  ) {
+    _state = _actions.attachWidgetToCard(
+      _state,
+      instanceId: instanceId,
+      cardId: cardId,
+      x: x,
+      y: y,
+    );
     notifyListeners();
   }
 

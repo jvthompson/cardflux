@@ -12,9 +12,10 @@ import 'card_face_widget.dart';
 const Duration rotationAnimationDuration = Duration(milliseconds: 150);
 
 /// A single card rendered at its table position: draggable to reposition or
-/// stack, tappable to flip. [definition] is null for a hidden opponent-hand
-/// card (see state_filter.dart's sentinel) — in that case a back is always
-/// shown regardless of [instance.faceUp].
+/// stack. Flipping is done by hovering it and pressing F (see
+/// `TableScreen._flipHovered`), not by clicking it. [definition] is null for
+/// a hidden opponent-hand card (see state_filter.dart's sentinel) — in that
+/// case a back is always shown regardless of [instance.faceUp].
 ///
 /// [isMirrored] rotates the rendered face/back 180° -- used for shared table
 /// cards on a mirrored seat's view (see table_screen.dart's
@@ -27,10 +28,11 @@ const Duration rotationAnimationDuration = Duration(milliseconds: 150);
 /// used by [TableScreen] to drive the Space-hold full-size preview, and to
 /// know which table card D/Q/E should act on.
 ///
-/// [interactable] gates tap-to-flip and drag entirely (used to block acting
-/// on a card owned by the other player) -- hover still fires either way, so
-/// the opponent border and Space-preview keep working on a card you can't
-/// otherwise touch.
+/// [interactable] gates drag entirely (used to block acting on a card owned
+/// by the other player) -- hover still fires either way, so the opponent
+/// border, Space-preview, and F-flip-eligibility keep working on a card you
+/// can't otherwise touch (F itself separately checks ownership again in
+/// `TableScreen._hoveredFlippableCard`).
 ///
 /// [applyOrientation], when true, folds [CardDefinition.orientation] into the
 /// same rotation -- only ever set for a loose card on the free table; hand
@@ -41,7 +43,6 @@ class DraggableCard extends StatelessWidget {
     super.key,
     required this.instance,
     required this.definition,
-    required this.onTapFlip,
     required this.onDragEnd,
     this.isMirrored = false,
     this.interactable = true,
@@ -55,7 +56,6 @@ class DraggableCard extends StatelessWidget {
 
   final CardInstance instance;
   final CardDefinition? definition;
-  final VoidCallback onTapFlip;
   final void Function(Offset globalPosition) onDragEnd;
   final bool isMirrored;
   final bool interactable;
@@ -94,9 +94,19 @@ class DraggableCard extends StatelessWidget {
             ),
             child: content,
           );
-    final orientation = applyOrientation ? (definition?.orientation ?? CardOrientation.portrait) : CardOrientation.portrait;
-    final turns = (isMirrored ? 0.5 : 0.0) + orientationTurns(orientation) + instance.rotationTurns / 4;
-    return AnimatedRotation(turns: turns, duration: rotationAnimationDuration, curve: Curves.easeOut, child: bordered);
+    final orientation = applyOrientation
+        ? (definition?.orientation ?? CardOrientation.portrait)
+        : CardOrientation.portrait;
+    final turns =
+        (isMirrored ? 0.5 : 0.0) +
+        orientationTurns(orientation) +
+        instance.rotationTurns / 4;
+    return AnimatedRotation(
+      turns: turns,
+      duration: rotationAnimationDuration,
+      curve: Curves.easeOut,
+      child: bordered,
+    );
   }
 
   @override
@@ -111,16 +121,15 @@ class DraggableCard extends StatelessWidget {
     return MouseRegion(
       onEnter: (_) => onHover?.call(true),
       onExit: (_) => onHover?.call(false),
-      child: GestureDetector(
-        onTap: onTapFlip,
-        child: Draggable<String>(
-          data: instance.instanceId,
-          feedback: feedbackOverride ?? Material(type: MaterialType.transparency, child: _face()),
-          childWhenDragging: Opacity(opacity: 0.3, child: _face()),
-          onDragStarted: onDragStarted,
-          onDragEnd: (details) => onDragEnd(details.offset),
-          child: _face(),
-        ),
+      child: Draggable<String>(
+        data: instance.instanceId,
+        feedback:
+            feedbackOverride ??
+            Material(type: MaterialType.transparency, child: _face()),
+        childWhenDragging: Opacity(opacity: 0.3, child: _face()),
+        onDragStarted: onDragStarted,
+        onDragEnd: (details) => onDragEnd(details.offset),
+        child: _face(),
       ),
     );
   }

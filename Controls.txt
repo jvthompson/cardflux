@@ -3,17 +3,20 @@ FlutterDeck Controls Reference
 
 CARDS
 -----
-- Click a card: Flip face-up/down.
+- Hover a card + press F: Flip face-up/down.
   Works on table cards you own, hand cards, and shared-zone top cards.
   NOT available on cards in your own defined zones (drag-only there).
+  Clicking a card no longer flips it -- see the hotkey table below.
 - Drag a lone table card: Moves it, or performs a context-sensitive drop (see below).
 - Drag a "pickup group": Moves every card stacked visually on top of the
   dragged one, together, as a rigid unit. Detected by overlap + higher
   z-index. Hand/zone/stack special-casing is skipped for a group -- it's
-  always a plain positional move.
-- Hover a card: No effect by itself, but drives the Space-preview and Q/E/D
-  hotkeys. Works even on opponent cards (face/back visibility is still
-  respected).
+  always a plain positional move. Any board widget (e.g. a Token) attached
+  to a card caught up in the group rides along too, ghosted in place and
+  following the cursor with the rest of the group.
+- Hover a card: No effect by itself, but drives the Space-preview and Q/E/F/
+  Backspace hotkeys. Works even on opponent cards (face/back visibility is
+  still respected).
 
 Drop behavior when releasing a dragged card:
   - Onto your hand zone       -> adds it to hand, or reorders it if it was
@@ -42,7 +45,7 @@ flip; only hovering works (for the Space preview).
 ZONES & HAND
 ------------
 - Dragging a card out of your own defined zone is drag-only (no
-  click-to-flip).
+  hover+F flip).
 - Shared zones shown on the table behave like piles (click to draw, drag to
   move/stack), wrapped in a tooltip showing the zone's name.
 - A zone only reveals its top card's real face to the opponent if it's
@@ -87,8 +90,16 @@ Space (hold)    | While hovering any card          | Shows a large centered prev
 Q               | Key-down while hovering a card    | Rotates that card's stack 90 degrees counterclockwise            | Only for a card on the free table that YOU OWN -- no effect
                 |                                   |                                                                    | on hand/zone cards or opponent cards
 E               | Key-down while hovering a card    | Rotates that card's stack 90 degrees clockwise                   | Same conditions as Q
-D               | Key-down while hovering a card    | Sends the card to your discard zone (with a short flight         | Same ownership/table conditions as Q, AND only if a
+F               | Key-down while hovering a card    | Flips the card face-up/down                                      | A free-table card, a hand card, or a shared zone's top
+                |                                   |                                                                    | card -- never one owned by the opponent, and NOT your own
+                |                                   |                                                                    | zone's card (e.g. your draw deck stays drag-only)
+Backspace       | Key-down while hovering a card    | Sends the card to your discard zone (with a short flight         | Same ownership/table conditions as Q, AND only if a
                 |                                   | animation)                                                        | non-shared zone is marked as your discard pile
+W / A / S / D   | Hold                              | Pans YOUR OWN camera over the table (up/left/down/right) --      | Client-side only -- each player's camera is independent;
+                |                                   | continuous movement while held, revealing a bit of extra table   | the other player's view is never affected. Cards CAN be
+                |                                   | space beyond the default framing that a card can also be         | placed into that revealed margin, but only up to a limit
+                |                                   | dropped into                                                      | (tablePanMarginFraction)
+Home            | Key-down                          | Resets your camera to the default (original) framing             |
 Alt (at drop)   | Dropping a dragged card near      | Stacks it instead of just placing it nearby                      | Not needed when the target is already a defined zone --
                 | another loose card                |                                                                    | that always stacks
 Alt (at drop)   | Dropping onto a defined zone      | Sends the card to the BOTTOM of that zone instead of the top      |
@@ -96,6 +107,8 @@ Alt (at drag-   | Dragging a whole pile             | Moves/deals the entire pil
 release)        |                                   | card                                                              |
 Ctrl (at drop)  | Dragging a Token board widget     | Duplicates the token instead of moving it (original stays put)   | Token widgets only -- Counter widgets have no Ctrl behavior
 
-Note: Q/E/D only fire on the initial key-down (OS key-repeat while held is
-ignored), so holding one down doesn't spam-repeat the action. Double-click
-isn't used anywhere in the app.
+Note: Q/E/F/Backspace only fire on the initial key-down (OS key-repeat while
+held is ignored), so holding one down doesn't spam-repeat the action.
+WASD is the one exception -- it's meant to be held, and drives continuous
+camera movement for as long as a key stays down. Double-click isn't used
+anywhere in the app.

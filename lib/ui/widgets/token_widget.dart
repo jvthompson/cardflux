@@ -18,11 +18,17 @@ class TokenWidget extends StatelessWidget {
     required this.instance,
     required this.onDragEnd,
     required this.onSecondaryTapUp,
+    this.interactable = true,
   });
 
   final BoardWidgetInstance instance;
   final void Function(Offset globalPosition) onDragEnd;
   final void Function(Offset globalPosition) onSecondaryTapUp;
+
+  /// False while TAB is held table-wide (see `TableScreen`), so a
+  /// click-drag over this widget draws an arrow instead of moving it --
+  /// mirrors `DraggableCard.interactable`.
+  final bool interactable;
 
   Widget _face() {
     return Container(
@@ -38,6 +44,7 @@ class TokenWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (!interactable) return _face();
     return GestureDetector(
       onSecondaryTapUp: (details) => onSecondaryTapUp(details.globalPosition),
       child: Draggable<String>(

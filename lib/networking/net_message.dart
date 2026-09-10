@@ -35,6 +35,7 @@ enum NetMessageType {
   requestReturnToZone,
   requestShuffleZone,
   requestCreateWidget,
+  requestCreateArrow,
   requestMoveWidget,
   requestSetWidgetValue,
   requestDeleteWidget,
@@ -45,7 +46,8 @@ enum NetMessageType {
   pong,
   disconnect;
 
-  static NetMessageType fromName(String name) => NetMessageType.values.byName(name);
+  static NetMessageType fromName(String name) =>
+      NetMessageType.values.byName(name);
 }
 
 /// One protocol message. Framed on the wire as one JSON object per line
@@ -82,5 +84,7 @@ Stream<NetMessage> decodeMessages(Stream<List<int>> byteStream) {
       .transform(utf8.decoder)
       .transform(const LineSplitter())
       .where((line) => line.trim().isNotEmpty)
-      .map((line) => NetMessage.fromJson(jsonDecode(line) as Map<String, dynamic>));
+      .map(
+        (line) => NetMessage.fromJson(jsonDecode(line) as Map<String, dynamic>),
+      );
 }

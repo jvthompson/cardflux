@@ -13,7 +13,11 @@ import 'stack_utils.dart';
 /// engine), and re-broadcasts a per-recipient filtered snapshot after every
 /// change, including the host's own local actions.
 class HostGameEngine {
-  HostGameEngine({required this.session, required this.hostServer, required this.hostPlayerId});
+  HostGameEngine({
+    required this.session,
+    required this.hostServer,
+    required this.hostPlayerId,
+  });
 
   final GameSession session;
   final HostServer hostServer;
@@ -40,9 +44,18 @@ class HostGameEngine {
     if (clientId == null) return;
     if (session.state.revision == _lastBroadcastRevision) return;
     _lastBroadcastRevision = session.state.revision;
-    final visibleZoneIds = {for (final z in session.game.zones) if (z.visibleToAll) z.id};
-    final filtered = filterForRecipient(session.state, clientId, visibleZoneIds: visibleZoneIds);
-    hostServer.send(NetMessage(type: NetMessageType.fullState, payload: filtered.toJson()));
+    final visibleZoneIds = {
+      for (final z in session.game.zones)
+        if (z.visibleToAll) z.id,
+    };
+    final filtered = filterForRecipient(
+      session.state,
+      clientId,
+      visibleZoneIds: visibleZoneIds,
+    );
+    hostServer.send(
+      NetMessage(type: NetMessageType.fullState, payload: filtered.toJson()),
+    );
   }
 
   void _handleMessage(NetMessage msg) {
@@ -53,16 +66,21 @@ class HostGameEngine {
       case NetMessageType.requestMove:
         final instanceId = msg.payload['instanceId'] as String;
         if (_isAllowedToActOn(instanceId, clientId)) {
-          session.moveCard(instanceId, (msg.payload['x'] as num).toDouble(), (msg.payload['y'] as num).toDouble());
+          session.moveCard(
+            instanceId,
+            (msg.payload['x'] as num).toDouble(),
+            (msg.payload['y'] as num).toDouble(),
+          );
         }
         break;
       case NetMessageType.requestMoveGroup:
         final primaryInstanceId = msg.payload['primaryInstanceId'] as String;
         if (_isAllowedToActOn(primaryInstanceId, clientId)) {
-          final passengerRootInstanceIds = (msg.payload['passengerRootInstanceIds'] as List)
-              .cast<String>()
-              .where((id) => _isAllowedToActOn(id, clientId))
-              .toList();
+          final passengerRootInstanceIds =
+              (msg.payload['passengerRootInstanceIds'] as List)
+                  .cast<String>()
+                  .where((id) => _isAllowedToActOn(id, clientId))
+                  .toList();
           session.moveGroup(
             primaryInstanceId,
             passengerRootInstanceIds,
@@ -84,7 +102,10 @@ class HostGameEngine {
       case NetMessageType.requestRotateStack:
         final rootInstanceId = msg.payload['rootInstanceId'] as String;
         if (_isAllowedToActOn(rootInstanceId, clientId)) {
-          session.rotateStack(rootInstanceId, clockwise: msg.payload['clockwise'] as bool);
+          session.rotateStack(
+            rootInstanceId,
+            clockwise: msg.payload['clockwise'] as bool,
+          );
         }
         break;
       case NetMessageType.requestFlip:
@@ -96,7 +117,8 @@ class HostGameEngine {
       case NetMessageType.requestStack:
         final instanceId = msg.payload['instanceId'] as String;
         final ontoInstanceId = msg.payload['ontoInstanceId'] as String;
-        if (_isAllowedToActOn(instanceId, clientId) && _cardExists(ontoInstanceId)) {
+        if (_isAllowedToActOn(instanceId, clientId) &&
+            _cardExists(ontoInstanceId)) {
           session.stackCard(instanceId, ontoInstanceId);
         }
         break;
@@ -127,19 +149,31 @@ class HostGameEngine {
         break;
       case NetMessageType.requestDrawFromZone:
         final zoneId = msg.payload['zoneId'] as String;
-        session.drawFromZone(zoneId, zoneOwnerId: _zoneOwnerId(zoneId, clientId), toOwnerId: clientId);
+        session.drawFromZone(
+          zoneId,
+          zoneOwnerId: _zoneOwnerId(zoneId, clientId),
+          toOwnerId: clientId,
+        );
         break;
       case NetMessageType.requestReturnToZone:
         final instanceId = msg.payload['instanceId'] as String;
         final zoneId = msg.payload['zoneId'] as String;
         final toBottom = msg.payload['toBottom'] as bool? ?? false;
         if (_isAllowedToActOn(instanceId, clientId)) {
-          session.returnToZone(instanceId, zoneId, zoneOwnerId: _zoneOwnerId(zoneId, clientId), toBottom: toBottom);
+          session.returnToZone(
+            instanceId,
+            zoneId,
+            zoneOwnerId: _zoneOwnerId(zoneId, clientId),
+            toBottom: toBottom,
+          );
         }
         break;
       case NetMessageType.requestShuffleZone:
         final zoneId = msg.payload['zoneId'] as String;
-        session.shuffleZone(zoneId, zoneOwnerId: _zoneOwnerId(zoneId, clientId));
+        session.shuffleZone(
+          zoneId,
+          zoneOwnerId: _zoneOwnerId(zoneId, clientId),
+        );
         break;
       case NetMessageType.requestCreateWidget:
         session.createWidget(
@@ -147,6 +181,19 @@ class HostGameEngine {
           BoardWidgetKind.fromName(msg.payload['kind'] as String),
           (msg.payload['x'] as num).toDouble(),
           (msg.payload['y'] as num).toDouble(),
+        );
+        break;
+      case NetMessageType.requestCreateArrow:
+        // creatorId comes from the connection itself (clientId), never from
+        // the payload -- a client has no way to claim to be a different
+        // player (see _isAllowedToDeleteWidget for why this matters).
+        session.createArrow(
+          msg.payload['instanceId'] as String,
+          (msg.payload['x'] as num).toDouble(),
+          (msg.payload['y'] as num).toDouble(),
+          (msg.payload['x2'] as num).toDouble(),
+          (msg.payload['y2'] as num).toDouble(),
+          creatorId: clientId,
         );
         break;
       case NetMessageType.requestMoveWidget:
@@ -157,10 +204,16 @@ class HostGameEngine {
         );
         break;
       case NetMessageType.requestSetWidgetValue:
-        session.setWidgetValue(msg.payload['instanceId'] as String, msg.payload['value'] as int);
+        session.setWidgetValue(
+          msg.payload['instanceId'] as String,
+          msg.payload['value'] as int,
+        );
         break;
       case NetMessageType.requestDeleteWidget:
-        session.deleteWidget(msg.payload['instanceId'] as String);
+        final instanceId = msg.payload['instanceId'] as String;
+        if (_isAllowedToDeleteWidget(instanceId, clientId)) {
+          session.deleteWidget(instanceId);
+        }
         break;
       case NetMessageType.requestSetWidgetColors:
         session.setWidgetColors(
@@ -201,7 +254,8 @@ class HostGameEngine {
     }
   }
 
-  bool _cardExists(String instanceId) => session.state.cards.any((c) => c.instanceId == instanceId);
+  bool _cardExists(String instanceId) =>
+      session.state.cards.any((c) => c.instanceId == instanceId);
 
   /// A zone request never carries an owner -- it always means "the
   /// requester's own instance of this zone, or the shared one" -- resolved
@@ -228,10 +282,30 @@ class HostGameEngine {
     return card.ownerId == null || card.ownerId == requesterPlayerId;
   }
 
+  /// Mirrors [_isAllowedToActOn]'s shape for a widget instead of a card: a
+  /// widget with no [BoardWidgetInstance.creatorId] (every kind except an
+  /// arrow, today) is always fair game -- widgets stay deliberately
+  /// ownerless by default (see `table_controller.dart`'s doc comment) --
+  /// but an arrow may only be deleted by the player who drew it.
+  bool _isAllowedToDeleteWidget(String instanceId, String requesterPlayerId) {
+    BoardWidgetInstance? w;
+    for (final widget in session.state.widgets) {
+      if (widget.instanceId == instanceId) {
+        w = widget;
+        break;
+      }
+    }
+    if (w == null) return false;
+    return w.creatorId == null || w.creatorId == requesterPlayerId;
+  }
+
   /// A client may draw from or shuffle any unowned pile (e.g. a shared
   /// sandbox pile), but only their *own* personal deck -- never another
   /// player's.
-  bool _isAllowedToDrawOrShuffle(String pileInstanceId, String requesterPlayerId) {
+  bool _isAllowedToDrawOrShuffle(
+    String pileInstanceId,
+    String requesterPlayerId,
+  ) {
     final stack = _stacks.stackOf(session.state.cards, pileInstanceId);
     for (final c in stack) {
       if (c.ownerId != null && c.ownerId != requesterPlayerId) return false;

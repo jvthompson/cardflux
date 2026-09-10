@@ -4,6 +4,7 @@ import '../../models/card_definition.dart';
 import '../../models/card_instance.dart';
 import 'card_face_widget.dart';
 import 'draggable_card.dart';
+import 'pile_widget.dart' show pileWidgetExtra;
 
 /// The local player's private hand — always rendered face-up, laid out in a
 /// horizontal row along the bottom of the table screen. [cards] must already
@@ -15,7 +16,6 @@ class HandZoneWidget extends StatelessWidget {
     super.key,
     required this.cards,
     required this.definitionsById,
-    required this.onTapFlip,
     required this.onDragEnd,
     this.onHoverCard,
     this.cardBackImagePath,
@@ -24,7 +24,6 @@ class HandZoneWidget extends StatelessWidget {
 
   final List<CardInstance> cards;
   final Map<String, CardDefinition> definitionsById;
-  final void Function(String instanceId) onTapFlip;
   final void Function(String instanceId, Offset globalPosition) onDragEnd;
   final void Function(String? instanceId)? onHoverCard;
   final String? cardBackImagePath;
@@ -42,9 +41,10 @@ class HandZoneWidget extends StatelessWidget {
       key: cardKeyFor?.call(card.instanceId),
       instance: card,
       definition: definitionsById[card.definitionId],
-      onTapFlip: () => onTapFlip(card.instanceId),
       onDragEnd: (offset) => onDragEnd(card.instanceId, offset),
-      onHover: onHoverCard == null ? null : (hovering) => onHoverCard!(hovering ? card.instanceId : null),
+      onHover: onHoverCard == null
+          ? null
+          : (hovering) => onHoverCard!(hovering ? card.instanceId : null),
       cardBackImagePath: cardBackImagePath,
     );
   }
@@ -52,19 +52,31 @@ class HandZoneWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: cardHeight + 16,
+      // Matches ZoneStackWidget's own height exactly (cardHeight +
+      // pileWidgetExtra) so the hand zone and the deck zone(s) beside it in
+      // the same Row line up instead of the hand's background band being a
+      // visibly different height.
+      height: cardHeight + pileWidgetExtra,
       color: Colors.black.withValues(alpha: 0.15),
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
       child: cards.isEmpty
-          ? const Center(child: Text('Your hand is empty', style: TextStyle(color: Colors.white70)))
+          ? const Center(
+              child: Text(
+                'Your hand is empty',
+                style: TextStyle(color: Colors.white70),
+              ),
+            )
           : LayoutBuilder(
               builder: (context, constraints) {
-                final naturalWidth = cards.length * cardWidth + (cards.length - 1) * handCardSpacing;
+                final naturalWidth =
+                    cards.length * cardWidth +
+                    (cards.length - 1) * handCardSpacing;
                 if (naturalWidth <= constraints.maxWidth) {
                   return ListView.separated(
                     scrollDirection: Axis.horizontal,
                     itemCount: cards.length,
-                    separatorBuilder: (_, _) => const SizedBox(width: handCardSpacing),
+                    separatorBuilder: (_, _) =>
+                        const SizedBox(width: handCardSpacing),
                     itemBuilder: (context, index) => _cardAt(index),
                   );
                 }
@@ -77,11 +89,16 @@ class HandZoneWidget extends StatelessWidget {
                 // sit above leftward ones" stacking for free.
                 final step = cards.length == 1
                     ? 0.0
-                    : ((constraints.maxWidth - cardWidth) / (cards.length - 1)).clamp(0.0, double.infinity);
+                    : ((constraints.maxWidth - cardWidth) / (cards.length - 1))
+                          .clamp(0.0, double.infinity);
                 return Stack(
                   children: [
                     for (var index = 0; index < cards.length; index++)
-                      Positioned(left: index * step, top: 0, child: _cardAt(index)),
+                      Positioned(
+                        left: index * step,
+                        top: 0,
+                        child: _cardAt(index),
+                      ),
                   ],
                 );
               },

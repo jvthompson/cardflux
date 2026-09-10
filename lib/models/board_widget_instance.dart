@@ -8,9 +8,19 @@ enum BoardWidgetKind {
   /// A small colored circle with no numeric state -- just a marker. Reuses
   /// [BoardWidgetInstance.backgroundColor] for its own color; [value]/
   /// [BoardWidgetInstance.textColor] are meaningless for this kind.
-  token;
+  token,
 
-  static BoardWidgetKind fromName(String name) => BoardWidgetKind.values.byName(name);
+  /// A line with an arrowhead pointing from ([BoardWidgetInstance.x],
+  /// [BoardWidgetInstance.y]) to ([BoardWidgetInstance.x2],
+  /// [BoardWidgetInstance.y2]) -- drawn by holding TAB and dragging on the
+  /// table (see `TableScreen`), dismissed only by its own
+  /// [BoardWidgetInstance.creatorId] via double-tap. Unlike every other
+  /// kind, this one needs a second point; [value]/colors/attach fields are
+  /// all meaningless for it.
+  arrow;
+
+  static BoardWidgetKind fromName(String name) =>
+      BoardWidgetKind.values.byName(name);
 }
 
 /// Inclusive bounds every mutator that sets a [BoardWidgetInstance.value]
@@ -23,7 +33,8 @@ const int boardWidgetCounterMax = 99999;
 /// (ARGB, matching [Color.value]'s format) -- a plain `int` rather than a
 /// `dart:ui`/Flutter `Color` so this model stays framework-free like every
 /// other model in this app; the UI parses these back into `Color` itself.
-const int defaultBoardWidgetBackgroundColor = 0xFF455A64; // Colors.blueGrey.shade700
+const int defaultBoardWidgetBackgroundColor =
+    0xFF455A64; // Colors.blueGrey.shade700
 const int defaultBoardWidgetTextColor = 0xFFFFFFFF; // Colors.white
 
 /// A general-purpose utility placed on the table -- not a card. Unlike
@@ -43,6 +54,9 @@ class BoardWidgetInstance {
     this.attachedCardId,
     this.attachOffsetX = 0,
     this.attachOffsetY = 0,
+    this.x2,
+    this.y2,
+    this.creatorId,
   });
 
   final String instanceId;
@@ -82,6 +96,19 @@ class BoardWidgetInstance {
   final double attachOffsetX;
   final double attachOffsetY;
 
+  /// Second endpoint, only meaningful for [BoardWidgetKind.arrow] -- the
+  /// arrow points from ([x],[y]) to ([x2],[y2]), both in the same canonical
+  /// [0,1]-fraction space. Null for every other kind.
+  final double? x2;
+  final double? y2;
+
+  /// The id of the player who created this widget -- today only ever set
+  /// for [BoardWidgetKind.arrow] (see `TableScreen`'s TAB-drag), null for
+  /// every other kind, which stay deliberately ownerless (see
+  /// `table_controller.dart`'s doc comment). Used to gate who may
+  /// double-tap-dismiss an arrow (see `HostGameEngine`).
+  final String? creatorId;
+
   BoardWidgetInstance copyWith({
     double? x,
     double? y,
@@ -92,6 +119,9 @@ class BoardWidgetInstance {
     Object? attachedCardId = _unset,
     double? attachOffsetX,
     double? attachOffsetY,
+    Object? x2 = _unset,
+    Object? y2 = _unset,
+    Object? creatorId = _unset,
   }) {
     return BoardWidgetInstance(
       instanceId: instanceId,
@@ -102,9 +132,16 @@ class BoardWidgetInstance {
       value: value ?? this.value,
       backgroundColor: backgroundColor ?? this.backgroundColor,
       textColor: textColor ?? this.textColor,
-      attachedCardId: identical(attachedCardId, _unset) ? this.attachedCardId : attachedCardId as String?,
+      attachedCardId: identical(attachedCardId, _unset)
+          ? this.attachedCardId
+          : attachedCardId as String?,
       attachOffsetX: attachOffsetX ?? this.attachOffsetX,
       attachOffsetY: attachOffsetY ?? this.attachOffsetY,
+      x2: identical(x2, _unset) ? this.x2 : x2 as double?,
+      y2: identical(y2, _unset) ? this.y2 : y2 as double?,
+      creatorId: identical(creatorId, _unset)
+          ? this.creatorId
+          : creatorId as String?,
     );
   }
 
@@ -116,11 +153,15 @@ class BoardWidgetInstance {
       y: (json['y'] as num).toDouble(),
       zIndex: json['zIndex'] as int,
       value: json['value'] as int? ?? 0,
-      backgroundColor: json['backgroundColor'] as int? ?? defaultBoardWidgetBackgroundColor,
+      backgroundColor:
+          json['backgroundColor'] as int? ?? defaultBoardWidgetBackgroundColor,
       textColor: json['textColor'] as int? ?? defaultBoardWidgetTextColor,
       attachedCardId: json['attachedCardId'] as String?,
       attachOffsetX: (json['attachOffsetX'] as num?)?.toDouble() ?? 0,
       attachOffsetY: (json['attachOffsetY'] as num?)?.toDouble() ?? 0,
+      x2: (json['x2'] as num?)?.toDouble(),
+      y2: (json['y2'] as num?)?.toDouble(),
+      creatorId: json['creatorId'] as String?,
     );
   }
 
@@ -132,11 +173,15 @@ class BoardWidgetInstance {
       'y': y,
       'zIndex': zIndex,
       if (value != 0) 'value': value,
-      if (backgroundColor != defaultBoardWidgetBackgroundColor) 'backgroundColor': backgroundColor,
+      if (backgroundColor != defaultBoardWidgetBackgroundColor)
+        'backgroundColor': backgroundColor,
       if (textColor != defaultBoardWidgetTextColor) 'textColor': textColor,
       if (attachedCardId != null) 'attachedCardId': attachedCardId,
       if (attachOffsetX != 0) 'attachOffsetX': attachOffsetX,
       if (attachOffsetY != 0) 'attachOffsetY': attachOffsetY,
+      if (x2 != null) 'x2': x2,
+      if (y2 != null) 'y2': y2,
+      if (creatorId != null) 'creatorId': creatorId,
     };
   }
 }
