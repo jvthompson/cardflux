@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
 
+import '../models/active_search.dart';
 import '../models/board_widget_instance.dart';
 import '../models/card_instance.dart';
 import '../models/deck_config.dart';
@@ -90,25 +91,33 @@ class GameSession extends ChangeNotifier {
       required double x,
       required double y,
       required bool faceUp,
+      required bool autoShuffle,
     }) {
-      for (final entry in entries) {
-        if (!validIds.contains(entry.definitionId)) continue;
-        for (var q = 0; q < entry.quantity; q++) {
-          cards.add(
-            CardInstance(
-              instanceId: _uuid.v4(),
-              definitionId: entry.definitionId,
-              x: x,
-              y: y,
-              zIndex: i,
-              faceUp: faceUp,
-              zone: CardZone.zone,
-              zoneId: zoneId,
-              ownerId: ownerId,
-            ),
-          );
-          i++;
-        }
+      // Expanded to one definitionId per copy before assigning zIndex, so
+      // shuffling this flat list (rather than the still-quantity-grouped
+      // `entries`) randomizes actual card order, not just which entry's
+      // whole stack of copies goes first.
+      final definitionIds = [
+        for (final entry in entries)
+          if (validIds.contains(entry.definitionId))
+            for (var q = 0; q < entry.quantity; q++) entry.definitionId,
+      ];
+      if (autoShuffle) definitionIds.shuffle();
+      for (final definitionId in definitionIds) {
+        cards.add(
+          CardInstance(
+            instanceId: _uuid.v4(),
+            definitionId: definitionId,
+            x: x,
+            y: y,
+            zIndex: i,
+            faceUp: faceUp,
+            zone: CardZone.zone,
+            zoneId: zoneId,
+            ownerId: ownerId,
+          ),
+        );
+        i++;
       }
     }
 
@@ -125,6 +134,7 @@ class GameSession extends ChangeNotifier {
           x: 0.5,
           y: 0.5,
           faceUp: zone.faceUp,
+          autoShuffle: zone.autoShuffle,
         );
       }
     }
@@ -141,6 +151,7 @@ class GameSession extends ChangeNotifier {
         x: px,
         y: py,
         faceUp: zone.faceUp,
+        autoShuffle: zone.autoShuffle,
       );
     }
 
@@ -321,6 +332,50 @@ class GameSession extends ChangeNotifier {
 
   ZoneDefinition _zoneDefinition(String zoneId) =>
       game.zones.firstWhere((z) => z.id == zoneId);
+
+  // --- Search --------------------------------------------------------
+
+  /// Opens a Search window on the zone [zoneId] (owned by [zoneOwnerId],
+  /// null for a shared zone), attributed to [searcherId] -- defaulting to
+  /// this session's own local player, overridden by `HostGameEngine` when
+  /// applying a networked request on a client's behalf.
+  void startSearchZone(
+    String zoneId, {
+    required String? zoneOwnerId,
+    String? searcherId,
+  }) {
+    _state = _actions.startSearch(
+      _state,
+      searcherId: searcherId ?? localPlayerId,
+      targetType: SearchTargetType.zone,
+      targetId: zoneId,
+      targetOwnerId: zoneOwnerId,
+    );
+    notifyListeners();
+  }
+
+  /// Opens a Search window on the free-table pile rooted at
+  /// [pileRootInstanceId], attributed to [searcherId] -- see
+  /// [startSearchZone]'s doc for the defaulting convention.
+  void startSearchPile(String pileRootInstanceId, {String? searcherId}) {
+    _state = _actions.startSearch(
+      _state,
+      searcherId: searcherId ?? localPlayerId,
+      targetType: SearchTargetType.pile,
+      targetId: pileRootInstanceId,
+    );
+    notifyListeners();
+  }
+
+  /// Closes [searcherId]'s Search window, defaulting to this session's own
+  /// local player.
+  void stopSearch({String? searcherId}) {
+    _state = _actions.stopSearch(
+      _state,
+      searcherId: searcherId ?? localPlayerId,
+    );
+    notifyListeners();
+  }
 
   // --- Board widgets -----------------------------------------------
 

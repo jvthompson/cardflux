@@ -42,6 +42,7 @@ class PileWidget extends StatefulWidget {
     required this.onShuffle,
     this.isMirrored = false,
     this.interactable = true,
+    this.isBeingSearched = false,
     this.applyOrientation = false,
     this.topRotationTurns = 0,
     this.topBorderColor,
@@ -64,6 +65,13 @@ class PileWidget extends StatefulWidget {
   /// copy of this concept (used to block acting on a pile owned by the other
   /// player). Hover still fires either way.
   final bool interactable;
+
+  /// Shows a large eyeball badge over this pile -- true whenever some
+  /// player (any player, not just the local one -- see `TableScreen`'s
+  /// `ActiveSearch` lookup) currently has a Search window open on it.
+  /// Purely decorative: dismissing a search only ever happens from that
+  /// window's own close control, never by tapping this badge.
+  final bool isBeingSearched;
 
   /// Folds `topDefinition.orientation` into the rotation -- see
   /// `DraggableCard`'s own copy of this concept. Only ever true for a
@@ -96,13 +104,25 @@ class PileWidget extends StatefulWidget {
   State<PileWidget> createState() => _PileWidgetState();
 }
 
-class _PileWidgetState extends State<PileWidget> with SingleTickerProviderStateMixin {
+class _PileWidgetState extends State<PileWidget>
+    with SingleTickerProviderStateMixin {
   late final AnimationController _shuffleController = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 400),
   );
 
-  VoidCallback? get _effectiveOnShuffle => widget.interactable ? widget.onShuffle : null;
+  /// Keeps the Shuffle button out of focus traversal entirely, so it can
+  /// never be left holding keyboard focus after a click -- otherwise
+  /// Flutter's default Space/Enter-activates-focused-button behavior would
+  /// re-trigger a real shuffle from an unrelated later keypress (e.g. Space
+  /// held to preview a card).
+  final FocusNode _shuffleFocusNode = FocusNode(
+    canRequestFocus: false,
+    skipTraversal: true,
+  );
+
+  VoidCallback? get _effectiveOnShuffle =>
+      widget.interactable ? widget.onShuffle : null;
 
   void _handleShuffle() {
     _effectiveOnShuffle?.call();
@@ -112,6 +132,7 @@ class _PileWidgetState extends State<PileWidget> with SingleTickerProviderStateM
   @override
   void dispose() {
     _shuffleController.dispose();
+    _shuffleFocusNode.dispose();
     super.dispose();
   }
 
@@ -128,10 +149,19 @@ class _PileWidgetState extends State<PileWidget> with SingleTickerProviderStateM
             ),
             child: content,
           );
-    final orientation =
-        widget.applyOrientation ? (widget.topDefinition?.orientation ?? CardOrientation.portrait) : CardOrientation.portrait;
-    final turns = (widget.isMirrored ? 0.5 : 0.0) + orientationTurns(orientation) + widget.topRotationTurns / 4;
-    return AnimatedRotation(turns: turns, duration: rotationAnimationDuration, curve: Curves.easeOut, child: bordered);
+    final orientation = widget.applyOrientation
+        ? (widget.topDefinition?.orientation ?? CardOrientation.portrait)
+        : CardOrientation.portrait;
+    final turns =
+        (widget.isMirrored ? 0.5 : 0.0) +
+        orientationTurns(orientation) +
+        widget.topRotationTurns / 4;
+    return AnimatedRotation(
+      turns: turns,
+      duration: rotationAnimationDuration,
+      curve: Curves.easeOut,
+      child: bordered,
+    );
   }
 
   @override
@@ -164,7 +194,12 @@ class _PileWidgetState extends State<PileWidget> with SingleTickerProviderStateM
                 onTap: widget.onDraw,
                 child: Draggable<String>(
                   data: widget.topInstanceId,
-                  feedback: widget.feedbackOverride ?? Material(type: MaterialType.transparency, child: _topFace()),
+                  feedback:
+                      widget.feedbackOverride ??
+                      Material(
+                        type: MaterialType.transparency,
+                        child: _topFace(),
+                      ),
                   childWhenDragging: Opacity(opacity: 0.3, child: _topFace()),
                   onDragStarted: widget.onDragStarted,
                   onDragEnd: (details) => widget.onDragEnd(details.offset),
@@ -186,7 +221,10 @@ class _PileWidgetState extends State<PileWidget> with SingleTickerProviderStateM
               child: CircleAvatar(
                 radius: 12,
                 backgroundColor: Colors.black87,
-                child: Text('${widget.count}', style: const TextStyle(color: Colors.white, fontSize: 11)),
+                child: Text(
+                  '${widget.count}',
+                  style: const TextStyle(color: Colors.white, fontSize: 11),
+                ),
               ),
             ),
             if (_effectiveOnShuffle != null)
@@ -196,16 +234,48 @@ class _PileWidgetState extends State<PileWidget> with SingleTickerProviderStateM
                   color: Colors.black54,
                   shape: const CircleBorder(),
                   child: IconButton(
-                    icon: const Icon(Icons.shuffle, color: Colors.white, size: 16),
+                    icon: const Icon(
+                      Icons.shuffle,
+                      color: Colors.white,
+                      size: 16,
+                    ),
                     tooltip: 'Shuffle',
                     onPressed: _handleShuffle,
+                    focusNode: _shuffleFocusNode,
                     padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints.tightFor(width: 28, height: 28),
+                    constraints: const BoxConstraints.tightFor(
+                      width: 28,
+                      height: 28,
+                    ),
                   ),
                 ),
               ),
+            if (widget.isBeingSearched)
+              const Positioned(top: -12, child: SearchBadge()),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// A large eyeball badge marking a zone/pile as currently being searched --
+/// roughly twice the size of the Shuffle button's own circular badge (see
+/// [PileWidget]'s Shuffle `Positioned`/`Material`/`CircleBorder` recipe,
+/// which this mirrors). Shared by [PileWidget] and `ZoneStackWidget`.
+class SearchBadge extends StatelessWidget {
+  const SearchBadge({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.black54,
+      shape: const CircleBorder(),
+      child: Container(
+        width: 48,
+        height: 48,
+        alignment: Alignment.center,
+        child: const Icon(Icons.visibility, color: Colors.white, size: 32),
       ),
     );
   }

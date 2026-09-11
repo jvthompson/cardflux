@@ -175,6 +175,23 @@ class HostGameEngine {
           zoneOwnerId: _zoneOwnerId(zoneId, clientId),
         );
         break;
+      case NetMessageType.requestStartSearchZone:
+        final zoneId = msg.payload['zoneId'] as String;
+        session.startSearchZone(
+          zoneId,
+          zoneOwnerId: _zoneOwnerId(zoneId, clientId),
+          searcherId: clientId,
+        );
+        break;
+      case NetMessageType.requestStartSearchPile:
+        final pileRootInstanceId = msg.payload['pileRootInstanceId'] as String;
+        if (_isAllowedToDrawOrShuffle(pileRootInstanceId, clientId)) {
+          session.startSearchPile(pileRootInstanceId, searcherId: clientId);
+        }
+        break;
+      case NetMessageType.requestStopSearch:
+        session.stopSearch(searcherId: clientId);
+        break;
       case NetMessageType.requestCreateWidget:
         session.createWidget(
           msg.payload['instanceId'] as String,

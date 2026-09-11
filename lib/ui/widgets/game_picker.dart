@@ -55,13 +55,25 @@ class _GamePickerState extends State<GamePicker> {
       _busy = true;
       _error = null;
     });
-    final games = await _loader.loadGamesFromDirectory(path);
-    games.sort((a, b) => a.name.compareTo(b.name));
+    List<GameDefinition> games = const [];
+    String? error;
+    try {
+      games = await _loader.loadGamesFromDirectory(path);
+      games.sort((a, b) => a.name.compareTo(b.name));
+      if (games.isEmpty) error = 'No valid games found in that folder.';
+    } catch (e) {
+      // Never leave `_busy` stuck true on a bad/inaccessible folder (a
+      // permission error, a broken symlink, a cloud-storage placeholder
+      // that fails to stat, etc.) -- that would permanently disable both
+      // Refresh and Change Folder..., leaving the user unable to pick a
+      // different folder to recover.
+      error = 'Could not read that folder: $e';
+    }
     if (!mounted) return;
     setState(() {
       _busy = false;
       _directoryGames = games;
-      if (games.isEmpty) _error = 'No valid games found in that folder.';
+      _error = error;
     });
   }
 
@@ -79,8 +91,9 @@ class _GamePickerState extends State<GamePicker> {
     // Skip any directory game that happens to share an id with the bundled
     // standard deck (e.g. a stray copy of it saved into that folder) so it
     // never appears twice.
-    final directoryGames =
-        (_directoryGames ?? const <GameDefinition>[]).where((g) => g.id != _standardDeck?.id).toList();
+    final directoryGames = (_directoryGames ?? const <GameDefinition>[])
+        .where((g) => g.id != _standardDeck?.id)
+        .toList();
 
     return ConstrainedBox(
       constraints: const BoxConstraints(maxWidth: 420),
@@ -126,7 +139,10 @@ class _GamePickerState extends State<GamePicker> {
                   Expanded(
                     child: Text(
                       _directoryPath!,
-                      style: const TextStyle(color: Colors.black45, fontSize: 12),
+                      style: const TextStyle(
+                        color: Colors.black45,
+                        fontSize: 12,
+                      ),
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
@@ -146,7 +162,9 @@ class _GamePickerState extends State<GamePicker> {
               if (_busy)
                 const Padding(
                   padding: EdgeInsets.symmetric(vertical: 12),
-                  child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                  child: Center(
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
                 )
               else if (_error != null)
                 Text(_error!, style: const TextStyle(color: Colors.red))

@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_deck/game/table_actions.dart';
+import 'package:flutter_deck/models/active_search.dart';
 import 'package:flutter_deck/models/board_widget_instance.dart';
 import 'package:flutter_deck/models/card_instance.dart';
 import 'package:flutter_deck/models/table_state.dart';
@@ -1432,6 +1433,85 @@ void main() {
         revision: 0,
       );
       final next = _actions.shufflePile(state, pileRootInstanceId: 'solo');
+      expect(next, same(state));
+    });
+  });
+
+  group('startSearch/stopSearch', () {
+    test('startSearch adds an entry and bumps revision', () {
+      final state = _threeCardZone(zoneId: 'draw_deck', ownerId: 'p1');
+      final next = _actions.startSearch(
+        state,
+        searcherId: 'p1',
+        targetType: SearchTargetType.zone,
+        targetId: 'draw_deck',
+        targetOwnerId: 'p1',
+      );
+      expect(next.searches, hasLength(1));
+      expect(next.searches.single.searcherId, 'p1');
+      expect(next.searches.single.targetType, SearchTargetType.zone);
+      expect(next.searches.single.targetId, 'draw_deck');
+      expect(next.searches.single.targetOwnerId, 'p1');
+      expect(next.revision, state.revision + 1);
+    });
+
+    test('startSearch replaces a searcher\'s existing entry rather than adding a second one', () {
+      final state = _threeCardZone(zoneId: 'draw_deck', ownerId: 'p1');
+      final first = _actions.startSearch(
+        state,
+        searcherId: 'p1',
+        targetType: SearchTargetType.zone,
+        targetId: 'draw_deck',
+        targetOwnerId: 'p1',
+      );
+      final second = _actions.startSearch(
+        first,
+        searcherId: 'p1',
+        targetType: SearchTargetType.pile,
+        targetId: 'root',
+      );
+      expect(second.searches, hasLength(1));
+      expect(second.searches.single.targetType, SearchTargetType.pile);
+      expect(second.searches.single.targetId, 'root');
+    });
+
+    test('startSearch leaves other searchers\' entries alone', () {
+      final state = _threeCardZone(zoneId: 'draw_deck', ownerId: 'p1');
+      final withP1 = _actions.startSearch(
+        state,
+        searcherId: 'p1',
+        targetType: SearchTargetType.zone,
+        targetId: 'draw_deck',
+        targetOwnerId: 'p1',
+      );
+      final withBoth = _actions.startSearch(
+        withP1,
+        searcherId: 'p2',
+        targetType: SearchTargetType.zone,
+        targetId: 'draw_deck',
+        targetOwnerId: 'p2',
+      );
+      expect(withBoth.searches, hasLength(2));
+      expect(withBoth.searches.map((s) => s.searcherId), ['p1', 'p2']);
+    });
+
+    test('stopSearch removes that searcher\'s entry and bumps revision', () {
+      final state = _threeCardZone(zoneId: 'draw_deck', ownerId: 'p1');
+      final opened = _actions.startSearch(
+        state,
+        searcherId: 'p1',
+        targetType: SearchTargetType.zone,
+        targetId: 'draw_deck',
+        targetOwnerId: 'p1',
+      );
+      final closed = _actions.stopSearch(opened, searcherId: 'p1');
+      expect(closed.searches, isEmpty);
+      expect(closed.revision, opened.revision + 1);
+    });
+
+    test('stopSearch is a no-op when that searcher has no active search', () {
+      final state = _threeCardZone(zoneId: 'draw_deck', ownerId: 'p1');
+      final next = _actions.stopSearch(state, searcherId: 'p1');
       expect(next, same(state));
     });
   });

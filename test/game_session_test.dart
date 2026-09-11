@@ -26,15 +26,31 @@ void main() {
         id: 'g1',
         name: 'G',
         cards: _cards,
-        zones: [ZoneDefinition(id: 'draw_deck', name: 'Draw Deck', dealsBuiltDeck: true)],
+        zones: [
+          ZoneDefinition(
+            id: 'draw_deck',
+            name: 'Draw Deck',
+            dealsBuiltDeck: true,
+          ),
+        ],
       );
       final session = GameSession.dealFromZones(
         game: game,
         players: _players,
         localPlayerId: 'p1',
         deckConfigsByPlayerId: {
-          'p1': {'draw_deck': const DeckConfig(gameId: 'g1', entries: [DeckEntry(definitionId: 'a', quantity: 2)])},
-          'p2': {'draw_deck': const DeckConfig(gameId: 'g1', entries: [DeckEntry(definitionId: 'b', quantity: 3)])},
+          'p1': {
+            'draw_deck': const DeckConfig(
+              gameId: 'g1',
+              entries: [DeckEntry(definitionId: 'a', quantity: 2)],
+            ),
+          },
+          'p2': {
+            'draw_deck': const DeckConfig(
+              gameId: 'g1',
+              entries: [DeckEntry(definitionId: 'b', quantity: 3)],
+            ),
+          },
         },
       );
 
@@ -53,11 +69,24 @@ void main() {
         id: 'g1',
         name: 'G',
         cards: _cards,
-        zones: [ZoneDefinition(id: 'draw_deck', name: 'Draw Deck', dealsBuiltDeck: true)],
+        zones: [
+          ZoneDefinition(
+            id: 'draw_deck',
+            name: 'Draw Deck',
+            dealsBuiltDeck: true,
+          ),
+        ],
       );
-      final session = GameSession.dealFromZones(game: game, players: [_players[0]], localPlayerId: 'p1');
+      final session = GameSession.dealFromZones(
+        game: game,
+        players: [_players[0]],
+        localPlayerId: 'p1',
+      );
       expect(session.state.cards, hasLength(2));
-      expect(session.state.cards.map((c) => c.definitionId).toSet(), {'a', 'b'});
+      expect(session.state.cards.map((c) => c.definitionId).toSet(), {
+        'a',
+        'b',
+      });
     });
 
     test('a non-dealsBuiltDeck owned zone starts from its own static entries (empty by default)', () {
@@ -66,28 +95,13 @@ void main() {
         name: 'G',
         cards: _cards,
         zones: [
-          ZoneDefinition(id: 'draw_deck', name: 'Draw Deck', dealsBuiltDeck: true),
+          ZoneDefinition(
+            id: 'draw_deck',
+            name: 'Draw Deck',
+            dealsBuiltDeck: true,
+          ),
           ZoneDefinition(id: 'discard_pile', name: 'Discard Pile'),
         ],
-      );
-      final session = GameSession.dealFromZones(
-        game: game,
-        players: [_players[0]],
-        localPlayerId: 'p1',
-        deckConfigsByPlayerId: {
-          'p1': {'draw_deck': const DeckConfig(gameId: 'g1', entries: [DeckEntry(definitionId: 'a', quantity: 1)])},
-        },
-      );
-      expect(session.state.cards.where((c) => c.zoneId == 'draw_deck'), hasLength(1));
-      expect(session.state.cards.where((c) => c.zoneId == 'discard_pile'), isEmpty);
-    });
-
-    test('skips entries referencing an unknown definitionId', () {
-      const game = GameDefinition(
-        id: 'g1',
-        name: 'G',
-        cards: _cards,
-        zones: [ZoneDefinition(id: 'draw_deck', name: 'Draw Deck', dealsBuiltDeck: true)],
       );
       final session = GameSession.dealFromZones(
         game: game,
@@ -97,7 +111,46 @@ void main() {
           'p1': {
             'draw_deck': const DeckConfig(
               gameId: 'g1',
-              entries: [DeckEntry(definitionId: 'a', quantity: 1), DeckEntry(definitionId: 'nonexistent', quantity: 5)],
+              entries: [DeckEntry(definitionId: 'a', quantity: 1)],
+            ),
+          },
+        },
+      );
+      expect(
+        session.state.cards.where((c) => c.zoneId == 'draw_deck'),
+        hasLength(1),
+      );
+      expect(
+        session.state.cards.where((c) => c.zoneId == 'discard_pile'),
+        isEmpty,
+      );
+    });
+
+    test('skips entries referencing an unknown definitionId', () {
+      const game = GameDefinition(
+        id: 'g1',
+        name: 'G',
+        cards: _cards,
+        zones: [
+          ZoneDefinition(
+            id: 'draw_deck',
+            name: 'Draw Deck',
+            dealsBuiltDeck: true,
+          ),
+        ],
+      );
+      final session = GameSession.dealFromZones(
+        game: game,
+        players: [_players[0]],
+        localPlayerId: 'p1',
+        deckConfigsByPlayerId: {
+          'p1': {
+            'draw_deck': const DeckConfig(
+              gameId: 'g1',
+              entries: [
+                DeckEntry(definitionId: 'a', quantity: 1),
+                DeckEntry(definitionId: 'nonexistent', quantity: 5),
+              ],
             ),
           },
         },
@@ -112,8 +165,16 @@ void main() {
         name: 'G',
         cards: _cards,
         zones: [
-          ZoneDefinition(id: 'draw_deck', name: 'Draw Deck', dealsBuiltDeck: true),
-          ZoneDefinition(id: 'location_deck', name: 'Location Deck', dealsBuiltDeck: true),
+          ZoneDefinition(
+            id: 'draw_deck',
+            name: 'Draw Deck',
+            dealsBuiltDeck: true,
+          ),
+          ZoneDefinition(
+            id: 'location_deck',
+            name: 'Location Deck',
+            dealsBuiltDeck: true,
+          ),
         ],
       );
       final session = GameSession.dealFromZones(
@@ -122,14 +183,24 @@ void main() {
         localPlayerId: 'p1',
         deckConfigsByPlayerId: {
           'p1': {
-            'draw_deck': const DeckConfig(gameId: 'g1', entries: [DeckEntry(definitionId: 'a', quantity: 2)]),
-            'location_deck': const DeckConfig(gameId: 'g1', entries: [DeckEntry(definitionId: 'b', quantity: 1)]),
+            'draw_deck': const DeckConfig(
+              gameId: 'g1',
+              entries: [DeckEntry(definitionId: 'a', quantity: 2)],
+            ),
+            'location_deck': const DeckConfig(
+              gameId: 'g1',
+              entries: [DeckEntry(definitionId: 'b', quantity: 1)],
+            ),
           },
         },
       );
 
-      final drawDeckCards = session.state.cards.where((c) => c.zoneId == 'draw_deck').toList();
-      final locationDeckCards = session.state.cards.where((c) => c.zoneId == 'location_deck').toList();
+      final drawDeckCards = session.state.cards
+          .where((c) => c.zoneId == 'draw_deck')
+          .toList();
+      final locationDeckCards = session.state.cards
+          .where((c) => c.zoneId == 'location_deck')
+          .toList();
       expect(drawDeckCards, hasLength(2));
       expect(drawDeckCards.every((c) => c.definitionId == 'a'), isTrue);
       expect(locationDeckCards, hasLength(1));
@@ -143,9 +214,20 @@ void main() {
         id: 'g1',
         name: 'G',
         cards: _cards,
-        zones: [ZoneDefinition(id: 'discard_pile', name: 'Discard Pile', faceUp: true, entries: [DeckEntry(definitionId: 'a', quantity: 1)])],
+        zones: [
+          ZoneDefinition(
+            id: 'discard_pile',
+            name: 'Discard Pile',
+            faceUp: true,
+            entries: [DeckEntry(definitionId: 'a', quantity: 1)],
+          ),
+        ],
       );
-      final session = GameSession.dealFromZones(game: game, players: [_players[0]], localPlayerId: 'p1');
+      final session = GameSession.dealFromZones(
+        game: game,
+        players: [_players[0]],
+        localPlayerId: 'p1',
+      );
       expect(session.state.cards.single.faceUp, isTrue);
     });
 
@@ -154,61 +236,217 @@ void main() {
         id: 'g1',
         name: 'G',
         cards: _cards,
-        zones: [ZoneDefinition(id: 'draw_deck', name: 'Draw Deck', dealsBuiltDeck: true)],
+        zones: [
+          ZoneDefinition(
+            id: 'draw_deck',
+            name: 'Draw Deck',
+            dealsBuiltDeck: true,
+          ),
+        ],
       );
-      final session = GameSession.dealFromZones(game: game, players: [_players[0]], localPlayerId: 'p1');
+      final session = GameSession.dealFromZones(
+        game: game,
+        players: [_players[0]],
+        localPlayerId: 'p1',
+      );
       expect(session.state.cards.every((c) => !c.faceUp), isTrue);
     });
   });
 
-  group('GameSession.returnToZone / shuffleZone -- respecting the zone definition', () {
-    test('returnToZone sets faceUp from the zone\'s own ZoneDefinition.faceUp', () {
+  group('GameSession.dealFromZones -- autoShuffle', () {
+    test('without autoShuffle, cards are dealt in entries order', () {
       const game = GameDefinition(
         id: 'g1',
         name: 'G',
         cards: _cards,
-        zones: [ZoneDefinition(id: 'discard_pile', name: 'Discard Pile', faceUp: true)],
+        zones: [
+          ZoneDefinition(
+            id: 'draw_deck',
+            name: 'Draw Deck',
+            entries: [
+              DeckEntry(definitionId: 'a', quantity: 2),
+              DeckEntry(definitionId: 'b', quantity: 2),
+            ],
+          ),
+        ],
       );
-      final session = GameSession(
+      final session = GameSession.dealFromZones(
         game: game,
+        players: [_players[0]],
         localPlayerId: 'p1',
-        initialState: TableState(
-          gameId: 'g1',
-          players: [_players[0]],
-          cards: [CardInstance(instanceId: 'h1', definitionId: 'a', x: 0, y: 0, zIndex: 0, faceUp: false, zone: CardZone.hand, ownerId: 'p1')],
-          revision: 0,
-        ),
       );
-      session.returnToZone('h1', 'discard_pile', zoneOwnerId: 'p1');
-      expect(session.state.cards.firstWhere((c) => c.instanceId == 'h1').faceUp, isTrue);
+      expect(session.state.cards.map((c) => c.definitionId).toList(), [
+        'a',
+        'a',
+        'b',
+        'b',
+      ]);
     });
 
-    test('shuffleZone is a no-op when the zone is not shuffleable', () {
+    test('with autoShuffle, every card is still dealt with the same multiset and distinct sequential zIndex', () {
       const game = GameDefinition(
         id: 'g1',
         name: 'G',
         cards: _cards,
-        zones: [ZoneDefinition(id: 'discard_pile', name: 'Discard Pile', shuffleable: false, entries: [DeckEntry(definitionId: 'a', quantity: 2)])],
+        zones: [
+          ZoneDefinition(
+            id: 'draw_deck',
+            name: 'Draw Deck',
+            autoShuffle: true,
+            entries: [
+              DeckEntry(definitionId: 'a', quantity: 10),
+              DeckEntry(definitionId: 'b', quantity: 10),
+            ],
+          ),
+        ],
       );
-      final session = GameSession.dealFromZones(game: game, players: [_players[0]], localPlayerId: 'p1');
-      final before = session.state;
-      session.shuffleZone('discard_pile', zoneOwnerId: 'p1');
-      expect(session.state, same(before));
+      final session = GameSession.dealFromZones(
+        game: game,
+        players: [_players[0]],
+        localPlayerId: 'p1',
+      );
+      expect(session.state.cards, hasLength(20));
+      expect(
+        session.state.cards.where((c) => c.definitionId == 'a'),
+        hasLength(10),
+      );
+      expect(
+        session.state.cards.where((c) => c.definitionId == 'b'),
+        hasLength(10),
+      );
+      expect(session.state.cards.map((c) => c.zIndex).toSet(), hasLength(20));
     });
 
-    test('shuffleZone proceeds normally when the zone is shuffleable', () {
+    test('with autoShuffle, a shared zone is also randomized', () {
       const game = GameDefinition(
         id: 'g1',
         name: 'G',
         cards: _cards,
-        zones: [ZoneDefinition(id: 'draw_deck', name: 'Draw Deck', entries: [DeckEntry(definitionId: 'a', quantity: 2), DeckEntry(definitionId: 'b', quantity: 2)])],
+        zones: [
+          ZoneDefinition(
+            id: 'shared_deck',
+            name: 'Shared Deck',
+            shared: true,
+            autoShuffle: true,
+            entries: [
+              DeckEntry(definitionId: 'a', quantity: 5),
+              DeckEntry(definitionId: 'b', quantity: 5),
+            ],
+          ),
+        ],
       );
-      final session = GameSession.dealFromZones(game: game, players: [_players[0]], localPlayerId: 'p1');
-      final before = session.state;
-      session.shuffleZone('draw_deck', zoneOwnerId: 'p1');
-      expect(session.state, isNot(same(before)));
+      final session = GameSession.dealFromZones(
+        game: game,
+        players: [_players[0]],
+        localPlayerId: 'p1',
+      );
+      expect(session.state.cards, hasLength(10));
+      expect(session.state.cards.every((c) => c.ownerId == null), isTrue);
+      expect(
+        session.state.cards.where((c) => c.definitionId == 'a'),
+        hasLength(5),
+      );
     });
   });
+
+  group(
+    'GameSession.returnToZone / shuffleZone -- respecting the zone definition',
+    () {
+      test(
+        'returnToZone sets faceUp from the zone\'s own ZoneDefinition.faceUp',
+        () {
+          const game = GameDefinition(
+            id: 'g1',
+            name: 'G',
+            cards: _cards,
+            zones: [
+              ZoneDefinition(
+                id: 'discard_pile',
+                name: 'Discard Pile',
+                faceUp: true,
+              ),
+            ],
+          );
+          final session = GameSession(
+            game: game,
+            localPlayerId: 'p1',
+            initialState: TableState(
+              gameId: 'g1',
+              players: [_players[0]],
+              cards: [
+                CardInstance(
+                  instanceId: 'h1',
+                  definitionId: 'a',
+                  x: 0,
+                  y: 0,
+                  zIndex: 0,
+                  faceUp: false,
+                  zone: CardZone.hand,
+                  ownerId: 'p1',
+                ),
+              ],
+              revision: 0,
+            ),
+          );
+          session.returnToZone('h1', 'discard_pile', zoneOwnerId: 'p1');
+          expect(
+            session.state.cards.firstWhere((c) => c.instanceId == 'h1').faceUp,
+            isTrue,
+          );
+        },
+      );
+
+      test('shuffleZone is a no-op when the zone is not shuffleable', () {
+        const game = GameDefinition(
+          id: 'g1',
+          name: 'G',
+          cards: _cards,
+          zones: [
+            ZoneDefinition(
+              id: 'discard_pile',
+              name: 'Discard Pile',
+              shuffleable: false,
+              entries: [DeckEntry(definitionId: 'a', quantity: 2)],
+            ),
+          ],
+        );
+        final session = GameSession.dealFromZones(
+          game: game,
+          players: [_players[0]],
+          localPlayerId: 'p1',
+        );
+        final before = session.state;
+        session.shuffleZone('discard_pile', zoneOwnerId: 'p1');
+        expect(session.state, same(before));
+      });
+
+      test('shuffleZone proceeds normally when the zone is shuffleable', () {
+        const game = GameDefinition(
+          id: 'g1',
+          name: 'G',
+          cards: _cards,
+          zones: [
+            ZoneDefinition(
+              id: 'draw_deck',
+              name: 'Draw Deck',
+              entries: [
+                DeckEntry(definitionId: 'a', quantity: 2),
+                DeckEntry(definitionId: 'b', quantity: 2),
+              ],
+            ),
+          ],
+        );
+        final session = GameSession.dealFromZones(
+          game: game,
+          players: [_players[0]],
+          localPlayerId: 'p1',
+        );
+        final before = session.state;
+        session.shuffleZone('draw_deck', zoneOwnerId: 'p1');
+        expect(session.state, isNot(same(before)));
+      });
+    },
+  );
 
   group('GameSession.dealFromZones -- shared zones', () {
     test('empty entries default to one of every game card, unowned', () {
@@ -218,10 +456,17 @@ void main() {
         cards: _cards,
         zones: [ZoneDefinition(id: 'deck', name: 'Deck', shared: true)],
       );
-      final session = GameSession.dealFromZones(game: game, players: [_players[0]], localPlayerId: 'p1');
+      final session = GameSession.dealFromZones(
+        game: game,
+        players: [_players[0]],
+        localPlayerId: 'p1',
+      );
 
       expect(session.state.cards, hasLength(2));
-      expect(session.state.cards.map((c) => c.definitionId).toSet(), {'a', 'b'});
+      expect(session.state.cards.map((c) => c.definitionId).toSet(), {
+        'a',
+        'b',
+      });
       for (final card in session.state.cards) {
         expect(card.zone, CardZone.zone);
         expect(card.zoneId, 'deck');
@@ -236,14 +481,32 @@ void main() {
         name: 'G',
         cards: _cards,
         zones: [
-          ZoneDefinition(id: 'main_deck', name: 'Main Deck', shared: true, entries: [DeckEntry(definitionId: 'a', quantity: 2)]),
-          ZoneDefinition(id: 'fate_deck', name: 'Fate Deck', shared: true, entries: [DeckEntry(definitionId: 'b', quantity: 3)]),
+          ZoneDefinition(
+            id: 'main_deck',
+            name: 'Main Deck',
+            shared: true,
+            entries: [DeckEntry(definitionId: 'a', quantity: 2)],
+          ),
+          ZoneDefinition(
+            id: 'fate_deck',
+            name: 'Fate Deck',
+            shared: true,
+            entries: [DeckEntry(definitionId: 'b', quantity: 3)],
+          ),
         ],
       );
-      final session = GameSession.dealFromZones(game: game, players: [_players[0]], localPlayerId: 'p1');
+      final session = GameSession.dealFromZones(
+        game: game,
+        players: [_players[0]],
+        localPlayerId: 'p1',
+      );
 
-      final mainCards = session.state.cards.where((c) => c.zoneId == 'main_deck').toList();
-      final fateCards = session.state.cards.where((c) => c.zoneId == 'fate_deck').toList();
+      final mainCards = session.state.cards
+          .where((c) => c.zoneId == 'main_deck')
+          .toList();
+      final fateCards = session.state.cards
+          .where((c) => c.zoneId == 'fate_deck')
+          .toList();
       expect(mainCards, hasLength(2));
       expect(fateCards, hasLength(3));
       // Positioned differently so the two piles don't overlap on the table.
@@ -260,11 +523,18 @@ void main() {
             id: 'deck',
             name: 'Deck',
             shared: true,
-            entries: [DeckEntry(definitionId: 'a', quantity: 1), DeckEntry(definitionId: 'nonexistent', quantity: 5)],
+            entries: [
+              DeckEntry(definitionId: 'a', quantity: 1),
+              DeckEntry(definitionId: 'nonexistent', quantity: 5),
+            ],
           ),
         ],
       );
-      final session = GameSession.dealFromZones(game: game, players: [_players[0]], localPlayerId: 'p1');
+      final session = GameSession.dealFromZones(
+        game: game,
+        players: [_players[0]],
+        localPlayerId: 'p1',
+      );
       expect(session.state.cards, hasLength(1));
       expect(session.state.cards.single.definitionId, 'a');
     });
@@ -288,7 +558,13 @@ void main() {
         id: 'g1',
         name: 'G',
         cards: _cards,
-        zones: [ZoneDefinition(id: 'draw_deck', name: 'Draw Deck', dealsBuiltDeck: true)],
+        zones: [
+          ZoneDefinition(
+            id: 'draw_deck',
+            name: 'Draw Deck',
+            dealsBuiltDeck: true,
+          ),
+        ],
       );
       final session = GameSession.localSandbox(game: game, localPlayerId: 'p1');
       expect(session.state.cards, hasLength(2));
@@ -301,7 +577,12 @@ void main() {
       return GameSession(
         game: game,
         localPlayerId: 'p1',
-        initialState: const TableState(gameId: 'g1', players: [], cards: [], revision: 0),
+        initialState: const TableState(
+          gameId: 'g1',
+          players: [],
+          cards: [],
+          revision: 0,
+        ),
       );
     }
 
@@ -326,15 +607,18 @@ void main() {
       expect(notified, isTrue);
     });
 
-    test('setWidgetValue updates the value, clamped, and notifies listeners', () {
-      final session = emptySession();
-      session.createWidget('w1', BoardWidgetKind.simpleCounter, 0, 0);
-      var notified = false;
-      session.addListener(() => notified = true);
-      session.setWidgetValue('w1', 500000);
-      expect(session.state.widgets.single.value, boardWidgetCounterMax);
-      expect(notified, isTrue);
-    });
+    test(
+      'setWidgetValue updates the value, clamped, and notifies listeners',
+      () {
+        final session = emptySession();
+        session.createWidget('w1', BoardWidgetKind.simpleCounter, 0, 0);
+        var notified = false;
+        session.addListener(() => notified = true);
+        session.setWidgetValue('w1', 500000);
+        expect(session.state.widgets.single.value, boardWidgetCounterMax);
+        expect(notified, isTrue);
+      },
+    );
 
     test('deleteWidget removes it and notifies listeners', () {
       final session = emptySession();
@@ -364,7 +648,9 @@ void main() {
       session.addListener(() => notified = true);
       session.duplicateWidget('w1', 'w2', 0.9, 0.9);
       expect(session.state.widgets, hasLength(2));
-      final copy = session.state.widgets.firstWhere((w) => w.instanceId == 'w2');
+      final copy = session.state.widgets.firstWhere(
+        (w) => w.instanceId == 'w2',
+      );
       expect(copy.kind, BoardWidgetKind.token);
       expect(copy.x, 0.9);
       expect(copy.y, 0.9);
@@ -379,7 +665,17 @@ void main() {
         initialState: TableState(
           gameId: 'g1',
           players: const [],
-          cards: [CardInstance(instanceId: 'c1', definitionId: 'a', x: 0.4, y: 0.5, zIndex: 0, faceUp: true, zone: CardZone.table)],
+          cards: [
+            CardInstance(
+              instanceId: 'c1',
+              definitionId: 'a',
+              x: 0.4,
+              y: 0.5,
+              zIndex: 0,
+              faceUp: true,
+              zone: CardZone.table,
+            ),
+          ],
           revision: 0,
         ),
       );

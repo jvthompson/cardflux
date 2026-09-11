@@ -14,8 +14,8 @@ CARDS
   always a plain positional move. Any board widget (e.g. a Token) attached
   to a card caught up in the group rides along too, ghosted in place and
   following the cursor with the rest of the group.
-- Hover a card: No effect by itself, but drives the Space-preview and Q/E/F/
-  Backspace hotkeys. Works even on opponent cards (face/back visibility is
+- Hover a card: No effect by itself, but drives the Space-preview and Q/E/F/X
+  hotkeys. Works even on opponent cards (face/back visibility is
   still respected).
 
 Drop behavior when releasing a dragged card:
@@ -70,7 +70,9 @@ BOARD WIDGETS
   it from then on); dropping on empty space detaches it. Ctrl+drag
   duplicates the token, leaving the original in place.
 - Counter only: No attach/duplicate behavior, but has the
-  Increment/Decrement/Set Value menu options Token doesn't.
+  Increment/Decrement/Set Value menu options Token doesn't. Double-clicking
+  the right half of its face increments by 1; double-clicking the left half
+  decrements by 1.
 
 DECK EDITOR (separate model -- not drag-based)
 -----------------------------------------------
@@ -93,7 +95,7 @@ E               | Key-down while hovering a card    | Rotates that card's stack 
 F               | Key-down while hovering a card    | Flips the card face-up/down                                      | A free-table card, a hand card, or a shared zone's top
                 |                                   |                                                                    | card -- never one owned by the opponent, and NOT your own
                 |                                   |                                                                    | zone's card (e.g. your draw deck stays drag-only)
-Backspace       | Key-down while hovering a card    | Sends the card to your discard zone (with a short flight         | Same ownership/table conditions as Q, AND only if a
+X               | Key-down while hovering a card    | Sends the card to your discard zone (with a short flight         | Same ownership/table conditions as Q, AND only if a
                 |                                   | animation)                                                        | non-shared zone is marked as your discard pile
 W / A / S / D   | Hold                              | Pans YOUR OWN camera over the table (up/left/down/right) --      | Client-side only -- each player's camera is independent;
                 |                                   | continuous movement while held, revealing a bit of extra table   | the other player's view is never affected. Cards CAN be
@@ -107,7 +109,7 @@ Alt (at drag-   | Dragging a whole pile             | Moves/deals the entire pil
 release)        |                                   | card                                                              |
 Ctrl (at drop)  | Dragging a Token board widget     | Duplicates the token instead of moving it (original stays put)   | Token widgets only -- Counter widgets have no Ctrl behavior
 
-Note: Q/E/F/Backspace only fire on the initial key-down (OS key-repeat while
+Note: Q/E/F/X only fire on the initial key-down (OS key-repeat while
 held is ignored), so holding one down doesn't spam-repeat the action.
 WASD is the one exception -- it's meant to be held, and drives continuous
 camera movement for as long as a key stays down. Double-click isn't used

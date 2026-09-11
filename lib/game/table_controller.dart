@@ -3,6 +3,7 @@ import '../models/card_instance.dart';
 import '../networking/game_client.dart';
 import '../networking/net_message.dart';
 import 'game_session.dart';
+import 'stack_utils.dart';
 
 /// What [TableScreen] calls to perform a gameplay action, regardless of
 /// whether this instance is the host or a client -- the two implementations
@@ -26,6 +27,9 @@ abstract class TableController {
   void drawFromZone(String zoneId);
   void returnToZone(String instanceId, String zoneId, {bool toBottom});
   void shuffleZone(String zoneId);
+  void startSearchZone(String zoneId);
+  void startSearchPile(String pileRootInstanceId);
+  void stopSearch();
   void createWidget(
     String instanceId,
     BoardWidgetKind kind,
@@ -52,6 +56,8 @@ class HostTableController implements TableController {
   HostTableController(this._session);
 
   final GameSession _session;
+
+  static const StackUtils _stacks = StackUtils();
 
   /// Mirrors `HostGameEngine._isAllowedToActOn` for the host's own local
   /// actions, which (unlike a client's) never go through that network guard
@@ -146,6 +152,31 @@ class HostTableController implements TableController {
   @override
   void shuffleZone(String zoneId) =>
       _session.shuffleZone(zoneId, zoneOwnerId: _zoneOwnerId(zoneId));
+
+  @override
+  void startSearchZone(String zoneId) =>
+      _session.startSearchZone(zoneId, zoneOwnerId: _zoneOwnerId(zoneId));
+
+  /// Mirrors `HostGameEngine._isAllowedToDrawOrShuffle` for the host's own
+  /// local actions -- every card in the pile must be unowned or the host's
+  /// own, exactly like Shuffle's guard.
+  bool _isOwnedOrUnownedStack(String rootInstanceId) {
+    final stack = _stacks.stackOf(_session.state.cards, rootInstanceId);
+    for (final c in stack) {
+      if (c.ownerId != null && c.ownerId != _session.localPlayerId)
+        return false;
+    }
+    return true;
+  }
+
+  @override
+  void startSearchPile(String pileRootInstanceId) {
+    if (_isOwnedOrUnownedStack(pileRootInstanceId))
+      _session.startSearchPile(pileRootInstanceId);
+  }
+
+  @override
+  void stopSearch() => _session.stopSearch();
 
   // Widgets have no ownership concept at all (unlike a card) -- every
   // widget is a shared table utility, so these need no `_isOwnedOrUnowned`
@@ -360,6 +391,31 @@ class ClientTableController implements TableController {
         payload: {'zoneId': zoneId},
       ),
     );
+  }
+
+  @override
+  void startSearchZone(String zoneId) {
+    _client.send(
+      NetMessage(
+        type: NetMessageType.requestStartSearchZone,
+        payload: {'zoneId': zoneId},
+      ),
+    );
+  }
+
+  @override
+  void startSearchPile(String pileRootInstanceId) {
+    _client.send(
+      NetMessage(
+        type: NetMessageType.requestStartSearchPile,
+        payload: {'pileRootInstanceId': pileRootInstanceId},
+      ),
+    );
+  }
+
+  @override
+  void stopSearch() {
+    _client.send(NetMessage(type: NetMessageType.requestStopSearch));
   }
 
   @override

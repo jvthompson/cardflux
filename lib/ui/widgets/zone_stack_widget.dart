@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import '../../models/card_definition.dart';
 import 'card_back_widget.dart';
 import 'card_face_widget.dart';
-import 'pile_widget.dart' show pileWidgetExtra;
+import 'pile_widget.dart' show SearchBadge, pileWidgetExtra;
 
 /// The local player's own instance of a `ZoneDefinition` (owned or shared) --
 /// a fixed zone next to the hand zone (unlike table piles, never positioned
@@ -29,6 +29,7 @@ class ZoneStackWidget extends StatefulWidget {
     required this.topDefinition,
     required this.onDragEnd,
     required this.onShuffle,
+    this.isBeingSearched = false,
     this.cardBackImagePath,
   });
 
@@ -39,16 +40,27 @@ class ZoneStackWidget extends StatefulWidget {
   final CardDefinition? topDefinition;
   final void Function(Offset globalTopLeft)? onDragEnd;
   final VoidCallback? onShuffle;
+
+  /// See `PileWidget.isBeingSearched`'s identical doc.
+  final bool isBeingSearched;
   final String? cardBackImagePath;
 
   @override
   State<ZoneStackWidget> createState() => _ZoneStackWidgetState();
 }
 
-class _ZoneStackWidgetState extends State<ZoneStackWidget> with SingleTickerProviderStateMixin {
+class _ZoneStackWidgetState extends State<ZoneStackWidget>
+    with SingleTickerProviderStateMixin {
   late final AnimationController _shuffleController = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 400),
+  );
+
+  /// See `PileWidget`'s identical field -- keeps this Shuffle button out of
+  /// focus traversal so a stray Space/Enter after a click can't re-trigger it.
+  final FocusNode _shuffleFocusNode = FocusNode(
+    canRequestFocus: false,
+    skipTraversal: true,
   );
 
   void _handleShuffle() {
@@ -59,6 +71,7 @@ class _ZoneStackWidgetState extends State<ZoneStackWidget> with SingleTickerProv
   @override
   void dispose() {
     _shuffleController.dispose();
+    _shuffleFocusNode.dispose();
     super.dispose();
   }
 
@@ -78,15 +91,23 @@ class _ZoneStackWidgetState extends State<ZoneStackWidget> with SingleTickerProv
       return SizedBox(
         width: cardWidth + pileWidgetExtra,
         height: cardHeight + pileWidgetExtra,
-        child: Center(
-          child: Container(
-            width: cardWidth,
-            height: cardHeight,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(6),
-              border: Border.all(color: Colors.white24, width: 1.5),
+        child: Stack(
+          clipBehavior: Clip.none,
+          alignment: Alignment.center,
+          children: [
+            Center(
+              child: Container(
+                width: cardWidth,
+                height: cardHeight,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: Colors.white24, width: 1.5),
+                ),
+              ),
             ),
-          ),
+            if (widget.isBeingSearched)
+              const Positioned(top: -12, child: SearchBadge()),
+          ],
         ),
       );
     }
@@ -107,7 +128,10 @@ class _ZoneStackWidgetState extends State<ZoneStackWidget> with SingleTickerProv
             onTap: () {},
             child: Draggable<String>(
               data: widget.topInstanceId,
-              feedback: Material(type: MaterialType.transparency, child: _topFace()),
+              feedback: Material(
+                type: MaterialType.transparency,
+                child: _topFace(),
+              ),
               childWhenDragging: Opacity(opacity: 0.3, child: _topFace()),
               onDragEnd: (details) => widget.onDragEnd?.call(details.offset),
               child: AnimatedBuilder(
@@ -128,7 +152,10 @@ class _ZoneStackWidgetState extends State<ZoneStackWidget> with SingleTickerProv
             child: CircleAvatar(
               radius: 12,
               backgroundColor: Colors.black87,
-              child: Text('${widget.count}', style: const TextStyle(color: Colors.white, fontSize: 11)),
+              child: Text(
+                '${widget.count}',
+                style: const TextStyle(color: Colors.white, fontSize: 11),
+              ),
             ),
           ),
           if (widget.onShuffle != null)
@@ -138,14 +165,24 @@ class _ZoneStackWidgetState extends State<ZoneStackWidget> with SingleTickerProv
                 color: Colors.black54,
                 shape: const CircleBorder(),
                 child: IconButton(
-                  icon: const Icon(Icons.shuffle, color: Colors.white, size: 16),
+                  icon: const Icon(
+                    Icons.shuffle,
+                    color: Colors.white,
+                    size: 16,
+                  ),
                   tooltip: 'Shuffle',
                   onPressed: _handleShuffle,
+                  focusNode: _shuffleFocusNode,
                   padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints.tightFor(width: 28, height: 28),
+                  constraints: const BoxConstraints.tightFor(
+                    width: 28,
+                    height: 28,
+                  ),
                 ),
               ),
             ),
+          if (widget.isBeingSearched)
+            const Positioned(top: -12, child: SearchBadge()),
         ],
       ),
     );

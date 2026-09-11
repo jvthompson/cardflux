@@ -1,5 +1,6 @@
 import 'dart:math';
 
+import '../models/active_search.dart';
 import '../models/board_widget_instance.dart';
 import '../models/card_instance.dart';
 import '../models/table_state.dart';
@@ -504,6 +505,40 @@ class TableActions {
       return c.copyWith(zIndex: newZ, faceUp: false);
     }).toList();
     return state.copyWith(cards: cards, revision: state.revision + 1);
+  }
+
+  // --- Search ----------------------------------------------------------
+
+  /// Opens (or replaces) [searcherId]'s Search window on [targetType]
+  /// [targetId] -- a searcher can only ever have one active search at a
+  /// time, so any existing entry for [searcherId] is dropped first.
+  TableState startSearch(
+    TableState state, {
+    required String searcherId,
+    required SearchTargetType targetType,
+    required String targetId,
+    String? targetOwnerId,
+  }) {
+    final searches = [
+      for (final s in state.searches)
+        if (s.searcherId != searcherId) s,
+      ActiveSearch(
+        searcherId: searcherId,
+        targetType: targetType,
+        targetId: targetId,
+        targetOwnerId: targetOwnerId,
+      ),
+    ];
+    return state.copyWith(searches: searches, revision: state.revision + 1);
+  }
+
+  /// Closes [searcherId]'s Search window, if any.
+  TableState stopSearch(TableState state, {required String searcherId}) {
+    final searches = state.searches
+        .where((s) => s.searcherId != searcherId)
+        .toList();
+    if (searches.length == state.searches.length) return state;
+    return state.copyWith(searches: searches, revision: state.revision + 1);
   }
 
   // --- Board widgets -------------------------------------------------

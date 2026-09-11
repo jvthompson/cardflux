@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../../models/card_definition.dart';
 import 'card_back_widget.dart';
 import 'card_face_widget.dart';
-import 'pile_widget.dart' show pileWidgetExtra;
+import 'pile_widget.dart' show SearchBadge, pileWidgetExtra;
 
 /// The opponent's instance of a zone, shown read-only with a count badge --
 /// no draw/shuffle affordance, matching how the opponent's hand is already
@@ -22,6 +22,7 @@ class OpponentZoneStackWidget extends StatelessWidget {
     required this.count,
     this.topFaceUp = false,
     this.topDefinition,
+    this.isBeingSearched = false,
     this.cardBackImagePath,
   });
 
@@ -29,6 +30,9 @@ class OpponentZoneStackWidget extends StatelessWidget {
   final int count;
   final bool topFaceUp;
   final CardDefinition? topDefinition;
+
+  /// See `PileWidget.isBeingSearched`'s identical doc.
+  final bool isBeingSearched;
   final String? cardBackImagePath;
 
   @override
@@ -41,15 +45,23 @@ class OpponentZoneStackWidget extends StatelessWidget {
       return SizedBox(
         width: cardWidth + pileWidgetExtra,
         height: cardHeight + pileWidgetExtra,
-        child: Center(
-          child: Container(
-            width: cardWidth,
-            height: cardHeight,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(6),
-              border: Border.all(color: Colors.white24, width: 1.5),
+        child: Stack(
+          clipBehavior: Clip.none,
+          alignment: Alignment.center,
+          children: [
+            Center(
+              child: Container(
+                width: cardWidth,
+                height: cardHeight,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: Colors.white24, width: 1.5),
+                ),
+              ),
             ),
-          ),
+            if (isBeingSearched)
+              const Positioned(top: -12, child: SearchBadge()),
+          ],
         ),
       );
     }
@@ -70,9 +82,13 @@ class OpponentZoneStackWidget extends StatelessWidget {
             child: CircleAvatar(
               radius: 12,
               backgroundColor: Colors.black87,
-              child: Text('$count', style: const TextStyle(color: Colors.white, fontSize: 11)),
+              child: Text(
+                '$count',
+                style: const TextStyle(color: Colors.white, fontSize: 11),
+              ),
             ),
           ),
+          if (isBeingSearched) const Positioned(top: -12, child: SearchBadge()),
         ],
       ),
     );

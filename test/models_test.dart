@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_deck/models/active_search.dart';
 import 'package:flutter_deck/models/board_widget_instance.dart';
 import 'package:flutter_deck/models/card_definition.dart';
 import 'package:flutter_deck/models/card_instance.dart';
@@ -468,6 +469,7 @@ void main() {
       expect(zone.faceUp, isFalse);
       expect(zone.shuffleable, isTrue);
       expect(zone.visibleToAll, isFalse);
+      expect(zone.autoShuffle, isFalse);
     });
 
     test('faceUp/shuffleable/visibleToAll round-trip through JSON', () {
@@ -497,6 +499,7 @@ void main() {
       expect(json.containsKey('shuffleable'), isFalse);
       expect(json.containsKey('visibleToAll'), isFalse);
       expect(json.containsKey('isDiscardPile'), isFalse);
+      expect(json.containsKey('autoShuffle'), isFalse);
     });
 
     test(
@@ -518,6 +521,22 @@ void main() {
       },
     );
 
+    test('autoShuffle defaults to false and round-trips true through JSON', () {
+      final zone = ZoneDefinition.fromJson({
+        'id': 'draw_deck',
+        'name': 'Draw Deck',
+      });
+      expect(zone.autoShuffle, isFalse);
+
+      const shuffled = ZoneDefinition(
+        id: 'draw_deck',
+        name: 'Draw Deck',
+        autoShuffle: true,
+      );
+      final roundTripped = ZoneDefinition.fromJson(shuffled.toJson());
+      expect(roundTripped.autoShuffle, isTrue);
+    });
+
     test('copyWith with no arguments returns an equal-fielded copy', () {
       const original = ZoneDefinition(
         id: 'draw_deck',
@@ -529,6 +548,7 @@ void main() {
         shuffleable: false,
         visibleToAll: true,
         isDiscardPile: true,
+        autoShuffle: true,
       );
       final copy = original.copyWith();
       expect(copy.id, original.id);
@@ -540,6 +560,7 @@ void main() {
       expect(copy.shuffleable, original.shuffleable);
       expect(copy.visibleToAll, original.visibleToAll);
       expect(copy.isDiscardPile, original.isDiscardPile);
+      expect(copy.autoShuffle, original.autoShuffle);
     });
 
     test('copyWith updates only the requested field', () {
@@ -547,9 +568,11 @@ void main() {
       final updated = original.copyWith(
         shuffleable: false,
         isDiscardPile: true,
+        autoShuffle: true,
       );
       expect(updated.shuffleable, isFalse);
       expect(updated.isDiscardPile, isTrue);
+      expect(updated.autoShuffle, isTrue);
       expect(updated.id, 'deck');
       expect(updated.name, 'Deck');
       expect(updated.shared, isFalse);
@@ -921,6 +944,65 @@ void main() {
       expect(roundTripped.widgets, hasLength(1));
       expect(roundTripped.widgets.single.instanceId, 'w1');
       expect(roundTripped.widgets.single.value, 5);
+    });
+
+    test('searches defaults to empty and is omitted from JSON', () {
+      final state = TableState(
+        gameId: 'g',
+        players: const [],
+        cards: const [],
+        revision: 0,
+      );
+      expect(state.searches, isEmpty);
+      expect(state.toJson().containsKey('searches'), isFalse);
+    });
+
+    test('searches round-trips through JSON', () {
+      final state = TableState(
+        gameId: 'g',
+        players: const [],
+        cards: const [],
+        revision: 0,
+        searches: const [
+          ActiveSearch(
+            searcherId: 'p1',
+            targetType: SearchTargetType.zone,
+            targetId: 'deck',
+            targetOwnerId: 'p1',
+          ),
+        ],
+      );
+      final roundTripped = TableState.fromJson(state.toJson());
+      expect(roundTripped.searches, hasLength(1));
+      expect(roundTripped.searches.single.searcherId, 'p1');
+      expect(roundTripped.searches.single.targetType, SearchTargetType.zone);
+      expect(roundTripped.searches.single.targetId, 'deck');
+      expect(roundTripped.searches.single.targetOwnerId, 'p1');
+    });
+  });
+
+  group('ActiveSearch', () {
+    test('targetOwnerId defaults to null and is omitted from JSON', () {
+      const search = ActiveSearch(
+        searcherId: 'p1',
+        targetType: SearchTargetType.pile,
+        targetId: 'root1',
+      );
+      expect(search.targetOwnerId, isNull);
+      expect(search.toJson().containsKey('targetOwnerId'), isFalse);
+      expect(ActiveSearch.fromJson(search.toJson()).targetOwnerId, isNull);
+    });
+
+    test('round-trips a pile target through JSON', () {
+      const search = ActiveSearch(
+        searcherId: 'p1',
+        targetType: SearchTargetType.pile,
+        targetId: 'root1',
+      );
+      final roundTripped = ActiveSearch.fromJson(search.toJson());
+      expect(roundTripped.searcherId, 'p1');
+      expect(roundTripped.targetType, SearchTargetType.pile);
+      expect(roundTripped.targetId, 'root1');
     });
   });
 }

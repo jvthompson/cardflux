@@ -10,10 +10,12 @@ import '../game/game_session.dart';
 import '../game/geometry_utils.dart';
 import '../game/stack_utils.dart';
 import '../game/table_controller.dart';
+import '../models/active_search.dart';
 import '../models/board_widget_instance.dart';
 import '../models/card_definition.dart';
 import '../models/card_instance.dart';
 import '../models/game_definition.dart';
+import '../models/table_state.dart';
 import '../models/zone_definition.dart';
 import 'widgets/arrow_widget.dart';
 import 'widgets/card_back_widget.dart';
@@ -25,6 +27,7 @@ import 'widgets/opponent_hand_zone_widget.dart';
 import 'widgets/opponent_zone_stack_widget.dart';
 import 'widgets/pile_widget.dart';
 import 'widgets/token_widget.dart';
+import 'widgets/zone_search_overlay.dart';
 import 'widgets/zone_stack_widget.dart';
 
 const StackUtils _stackUtils = StackUtils();
@@ -156,6 +159,14 @@ class _TableScreenState extends State<TableScreen>
   /// flipped, or moved by the other player) without the mouse actually
   /// leaving it.
   String? _hoveredInstanceId;
+
+  /// True when [_hoveredInstanceId] came from a Search window tile -- forces
+  /// [_buildHoverPreview] to show the real face regardless of
+  /// `CardInstance.faceUp`, since searching a deck already reveals every
+  /// card's real face to the searcher (see `ZoneSearchOverlay`'s own grid);
+  /// the Space-hold preview shouldn't fall back to showing a back just
+  /// because the card is face-down at rest in the pile.
+  bool _hoveredForceFaceUp = false;
 
   /// Latest raw mouse position (window-global coordinates), updated on every
   /// hover event without triggering a rebuild -- only read at the moment a
@@ -442,7 +453,7 @@ class _TableScreenState extends State<TableScreen>
         _rotateHovered(clockwise: false);
       } else if (event.logicalKey == LogicalKeyboardKey.keyE) {
         _rotateHovered(clockwise: true);
-      } else if (event.logicalKey == LogicalKeyboardKey.backspace) {
+      } else if (event.logicalKey == LogicalKeyboardKey.keyX) {
         _discardHovered();
       } else if (event.logicalKey == LogicalKeyboardKey.keyF) {
         _flipHovered();
@@ -454,8 +465,8 @@ class _TableScreenState extends State<TableScreen>
   }
 
   /// The hovered card, if it exists, sits on the table, and belongs to the
-  /// local player -- the shared precondition for both Q/E and D. Reads the
-  /// session directly (outside `build()`, this is a raw keyboard callback,
+  /// local player -- the shared precondition for both Q/E and X (discard).
+  /// Reads the session directly (outside `build()`, this is a raw keyboard callback,
   /// not part of the widget tree) rather than caching state, so it's never
   /// stale by even one action.
   CardInstance? _ownedHoveredTableCard() {
@@ -672,6 +683,7 @@ class _TableScreenState extends State<TableScreen>
           instance: w,
           onDragEnd: (_) {},
           onSecondaryTapUp: (_) {},
+          onDoubleTapSide: (_) {},
           interactable: false,
         ),
         BoardWidgetKind.token => TokenWidget(
@@ -751,8 +763,13 @@ class _TableScreenState extends State<TableScreen>
     );
   }
 
-  void _setHoveredId(String? id) {
-    if (_hoveredInstanceId != id) setState(() => _hoveredInstanceId = id);
+  void _setHoveredId(String? id, {bool forceFaceUp = false}) {
+    if (_hoveredInstanceId != id || _hoveredForceFaceUp != forceFaceUp) {
+      setState(() {
+        _hoveredInstanceId = id;
+        _hoveredForceFaceUp = forceFaceUp;
+      });
+    }
   }
 
   /// True if [globalPoint] falls within the local player's own hand zone --
@@ -1175,6 +1192,26 @@ class _TableScreenState extends State<TableScreen>
   /// category or widget type is just one more [PopupMenuItem] in the
   /// relevant list. The same click position anchors both menus and becomes
   /// the new widget's canonical position.
+  /// Right-clicking a zone/pile the local player is allowed to search --
+  /// a single-item menu (room for more later, matching the style of every
+  /// other context menu here) that opens a Search window via [onSearch].
+  Future<void> _showSearchMenu(
+    Offset globalPosition,
+    VoidCallback onSearch,
+  ) async {
+    final action = await showMenu<String>(
+      context: context,
+      position: RelativeRect.fromLTRB(
+        globalPosition.dx,
+        globalPosition.dy,
+        globalPosition.dx,
+        globalPosition.dy,
+      ),
+      items: const [PopupMenuItem(value: 'search', child: Text('Search...'))],
+    );
+    if (action == 'search') onSearch();
+  }
+
   Future<void> _showBoardContextMenu(Offset globalPosition) async {
     final category = await showMenu<String>(
       context: context,
@@ -1481,14 +1518,86 @@ class _TableScreenState extends State<TableScreen>
     );
   }
 
+  /// The local player's own Search window, if [session] has an
+  /// [ActiveSearch] recorded for them in [state.searches] -- null otherwise
+  /// (every other client only ever sees the eyeball badge, wired at each
+  /// zone/pile's own render site). Lives as a `Stack` sibling of the board
+  /// itself (see call site), not a pushed route, so its `Draggable` cards
+  /// can still be released onto the table/hand through the same
+  /// `_handleDragEnd` every other drag uses.
+  Widget? _buildSearchOverlay(
+    TableState state,
+    GameSession session,
+    Size screenSize,
+    List<CardInstance> tableTops,
+    List<CardInstance> pickupCandidates,
+    List<CardInstance> localHand,
+  ) {
+    ActiveSearch? mySearch;
+    for (final s in state.searches) {
+      if (s.searcherId == session.localPlayerId) {
+        mySearch = s;
+        break;
+      }
+    }
+    final search = mySearch;
+    if (search == null) return null;
+
+    final List<CardInstance> cards;
+    String title;
+    if (search.targetType == SearchTargetType.zone) {
+      cards = state.cards
+          .where(
+            (c) =>
+                c.zone == CardZone.zone &&
+                c.zoneId == search.targetId &&
+                c.ownerId == search.targetOwnerId,
+          )
+          .toList();
+      title = 'Zone';
+      for (final z in widget.zones) {
+        if (z.id == search.targetId) {
+          title = z.name;
+          break;
+        }
+      }
+    } else {
+      cards = _stackUtils.stackOf(state.cards, search.targetId);
+      title = 'Pile';
+    }
+    // Topmost card (highest zIndex, see StackUtils.topOf) listed first.
+    cards.sort((a, b) => b.zIndex.compareTo(a.zIndex));
+
+    return ZoneSearchOverlay(
+      title: title,
+      cards: cards,
+      definitionsById: widget.definitionsById,
+      screenSize: screenSize,
+      onClose: () => widget.controller.stopSearch(),
+      onCardDragEnd: (instanceId, offset) => _handleDragEnd(
+        tableTops,
+        pickupCandidates,
+        instanceId,
+        offset,
+        localHand,
+      ),
+      onCardHover: (instanceId, hovering) =>
+          _setHoveredId(hovering ? instanceId : null, forceFaceUp: true),
+    );
+  }
+
   /// A large, always-upright rendering of exactly what [instance] currently
   /// shows (real face if face-up, a back otherwise) positioned in the center
   /// of whichever half of [screenSize] the cursor isn't in, clamped to stay
   /// fully on screen regardless of card image aspect ratio or window size.
+  /// [forceFaceUp] overrides a face-down [instance] to show its real face
+  /// anyway -- set when the hover came from a Search window tile (see
+  /// [_hoveredForceFaceUp]'s doc).
   Widget _buildHoverPreview(
     CardInstance instance,
     CardDefinition? definition,
     Size screenSize,
+    bool forceFaceUp,
   ) {
     // Only a table card's own orientation is honored here (matching
     // DraggableCard/PileWidget's applyOrientation) -- a hand/zone card is
@@ -1522,7 +1631,7 @@ class _TableScreenState extends State<TableScreen>
       screenSize.height - previewHeight,
     );
 
-    final content = instance.faceUp && definition != null
+    final content = (instance.faceUp || forceFaceUp) && definition != null
         ? CardFaceWidget(definition: definition)
         : CardBackWidget(imagePath: widget.cardBackImagePath);
 
@@ -1558,34 +1667,42 @@ class _TableScreenState extends State<TableScreen>
     List<CardInstance> tableTops,
     List<CardInstance> pickupCandidates,
     List<CardInstance> localHand,
+    bool isBeingSearched,
   ) {
     final top = cards.isEmpty ? null : _stackUtils.topOf(cards);
-    return ColoredBox(
-      key: _zoneKey(zone.id),
-      color: Colors.black.withValues(alpha: 0.15),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-        child: ZoneStackWidget(
-          zoneName: zone.name,
-          count: cards.length,
-          topInstanceId: top?.instanceId,
-          topFaceUp: top?.faceUp ?? false,
-          topDefinition: top == null
-              ? null
-              : widget.definitionsById[top.definitionId],
-          onDragEnd: top == null
-              ? null
-              : (offset) => _handleDragEnd(
-                  tableTops,
-                  pickupCandidates,
-                  top.instanceId,
-                  offset,
-                  localHand,
-                ),
-          onShuffle: cards.isEmpty || !zone.shuffleable
-              ? null
-              : () => widget.controller.shuffleZone(zone.id),
-          cardBackImagePath: widget.cardBackImagePath,
+    return GestureDetector(
+      onSecondaryTapUp: (details) => _showSearchMenu(
+        details.globalPosition,
+        () => widget.controller.startSearchZone(zone.id),
+      ),
+      child: ColoredBox(
+        key: _zoneKey(zone.id),
+        color: Colors.black.withValues(alpha: 0.15),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+          child: ZoneStackWidget(
+            zoneName: zone.name,
+            count: cards.length,
+            topInstanceId: top?.instanceId,
+            topFaceUp: top?.faceUp ?? false,
+            topDefinition: top == null
+                ? null
+                : widget.definitionsById[top.definitionId],
+            onDragEnd: top == null
+                ? null
+                : (offset) => _handleDragEnd(
+                    tableTops,
+                    pickupCandidates,
+                    top.instanceId,
+                    offset,
+                    localHand,
+                  ),
+            onShuffle: cards.isEmpty || !zone.shuffleable
+                ? null
+                : () => widget.controller.shuffleZone(zone.id),
+            isBeingSearched: isBeingSearched,
+            cardBackImagePath: widget.cardBackImagePath,
+          ),
         ),
       ),
     );
@@ -1598,6 +1715,7 @@ class _TableScreenState extends State<TableScreen>
   Widget _buildOpponentZoneWidget(
     ZoneDefinition zone,
     List<CardInstance> cards,
+    bool isBeingSearched,
   ) {
     final top = cards.isEmpty ? null : _stackUtils.topOf(cards);
     return ColoredBox(
@@ -1611,6 +1729,7 @@ class _TableScreenState extends State<TableScreen>
           topDefinition: top == null
               ? null
               : widget.definitionsById[top.definitionId],
+          isBeingSearched: isBeingSearched,
           cardBackImagePath: widget.cardBackImagePath,
         ),
       ),
@@ -1619,295 +1738,461 @@ class _TableScreenState extends State<TableScreen>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFF0B6E4F),
-      body: SafeArea(
-        child: Consumer<GameSession>(
-          builder: (context, session, _) {
-            final state = session.state;
-            final ownedZones = widget.zones.where((z) => !z.shared).toList();
-            final sharedZones = widget.zones.where((z) => z.shared).toList();
+    // This screen's controls are entirely mouse/drag- and raw-hotkey-driven
+    // (see _handleKeyEvent) -- Space/Enter activating whatever button
+    // happens to still hold keyboard focus (Flutter's default Shortcuts
+    // behavior) was never part of that scheme and only causes surprises
+    // (e.g. a stray Space after clicking Shuffle re-triggering it).
+    return Shortcuts(
+      shortcuts: const <ShortcutActivator, Intent>{
+        SingleActivator(LogicalKeyboardKey.space): DoNothingIntent(),
+        SingleActivator(LogicalKeyboardKey.enter): DoNothingIntent(),
+      },
+      child: Scaffold(
+        backgroundColor: const Color(0xFF0B6E4F),
+        body: SafeArea(
+          child: Consumer<GameSession>(
+            builder: (context, session, _) {
+              final state = session.state;
+              final ownedZones = widget.zones.where((z) => !z.shared).toList();
+              final sharedZones = widget.zones.where((z) => z.shared).toList();
 
-            // Sorted by zIndex -- the field `reorderHand` renumbers to
-            // control left-to-right display/drop order, exactly like a
-            // table pile's zIndex already controls its draw order.
-            final localHand =
-                state.cards
-                    .where(
-                      (c) =>
-                          c.zone == CardZone.hand &&
-                          c.ownerId == session.localPlayerId,
-                    )
-                    .toList()
-                  ..sort((a, b) => a.zIndex.compareTo(b.zIndex));
-            final opponentHandCount = state.cards
-                .where(
-                  (c) =>
-                      c.zone == CardZone.hand &&
-                      c.ownerId != session.localPlayerId,
-                )
-                .length;
+              // Sorted by zIndex -- the field `reorderHand` renumbers to
+              // control left-to-right display/drop order, exactly like a
+              // table pile's zIndex already controls its draw order.
+              final localHand =
+                  state.cards
+                      .where(
+                        (c) =>
+                            c.zone == CardZone.hand &&
+                            c.ownerId == session.localPlayerId,
+                      )
+                      .toList()
+                    ..sort((a, b) => a.zIndex.compareTo(b.zIndex));
+              final opponentHandCount = state.cards
+                  .where(
+                    (c) =>
+                        c.zone == CardZone.hand &&
+                        c.ownerId != session.localPlayerId,
+                  )
+                  .length;
 
-            final localZoneCardsById = {
-              for (final z in ownedZones)
-                z.id: state.cards
-                    .where(
-                      (c) =>
-                          c.zone == CardZone.zone &&
-                          c.zoneId == z.id &&
-                          c.ownerId == session.localPlayerId,
-                    )
-                    .toList(),
-            };
-            final opponentZoneCardsById = {
-              for (final z in ownedZones)
-                z.id: state.cards
-                    .where(
-                      (c) =>
-                          c.zone == CardZone.zone &&
-                          c.zoneId == z.id &&
-                          c.ownerId != null &&
-                          c.ownerId != session.localPlayerId,
-                    )
-                    .toList(),
-            };
-            final sharedZoneCardsById = {
-              for (final z in sharedZones)
-                z.id: state.cards
-                    .where((c) => c.zone == CardZone.zone && c.zoneId == z.id)
-                    .toList(),
-            };
+              final localZoneCardsById = {
+                for (final z in ownedZones)
+                  z.id: state.cards
+                      .where(
+                        (c) =>
+                            c.zone == CardZone.zone &&
+                            c.zoneId == z.id &&
+                            c.ownerId == session.localPlayerId,
+                      )
+                      .toList(),
+              };
+              final opponentZoneCardsById = {
+                for (final z in ownedZones)
+                  z.id: state.cards
+                      .where(
+                        (c) =>
+                            c.zone == CardZone.zone &&
+                            c.zoneId == z.id &&
+                            c.ownerId != null &&
+                            c.ownerId != session.localPlayerId,
+                      )
+                      .toList(),
+              };
+              final sharedZoneCardsById = {
+                for (final z in sharedZones)
+                  z.id: state.cards
+                      .where((c) => c.zone == CardZone.zone && c.zoneId == z.id)
+                      .toList(),
+              };
 
-            // Free-table piles -- ad-hoc stacks built by dragging cards
-            // together, unrelated to any zone (a pile is not a zone).
-            final tableCardsOnly = state.cards
-                .where((c) => c.zone == CardZone.table)
-                .toList();
-            final pileGroups = _stackUtils.groupByStack(tableCardsOnly);
-            // Sorted so a higher-zIndex pile/card (the one most recently
-            // moved, flipped, rotated, or stacked -- see TableActions) is
-            // built later in this Stack's children and therefore actually
-            // paints on top of an overlapping lower one; Map iteration order
-            // alone (the old behavior) had no relationship to zIndex at all.
-            final sortedPileEntries = pileGroups.entries.toList()
-              ..sort(
-                (a, b) => _stackUtils
-                    .topOf(a.value)
-                    .zIndex
-                    .compareTo(_stackUtils.topOf(b.value).zIndex),
+              // Whether some player currently has a Search window open on
+              // zone [zoneId] (owned by [ownerId], null for shared) / the
+              // free-table pile rooted at [rootInstanceId] -- drives the
+              // eyeball badge, synced to every client via `state.searches`
+              // regardless of who opened it.
+              bool isZoneSearched(String zoneId, String? ownerId) =>
+                  state.searches.any(
+                    (s) =>
+                        s.targetType == SearchTargetType.zone &&
+                        s.targetId == zoneId &&
+                        s.targetOwnerId == ownerId,
+                  );
+              bool isOpponentZoneSearched(String zoneId) => state.searches.any(
+                (s) =>
+                    s.targetType == SearchTargetType.zone &&
+                    s.targetId == zoneId &&
+                    s.targetOwnerId != null &&
+                    s.targetOwnerId != session.localPlayerId,
+              );
+              bool isPileSearched(String rootInstanceId) => state.searches.any(
+                (s) =>
+                    s.targetType == SearchTargetType.pile &&
+                    s.targetId == rootInstanceId,
               );
 
-            final freeTableTops = [
-              for (final g in pileGroups.values) _stackUtils.topOf(g),
-            ];
-            final tableTops = <CardInstance>[
-              ...freeTableTops,
-              for (final z in sharedZones)
-                if (sharedZoneCardsById[z.id]!.isNotEmpty)
-                  _stackUtils.topOf(sharedZoneCardsById[z.id]!),
-            ];
-            // Candidates for a drag's pickup group (see _pickupGroup) --
-            // free-table piles only (dragging a card never rips the top card
-            // off a shared zone pile just because it's visually nearby), and
-            // never a card owned by the other player (so you can't
-            // indirectly drag an opponent's card by pulling your own card
-            // out from under it).
-            final pickupCandidates = freeTableTops
-                .where(
-                  (c) =>
-                      c.ownerId == null || c.ownerId == session.localPlayerId,
-                )
-                .toList();
+              // Free-table piles -- ad-hoc stacks built by dragging cards
+              // together, unrelated to any zone (a pile is not a zone).
+              final tableCardsOnly = state.cards
+                  .where((c) => c.zone == CardZone.table)
+                  .toList();
+              final pileGroups = _stackUtils.groupByStack(tableCardsOnly);
+              // Sorted so a higher-zIndex pile/card (the one most recently
+              // moved, flipped, rotated, or stacked -- see TableActions) is
+              // built later in this Stack's children and therefore actually
+              // paints on top of an overlapping lower one; Map iteration order
+              // alone (the old behavior) had no relationship to zIndex at all.
+              final sortedPileEntries = pileGroups.entries.toList()
+                ..sort(
+                  (a, b) => _stackUtils
+                      .topOf(a.value)
+                      .zIndex
+                      .compareTo(_stackUtils.topOf(b.value).zIndex),
+                );
 
-            CardInstance? hoveredInstance;
-            if (_hoveredInstanceId != null) {
-              for (final c in state.cards) {
-                if (c.instanceId == _hoveredInstanceId) {
-                  hoveredInstance = c;
-                  break;
+              final freeTableTops = [
+                for (final g in pileGroups.values) _stackUtils.topOf(g),
+              ];
+              final tableTops = <CardInstance>[
+                ...freeTableTops,
+                for (final z in sharedZones)
+                  if (sharedZoneCardsById[z.id]!.isNotEmpty)
+                    _stackUtils.topOf(sharedZoneCardsById[z.id]!),
+              ];
+              // Candidates for a drag's pickup group (see _pickupGroup) --
+              // free-table piles only (dragging a card never rips the top card
+              // off a shared zone pile just because it's visually nearby), and
+              // never a card owned by the other player (so you can't
+              // indirectly drag an opponent's card by pulling your own card
+              // out from under it).
+              final pickupCandidates = freeTableTops
+                  .where(
+                    (c) =>
+                        c.ownerId == null || c.ownerId == session.localPlayerId,
+                  )
+                  .toList();
+
+              CardInstance? hoveredInstance;
+              if (_hoveredInstanceId != null) {
+                for (final c in state.cards) {
+                  if (c.instanceId == _hoveredInstanceId) {
+                    hoveredInstance = c;
+                    break;
+                  }
                 }
               }
-            }
-            final hoveredDefinition = hoveredInstance == null
-                ? null
-                : widget.definitionsById[hoveredInstance.definitionId];
-            final showPreview = hoveredInstance != null && _spacePressed;
-            final opponentBorderColor = parseHexColor(
-              widget.opponentCardBorderColor,
-            );
+              final hoveredDefinition = hoveredInstance == null
+                  ? null
+                  : widget.definitionsById[hoveredInstance.definitionId];
+              final showPreview = hoveredInstance != null && _spacePressed;
+              final opponentBorderColor = parseHexColor(
+                widget.opponentCardBorderColor,
+              );
 
-            return LayoutBuilder(
-              builder: (context, outerConstraints) {
-                final screenSize = outerConstraints.biggest;
-                return MouseRegion(
-                  onHover: (event) => _lastMousePos = event.position,
-                  child: Stack(
-                    children: [
-                      Column(
-                        children: [
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Expanded(
-                                child: OpponentHandZoneWidget(
-                                  count: opponentHandCount,
-                                  cardBackImagePath: widget.cardBackImagePath,
+              return LayoutBuilder(
+                builder: (context, outerConstraints) {
+                  final screenSize = outerConstraints.biggest;
+                  final searchOverlay = _buildSearchOverlay(
+                    state,
+                    session,
+                    screenSize,
+                    tableTops,
+                    pickupCandidates,
+                    localHand,
+                  );
+                  return MouseRegion(
+                    onHover: (event) => _lastMousePos = event.position,
+                    child: Stack(
+                      children: [
+                        Column(
+                          children: [
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Expanded(
+                                  child: OpponentHandZoneWidget(
+                                    count: opponentHandCount,
+                                    cardBackImagePath: widget.cardBackImagePath,
+                                  ),
                                 ),
-                              ),
-                              for (final zone in ownedZones)
-                                _buildOpponentZoneWidget(
-                                  zone,
-                                  opponentZoneCardsById[zone.id]!,
-                                ),
-                            ],
-                          ),
-                          Expanded(
-                            child: LayoutBuilder(
-                              builder: (context, constraints) {
-                                _tableSize = constraints.biggest;
-                                return GestureDetector(
-                                  behavior: HitTestBehavior.opaque,
-                                  onSecondaryTapUp: (details) =>
-                                      _showBoardContextMenu(
-                                        details.globalPosition,
-                                      ),
-                                  // TAB-held drag draws an arrow (see _tabPressed/_commitArrowDrag) --
-                                  // every interactive card/pile/counter/token call site below passes
-                                  // `interactable: !_tabPressed` while TAB is held, so this ancestor
-                                  // pan gesture wins uncontested instead of fighting a descendant
-                                  // Draggable's own recognizer.
-                                  //
-                                  // All three callbacks are wired unconditionally whenever TAB is
-                                  // held (never additionally gated on whether a drag has actually
-                                  // started) so the PanGestureRecognizer is fully wired from the very
-                                  // first build -- gating on drag-in-progress state meant onUpdate/
-                                  // onEnd stayed null until a rebuild landed, leaving a window where a
-                                  // fast drag's move/end events could reach the recognizer before they
-                                  // were reassigned. None of these call setState -- see _arrowDrag's
-                                  // doc comment for why a per-pixel setState on this State (whose
-                                  // build() constructs the entire table) was the real cause of both
-                                  // the wrong-endpoint and the table-blanking bugs.
-                                  onPanStart: !_tabPressed
-                                      ? null
-                                      : (details) {
-                                          final p = _globalToTableLocal(
-                                            details.globalPosition,
-                                          );
-                                          _arrowDrag.value = (
-                                            start: p,
-                                            current: p,
-                                          );
-                                        },
-                                  onPanUpdate: !_tabPressed
-                                      ? null
-                                      : (details) {
-                                          final drag = _arrowDrag.value;
-                                          if (drag == null) return;
-                                          _arrowDrag.value = (
-                                            start: drag.start,
-                                            current: _globalToTableLocal(
+                                for (final zone in ownedZones)
+                                  _buildOpponentZoneWidget(
+                                    zone,
+                                    opponentZoneCardsById[zone.id]!,
+                                    isOpponentZoneSearched(zone.id),
+                                  ),
+                              ],
+                            ),
+                            Expanded(
+                              child: LayoutBuilder(
+                                builder: (context, constraints) {
+                                  _tableSize = constraints.biggest;
+                                  return GestureDetector(
+                                    behavior: HitTestBehavior.opaque,
+                                    onSecondaryTapUp: (details) =>
+                                        _showBoardContextMenu(
+                                          details.globalPosition,
+                                        ),
+                                    // TAB-held drag draws an arrow (see _tabPressed/_commitArrowDrag) --
+                                    // every interactive card/pile/counter/token call site below passes
+                                    // `interactable: !_tabPressed` while TAB is held, so this ancestor
+                                    // pan gesture wins uncontested instead of fighting a descendant
+                                    // Draggable's own recognizer.
+                                    //
+                                    // All three callbacks are wired unconditionally whenever TAB is
+                                    // held (never additionally gated on whether a drag has actually
+                                    // started) so the PanGestureRecognizer is fully wired from the very
+                                    // first build -- gating on drag-in-progress state meant onUpdate/
+                                    // onEnd stayed null until a rebuild landed, leaving a window where a
+                                    // fast drag's move/end events could reach the recognizer before they
+                                    // were reassigned. None of these call setState -- see _arrowDrag's
+                                    // doc comment for why a per-pixel setState on this State (whose
+                                    // build() constructs the entire table) was the real cause of both
+                                    // the wrong-endpoint and the table-blanking bugs.
+                                    onPanStart: !_tabPressed
+                                        ? null
+                                        : (details) {
+                                            final p = _globalToTableLocal(
                                               details.globalPosition,
-                                            ),
-                                          );
-                                        },
-                                  onPanEnd: !_tabPressed
-                                      ? null
-                                      : (details) {
-                                          if (_arrowDrag.value == null) return;
-                                          _commitArrowDrag();
-                                        },
-                                  // The camera pan (WASD, see _cameraOffset) is plain arithmetic baked
-                                  // into _toScreenPixel/_globalToTableLocal directly (see their doc
-                                  // comments for why an ancestor Transform was tried and abandoned) --
-                                  // every card's Positioned box already reflects its true current
-                                  // on-screen position, so this Stack needs no special sizing beyond
-                                  // the default viewport. ClipRect (sized to this same, unchanged
-                                  // LayoutBuilder box) keeps panned content from ever bleeding into the
-                                  // fixed hand/zone rows above and below.
-                                  child: ClipRect(
-                                    child: Stack(
-                                      key: _tableKey,
-                                      clipBehavior: Clip.none,
-                                      children: [
-                                        for (final group in sortedPileEntries)
-                                          Builder(
-                                            builder: (context) {
-                                              final cards = group.value;
-                                              final top = _stackUtils.topOf(
-                                                cards,
-                                              );
-                                              final pos = _toScreenPixel(
-                                                top.x,
-                                                top.y,
-                                              );
-                                              // A card faces whichever player last held it
-                                              // (moveCard/stackCard never clear ownerId), not
-                                              // whichever seat is viewing it -- so it stays
-                                              // upright for its own player on both screens and
-                                              // only appears rotated to the other player. A
-                                              // never-held card (still in the shared pile) has
-                                              // no owner and stays neutral/unrotated for
-                                              // everyone. The same ownership check also decides
-                                              // the opponent-card border and whether the local
-                                              // player may interact with it at all.
-                                              final ownedByOpponent =
-                                                  top.ownerId != null &&
-                                                  top.ownerId !=
-                                                      session.localPlayerId;
-                                              // _pickupGroup requires dragged to be a member of candidates (see its
-                                              // doc comment), which pickupCandidates deliberately violates for an
-                                              // opponent-owned top card -- skip it here since an opponent pile is
-                                              // never interactable/draggable anyway, so pickupGroup would never be
-                                              // consulted for it.
-                                              final pickupGroup =
-                                                  ownedByOpponent
-                                                  ? <CardInstance>[top]
-                                                  : _pickupGroup(
-                                                      pickupCandidates,
-                                                      top,
-                                                    );
-                                              final isGhostedPassenger =
-                                                  _activeDragGroupIds != null &&
-                                                  _activeDragGroupIds!.contains(
-                                                    top.instanceId,
-                                                  ) &&
-                                                  top.instanceId !=
-                                                      _activeDragPrimaryId;
-                                              if (cards.length > 1) {
-                                                // PileWidget's own box is larger than a bare
-                                                // card (room for its badge/shuffle button to
-                                                // overflow) -- center on that actual size, or
-                                                // the pile renders shifted off its true
-                                                // canonical position (see pileWidgetExtra).
+                                            );
+                                            _arrowDrag.value = (
+                                              start: p,
+                                              current: p,
+                                            );
+                                          },
+                                    onPanUpdate: !_tabPressed
+                                        ? null
+                                        : (details) {
+                                            final drag = _arrowDrag.value;
+                                            if (drag == null) return;
+                                            _arrowDrag.value = (
+                                              start: drag.start,
+                                              current: _globalToTableLocal(
+                                                details.globalPosition,
+                                              ),
+                                            );
+                                          },
+                                    onPanEnd: !_tabPressed
+                                        ? null
+                                        : (details) {
+                                            if (_arrowDrag.value == null)
+                                              return;
+                                            _commitArrowDrag();
+                                          },
+                                    // The camera pan (WASD, see _cameraOffset) is plain arithmetic baked
+                                    // into _toScreenPixel/_globalToTableLocal directly (see their doc
+                                    // comments for why an ancestor Transform was tried and abandoned) --
+                                    // every card's Positioned box already reflects its true current
+                                    // on-screen position, so this Stack needs no special sizing beyond
+                                    // the default viewport. ClipRect (sized to this same, unchanged
+                                    // LayoutBuilder box) keeps panned content from ever bleeding into the
+                                    // fixed hand/zone rows above and below.
+                                    child: ClipRect(
+                                      child: Stack(
+                                        key: _tableKey,
+                                        clipBehavior: Clip.none,
+                                        children: [
+                                          for (final group in sortedPileEntries)
+                                            Builder(
+                                              key: ValueKey(group.key),
+                                              builder: (context) {
+                                                final cards = group.value;
+                                                final top = _stackUtils.topOf(
+                                                  cards,
+                                                );
+                                                final pos = _toScreenPixel(
+                                                  top.x,
+                                                  top.y,
+                                                );
+                                                // A card faces whichever player last held it
+                                                // (moveCard/stackCard never clear ownerId), not
+                                                // whichever seat is viewing it -- so it stays
+                                                // upright for its own player on both screens and
+                                                // only appears rotated to the other player. A
+                                                // never-held card (still in the shared pile) has
+                                                // no owner and stays neutral/unrotated for
+                                                // everyone. The same ownership check also decides
+                                                // the opponent-card border and whether the local
+                                                // player may interact with it at all.
+                                                final ownedByOpponent =
+                                                    top.ownerId != null &&
+                                                    top.ownerId !=
+                                                        session.localPlayerId;
+                                                // _pickupGroup requires dragged to be a member of candidates (see its
+                                                // doc comment), which pickupCandidates deliberately violates for an
+                                                // opponent-owned top card -- skip it here since an opponent pile is
+                                                // never interactable/draggable anyway, so pickupGroup would never be
+                                                // consulted for it.
+                                                final pickupGroup =
+                                                    ownedByOpponent
+                                                    ? <CardInstance>[top]
+                                                    : _pickupGroup(
+                                                        pickupCandidates,
+                                                        top,
+                                                      );
+                                                final isGhostedPassenger =
+                                                    _activeDragGroupIds !=
+                                                        null &&
+                                                    _activeDragGroupIds!
+                                                        .contains(
+                                                          top.instanceId,
+                                                        ) &&
+                                                    top.instanceId !=
+                                                        _activeDragPrimaryId;
+                                                if (cards.length > 1) {
+                                                  // PileWidget's own box is larger than a bare
+                                                  // card (room for its badge/shuffle button to
+                                                  // overflow) -- center on that actual size, or
+                                                  // the pile renders shifted off its true
+                                                  // canonical position (see pileWidgetExtra).
+                                                  return Positioned(
+                                                    left:
+                                                        pos.dx -
+                                                        (cardWidth +
+                                                                pileWidgetExtra) /
+                                                            2,
+                                                    top:
+                                                        pos.dy -
+                                                        (cardHeight +
+                                                                pileWidgetExtra) /
+                                                            2,
+                                                    child: Opacity(
+                                                      opacity:
+                                                          isGhostedPassenger
+                                                          ? 0.3
+                                                          : 1.0,
+                                                      child: GestureDetector(
+                                                        onSecondaryTapUp:
+                                                            ownedByOpponent
+                                                            ? null
+                                                            : (
+                                                                details,
+                                                              ) => _showSearchMenu(
+                                                                details
+                                                                    .globalPosition,
+                                                                () => widget
+                                                                    .controller
+                                                                    .startSearchPile(
+                                                                      group.key,
+                                                                    ),
+                                                              ),
+                                                        child: PileWidget(
+                                                          count: cards.length,
+                                                          topInstanceId:
+                                                              top.instanceId,
+                                                          topFaceUp: top.faceUp,
+                                                          topDefinition:
+                                                              widget
+                                                                  .definitionsById[top
+                                                                  .definitionId],
+                                                          topRotationTurns:
+                                                              top.rotationTurns,
+                                                          onDraw: () => widget
+                                                              .controller
+                                                              .drawCard(
+                                                                group.key,
+                                                              ),
+                                                          onDragStarted: () =>
+                                                              _startGroupDrag(
+                                                                pickupGroup,
+                                                              ),
+                                                          feedbackOverride:
+                                                              pickupGroup
+                                                                      .length >
+                                                                  1
+                                                              ? _buildGroupFeedback(
+                                                                  pickupGroup,
+                                                                  top,
+                                                                )
+                                                              : null,
+                                                          onDragEnd: (offset) {
+                                                            _endGroupDrag();
+                                                            if (HardwareKeyboard
+                                                                .instance
+                                                                .isAltPressed) {
+                                                              _handlePileDragEnd(
+                                                                group.key,
+                                                                cards,
+                                                                offset,
+                                                              );
+                                                            } else {
+                                                              _handleDragEnd(
+                                                                tableTops,
+                                                                pickupCandidates,
+                                                                top.instanceId,
+                                                                offset,
+                                                                localHand,
+                                                              );
+                                                            }
+                                                          },
+                                                          onShuffle: () =>
+                                                              widget.controller
+                                                                  .shufflePile(
+                                                                    group.key,
+                                                                  ),
+                                                          isMirrored:
+                                                              ownedByOpponent,
+                                                          interactable:
+                                                              !ownedByOpponent &&
+                                                              !_tabPressed,
+                                                          applyOrientation:
+                                                              true,
+                                                          topBorderColor:
+                                                              ownedByOpponent
+                                                              ? opponentBorderColor
+                                                              : null,
+                                                          onHover: (hovering) =>
+                                                              _setHoveredId(
+                                                                hovering
+                                                                    ? top.instanceId
+                                                                    : null,
+                                                              ),
+                                                          cardBackImagePath: widget
+                                                              .cardBackImagePath,
+                                                          isBeingSearched:
+                                                              isPileSearched(
+                                                                group.key,
+                                                              ),
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  );
+                                                }
+                                                if (_flyingDiscard
+                                                        ?.instanceId ==
+                                                    top.instanceId) {
+                                                  // Hidden for the duration of the discard flight
+                                                  // (see _startDiscardFlight) -- the ghost overlay
+                                                  // stands in for it, so it doesn't flicker back
+                                                  // into view if the real state update (host-
+                                                  // authoritative, network-round-tripped for a
+                                                  // client) takes longer than the short animation.
+                                                  return const SizedBox.shrink();
+                                                }
                                                 return Positioned(
-                                                  left:
-                                                      pos.dx -
-                                                      (cardWidth +
-                                                              pileWidgetExtra) /
-                                                          2,
-                                                  top:
-                                                      pos.dy -
-                                                      (cardHeight +
-                                                              pileWidgetExtra) /
-                                                          2,
+                                                  left: pos.dx - cardWidth / 2,
+                                                  top: pos.dy - cardHeight / 2,
                                                   child: Opacity(
                                                     opacity: isGhostedPassenger
                                                         ? 0.3
                                                         : 1.0,
-                                                    child: PileWidget(
-                                                      count: cards.length,
-                                                      topInstanceId:
-                                                          top.instanceId,
-                                                      topFaceUp: top.faceUp,
-                                                      topDefinition:
+                                                    child: DraggableCard(
+                                                      instance: top,
+                                                      definition:
                                                           widget
                                                               .definitionsById[top
                                                               .definitionId],
-                                                      topRotationTurns:
-                                                          top.rotationTurns,
-                                                      onDraw: () => widget
-                                                          .controller
-                                                          .drawCard(group.key),
+                                                      isMirrored:
+                                                          ownedByOpponent,
+                                                      interactable:
+                                                          !ownedByOpponent &&
+                                                          !_tabPressed,
+                                                      applyOrientation: true,
+                                                      opponentBorderColor:
+                                                          ownedByOpponent
+                                                          ? opponentBorderColor
+                                                          : null,
                                                       onDragStarted: () =>
                                                           _startGroupDrag(
                                                             pickupGroup,
@@ -1921,376 +2206,14 @@ class _TableScreenState extends State<TableScreen>
                                                           : null,
                                                       onDragEnd: (offset) {
                                                         _endGroupDrag();
-                                                        if (HardwareKeyboard
-                                                            .instance
-                                                            .isAltPressed) {
-                                                          _handlePileDragEnd(
-                                                            group.key,
-                                                            cards,
-                                                            offset,
-                                                          );
-                                                        } else {
-                                                          _handleDragEnd(
-                                                            tableTops,
-                                                            pickupCandidates,
-                                                            top.instanceId,
-                                                            offset,
-                                                            localHand,
-                                                          );
-                                                        }
+                                                        _handleDragEnd(
+                                                          tableTops,
+                                                          pickupCandidates,
+                                                          top.instanceId,
+                                                          offset,
+                                                          localHand,
+                                                        );
                                                       },
-                                                      onShuffle: () => widget
-                                                          .controller
-                                                          .shufflePile(
-                                                            group.key,
-                                                          ),
-                                                      isMirrored:
-                                                          ownedByOpponent,
-                                                      interactable:
-                                                          !ownedByOpponent &&
-                                                          !_tabPressed,
-                                                      applyOrientation: true,
-                                                      topBorderColor:
-                                                          ownedByOpponent
-                                                          ? opponentBorderColor
-                                                          : null,
-                                                      onHover: (hovering) =>
-                                                          _setHoveredId(
-                                                            hovering
-                                                                ? top.instanceId
-                                                                : null,
-                                                          ),
-                                                      cardBackImagePath: widget
-                                                          .cardBackImagePath,
-                                                    ),
-                                                  ),
-                                                );
-                                              }
-                                              if (_flyingDiscard?.instanceId ==
-                                                  top.instanceId) {
-                                                // Hidden for the duration of the discard flight
-                                                // (see _startDiscardFlight) -- the ghost overlay
-                                                // stands in for it, so it doesn't flicker back
-                                                // into view if the real state update (host-
-                                                // authoritative, network-round-tripped for a
-                                                // client) takes longer than the short animation.
-                                                return const SizedBox.shrink();
-                                              }
-                                              return Positioned(
-                                                left: pos.dx - cardWidth / 2,
-                                                top: pos.dy - cardHeight / 2,
-                                                child: Opacity(
-                                                  opacity: isGhostedPassenger
-                                                      ? 0.3
-                                                      : 1.0,
-                                                  child: DraggableCard(
-                                                    instance: top,
-                                                    definition:
-                                                        widget
-                                                            .definitionsById[top
-                                                            .definitionId],
-                                                    isMirrored: ownedByOpponent,
-                                                    interactable:
-                                                        !ownedByOpponent &&
-                                                        !_tabPressed,
-                                                    applyOrientation: true,
-                                                    opponentBorderColor:
-                                                        ownedByOpponent
-                                                        ? opponentBorderColor
-                                                        : null,
-                                                    onDragStarted: () =>
-                                                        _startGroupDrag(
-                                                          pickupGroup,
-                                                        ),
-                                                    feedbackOverride:
-                                                        pickupGroup.length > 1
-                                                        ? _buildGroupFeedback(
-                                                            pickupGroup,
-                                                            top,
-                                                          )
-                                                        : null,
-                                                    onDragEnd: (offset) {
-                                                      _endGroupDrag();
-                                                      _handleDragEnd(
-                                                        tableTops,
-                                                        pickupCandidates,
-                                                        top.instanceId,
-                                                        offset,
-                                                        localHand,
-                                                      );
-                                                    },
-                                                    onHover: (hovering) =>
-                                                        _setHoveredId(
-                                                          hovering
-                                                              ? top.instanceId
-                                                              : null,
-                                                        ),
-                                                    cardBackImagePath: widget
-                                                        .cardBackImagePath,
-                                                  ),
-                                                ),
-                                              );
-                                            },
-                                          ),
-                                        // Board widgets (e.g. a Simple Counter) always render above every
-                                        // card -- cards and widgets don't share a unified z-order, since
-                                        // they're never expected to visually interleave the way two cards
-                                        // stack together.
-                                        for (final w in state.widgets.where(
-                                          (w) =>
-                                              w.kind != BoardWidgetKind.arrow,
-                                        ))
-                                          Builder(
-                                            builder: (context) {
-                                              final pos = _toScreenPixel(
-                                                w.x,
-                                                w.y,
-                                              );
-                                              final (
-                                                widgetWidth,
-                                                widgetHeight,
-                                              ) = _widgetSize(
-                                                w.kind,
-                                              );
-                                              // Dimmed in place while a copy follows the cursor via
-                                              // _buildGroupFeedback -- same idea as isGhostedPassenger
-                                              // for a card, keyed off the card it's attached to
-                                              // (rather than its own instanceId) being part of the
-                                              // active drag group.
-                                              final isGhostedAttachedWidget =
-                                                  _activeDragGroupIds != null &&
-                                                  w.attachedCardId != null &&
-                                                  _activeDragGroupIds!.contains(
-                                                    w.attachedCardId,
-                                                  );
-                                              return Positioned(
-                                                left: pos.dx - widgetWidth / 2,
-                                                top: pos.dy - widgetHeight / 2,
-                                                child: Opacity(
-                                                  opacity:
-                                                      isGhostedAttachedWidget
-                                                      ? 0.3
-                                                      : 1.0,
-                                                  child: switch (w.kind) {
-                                                    BoardWidgetKind
-                                                        .simpleCounter =>
-                                                      CounterWidget(
-                                                        instance: w,
-                                                        onDragEnd: (offset) =>
-                                                            _handleWidgetDragEnd(
-                                                              w.instanceId,
-                                                              offset,
-                                                              widgetWidth:
-                                                                  widgetWidth,
-                                                              widgetHeight:
-                                                                  widgetHeight,
-                                                            ),
-                                                        onSecondaryTapUp:
-                                                            (globalPos) =>
-                                                                _showCounterMenu(
-                                                                  globalPos,
-                                                                  w,
-                                                                ),
-                                                        interactable:
-                                                            !_tabPressed,
-                                                      ),
-                                                    // Ctrl+drag duplicates instead of moving -- see
-                                                    // _duplicateTokenAt; a plain drag either attaches to
-                                                    // whatever card it lands on (see _handleTokenDragEnd) or
-                                                    // just moves normally.
-                                                    BoardWidgetKind.token =>
-                                                      TokenWidget(
-                                                        instance: w,
-                                                        onDragEnd: (offset) {
-                                                          if (HardwareKeyboard
-                                                              .instance
-                                                              .isControlPressed) {
-                                                            _duplicateTokenAt(
-                                                              w.instanceId,
-                                                              offset,
-                                                              tableTops:
-                                                                  tableTops,
-                                                            );
-                                                          } else {
-                                                            _handleTokenDragEnd(
-                                                              w.instanceId,
-                                                              offset,
-                                                              tableTops:
-                                                                  tableTops,
-                                                            );
-                                                          }
-                                                        },
-                                                        onSecondaryTapUp:
-                                                            (globalPos) =>
-                                                                _showTokenMenu(
-                                                                  globalPos,
-                                                                  w,
-                                                                ),
-                                                        interactable:
-                                                            !_tabPressed,
-                                                      ),
-                                                    // Unreachable -- this loop's iterable already
-                                                    // excludes arrows (see the `.where` above); only here
-                                                    // to satisfy exhaustiveness.
-                                                    BoardWidgetKind.arrow =>
-                                                      const SizedBox.shrink(),
-                                                  },
-                                                ),
-                                              );
-                                            },
-                                          ),
-                                        // Arrows (see _commitArrowDrag) render as a line between two
-                                        // points instead of a single centered box, so they get their own
-                                        // loop rather than a third arm on the switches above.
-                                        for (final w in state.widgets.where(
-                                          (w) =>
-                                              w.kind == BoardWidgetKind.arrow,
-                                        ))
-                                          Builder(
-                                            builder: (context) {
-                                              final from = _toScreenPixel(
-                                                w.x,
-                                                w.y,
-                                              );
-                                              final to = _toScreenPixel(
-                                                w.x2!,
-                                                w.y2!,
-                                              );
-                                              final dismissible =
-                                                  w.creatorId == null ||
-                                                  w.creatorId ==
-                                                      session.localPlayerId;
-                                              return ArrowWidget(
-                                                from: from,
-                                                to: to,
-                                                onDoubleTap: dismissible
-                                                    ? () => widget.controller
-                                                          .deleteWidget(
-                                                            w.instanceId,
-                                                          )
-                                                    : null,
-                                              );
-                                            },
-                                          ),
-                                        // The live TAB-drag preview -- purely local UI state (see
-                                        // _arrowDrag), never a real networked arrow until
-                                        // _commitArrowDrag runs. A ValueListenableBuilder scoped to
-                                        // just this one widget, not a setState on the whole State, so a
-                                        // pointer move during the drag only ever rebuilds this small
-                                        // subtree -- see _arrowDrag's doc comment.
-                                        //
-                                        // Must always resolve to exactly one Positioned Stack child
-                                        // (see ArrowWidget's own doc comment) -- the "nothing to show"
-                                        // branch uses a degenerate zero-size Positioned rather than a
-                                        // bare SizedBox, and ArrowWidget's own ignorePointer flag is
-                                        // used instead of wrapping it in an external IgnorePointer, so
-                                        // this slot never introduces a non-Positioned child into a
-                                        // Stack that otherwise has none.
-                                        ValueListenableBuilder(
-                                          valueListenable: _arrowDrag,
-                                          builder: (context, drag, _) {
-                                            if (drag == null) {
-                                              return const Positioned(
-                                                left: 0,
-                                                top: 0,
-                                                width: 0,
-                                                height: 0,
-                                                child: SizedBox.shrink(),
-                                              );
-                                            }
-                                            return ArrowWidget(
-                                              from: drag.start,
-                                              to: drag.current,
-                                              ignorePointer: true,
-                                            );
-                                          },
-                                        ),
-                                        if (_flyingDiscard != null)
-                                          _buildFlyingDiscard(_flyingDiscard!),
-                                        for (final zone in sharedZones)
-                                          if (sharedZoneCardsById[zone.id]!
-                                              .isNotEmpty)
-                                            Builder(
-                                              builder: (context) {
-                                                final cards =
-                                                    sharedZoneCardsById[zone
-                                                        .id]!;
-                                                final top = _stackUtils.topOf(
-                                                  cards,
-                                                );
-                                                final pos = _toScreenPixel(
-                                                  top.x,
-                                                  top.y,
-                                                );
-                                                if (cards.length > 1) {
-                                                  return Positioned(
-                                                    left:
-                                                        pos.dx -
-                                                        (cardWidth +
-                                                                pileWidgetExtra) /
-                                                            2,
-                                                    top:
-                                                        pos.dy -
-                                                        (cardHeight +
-                                                                pileWidgetExtra) /
-                                                            2,
-                                                    child: Tooltip(
-                                                      message: zone.name,
-                                                      child: PileWidget(
-                                                        count: cards.length,
-                                                        topInstanceId:
-                                                            top.instanceId,
-                                                        topFaceUp: top.faceUp,
-                                                        topDefinition:
-                                                            widget
-                                                                .definitionsById[top
-                                                                .definitionId],
-                                                        onDraw: () => widget
-                                                            .controller
-                                                            .drawFromZone(
-                                                              zone.id,
-                                                            ),
-                                                        onDragEnd: (offset) =>
-                                                            _handleDragEnd(
-                                                              tableTops,
-                                                              pickupCandidates,
-                                                              top.instanceId,
-                                                              offset,
-                                                              localHand,
-                                                            ),
-                                                        onShuffle:
-                                                            zone.shuffleable
-                                                            ? () => widget
-                                                                  .controller
-                                                                  .shuffleZone(
-                                                                    zone.id,
-                                                                  )
-                                                            : null,
-                                                        cardBackImagePath: widget
-                                                            .cardBackImagePath,
-                                                      ),
-                                                    ),
-                                                  );
-                                                }
-                                                return Positioned(
-                                                  left: pos.dx - cardWidth / 2,
-                                                  top: pos.dy - cardHeight / 2,
-                                                  child: Tooltip(
-                                                    message: zone.name,
-                                                    child: DraggableCard(
-                                                      instance: top,
-                                                      definition:
-                                                          widget
-                                                              .definitionsById[top
-                                                              .definitionId],
-                                                      onDragEnd: (offset) =>
-                                                          _handleDragEnd(
-                                                            tableTops,
-                                                            pickupCandidates,
-                                                            top.instanceId,
-                                                            offset,
-                                                            localHand,
-                                                          ),
                                                       onHover: (hovering) =>
                                                           _setHoveredId(
                                                             hovering
@@ -2304,57 +2227,382 @@ class _TableScreenState extends State<TableScreen>
                                                 );
                                               },
                                             ),
-                                      ],
+                                          // Board widgets (e.g. a Simple Counter) always render above every
+                                          // card -- cards and widgets don't share a unified z-order, since
+                                          // they're never expected to visually interleave the way two cards
+                                          // stack together.
+                                          for (final w in state.widgets.where(
+                                            (w) =>
+                                                w.kind != BoardWidgetKind.arrow,
+                                          ))
+                                            Builder(
+                                              builder: (context) {
+                                                final pos = _toScreenPixel(
+                                                  w.x,
+                                                  w.y,
+                                                );
+                                                final (
+                                                  widgetWidth,
+                                                  widgetHeight,
+                                                ) = _widgetSize(
+                                                  w.kind,
+                                                );
+                                                // Dimmed in place while a copy follows the cursor via
+                                                // _buildGroupFeedback -- same idea as isGhostedPassenger
+                                                // for a card, keyed off the card it's attached to
+                                                // (rather than its own instanceId) being part of the
+                                                // active drag group.
+                                                final isGhostedAttachedWidget =
+                                                    _activeDragGroupIds !=
+                                                        null &&
+                                                    w.attachedCardId != null &&
+                                                    _activeDragGroupIds!
+                                                        .contains(
+                                                          w.attachedCardId,
+                                                        );
+                                                return Positioned(
+                                                  left:
+                                                      pos.dx - widgetWidth / 2,
+                                                  top:
+                                                      pos.dy - widgetHeight / 2,
+                                                  child: Opacity(
+                                                    opacity:
+                                                        isGhostedAttachedWidget
+                                                        ? 0.3
+                                                        : 1.0,
+                                                    child: switch (w.kind) {
+                                                      BoardWidgetKind
+                                                          .simpleCounter =>
+                                                        CounterWidget(
+                                                          instance: w,
+                                                          onDragEnd: (offset) =>
+                                                              _handleWidgetDragEnd(
+                                                                w.instanceId,
+                                                                offset,
+                                                                widgetWidth:
+                                                                    widgetWidth,
+                                                                widgetHeight:
+                                                                    widgetHeight,
+                                                              ),
+                                                          onSecondaryTapUp:
+                                                              (globalPos) =>
+                                                                  _showCounterMenu(
+                                                                    globalPos,
+                                                                    w,
+                                                                  ),
+                                                          onDoubleTapSide:
+                                                              (
+                                                                isRightSide,
+                                                              ) => widget
+                                                                  .controller
+                                                                  .setWidgetValue(
+                                                                    w.instanceId,
+                                                                    w.value +
+                                                                        (isRightSide
+                                                                            ? 1
+                                                                            : -1),
+                                                                  ),
+                                                          interactable:
+                                                              !_tabPressed,
+                                                        ),
+                                                      // Ctrl+drag duplicates instead of moving -- see
+                                                      // _duplicateTokenAt; a plain drag either attaches to
+                                                      // whatever card it lands on (see _handleTokenDragEnd) or
+                                                      // just moves normally.
+                                                      BoardWidgetKind.token =>
+                                                        TokenWidget(
+                                                          instance: w,
+                                                          onDragEnd: (offset) {
+                                                            if (HardwareKeyboard
+                                                                .instance
+                                                                .isControlPressed) {
+                                                              _duplicateTokenAt(
+                                                                w.instanceId,
+                                                                offset,
+                                                                tableTops:
+                                                                    tableTops,
+                                                              );
+                                                            } else {
+                                                              _handleTokenDragEnd(
+                                                                w.instanceId,
+                                                                offset,
+                                                                tableTops:
+                                                                    tableTops,
+                                                              );
+                                                            }
+                                                          },
+                                                          onSecondaryTapUp:
+                                                              (globalPos) =>
+                                                                  _showTokenMenu(
+                                                                    globalPos,
+                                                                    w,
+                                                                  ),
+                                                          interactable:
+                                                              !_tabPressed,
+                                                        ),
+                                                      // Unreachable -- this loop's iterable already
+                                                      // excludes arrows (see the `.where` above); only here
+                                                      // to satisfy exhaustiveness.
+                                                      BoardWidgetKind.arrow =>
+                                                        const SizedBox.shrink(),
+                                                    },
+                                                  ),
+                                                );
+                                              },
+                                            ),
+                                          // Arrows (see _commitArrowDrag) render as a line between two
+                                          // points instead of a single centered box, so they get their own
+                                          // loop rather than a third arm on the switches above.
+                                          for (final w in state.widgets.where(
+                                            (w) =>
+                                                w.kind == BoardWidgetKind.arrow,
+                                          ))
+                                            Builder(
+                                              builder: (context) {
+                                                final from = _toScreenPixel(
+                                                  w.x,
+                                                  w.y,
+                                                );
+                                                final to = _toScreenPixel(
+                                                  w.x2!,
+                                                  w.y2!,
+                                                );
+                                                final dismissible =
+                                                    w.creatorId == null ||
+                                                    w.creatorId ==
+                                                        session.localPlayerId;
+                                                return ArrowWidget(
+                                                  from: from,
+                                                  to: to,
+                                                  onDoubleTap: dismissible
+                                                      ? () => widget.controller
+                                                            .deleteWidget(
+                                                              w.instanceId,
+                                                            )
+                                                      : null,
+                                                );
+                                              },
+                                            ),
+                                          // The live TAB-drag preview -- purely local UI state (see
+                                          // _arrowDrag), never a real networked arrow until
+                                          // _commitArrowDrag runs. A ValueListenableBuilder scoped to
+                                          // just this one widget, not a setState on the whole State, so a
+                                          // pointer move during the drag only ever rebuilds this small
+                                          // subtree -- see _arrowDrag's doc comment.
+                                          //
+                                          // Must always resolve to exactly one Positioned Stack child
+                                          // (see ArrowWidget's own doc comment) -- the "nothing to show"
+                                          // branch uses a degenerate zero-size Positioned rather than a
+                                          // bare SizedBox, and ArrowWidget's own ignorePointer flag is
+                                          // used instead of wrapping it in an external IgnorePointer, so
+                                          // this slot never introduces a non-Positioned child into a
+                                          // Stack that otherwise has none.
+                                          ValueListenableBuilder(
+                                            valueListenable: _arrowDrag,
+                                            builder: (context, drag, _) {
+                                              if (drag == null) {
+                                                return const Positioned(
+                                                  left: 0,
+                                                  top: 0,
+                                                  width: 0,
+                                                  height: 0,
+                                                  child: SizedBox.shrink(),
+                                                );
+                                              }
+                                              return ArrowWidget(
+                                                from: drag.start,
+                                                to: drag.current,
+                                                ignorePointer: true,
+                                              );
+                                            },
+                                          ),
+                                          if (_flyingDiscard != null)
+                                            _buildFlyingDiscard(
+                                              _flyingDiscard!,
+                                            ),
+                                          for (final zone in sharedZones)
+                                            if (sharedZoneCardsById[zone.id]!
+                                                .isNotEmpty)
+                                              Builder(
+                                                key: ValueKey(zone.id),
+                                                builder: (context) {
+                                                  final cards =
+                                                      sharedZoneCardsById[zone
+                                                          .id]!;
+                                                  final top = _stackUtils.topOf(
+                                                    cards,
+                                                  );
+                                                  final pos = _toScreenPixel(
+                                                    top.x,
+                                                    top.y,
+                                                  );
+                                                  if (cards.length > 1) {
+                                                    return Positioned(
+                                                      left:
+                                                          pos.dx -
+                                                          (cardWidth +
+                                                                  pileWidgetExtra) /
+                                                              2,
+                                                      top:
+                                                          pos.dy -
+                                                          (cardHeight +
+                                                                  pileWidgetExtra) /
+                                                              2,
+                                                      child: Tooltip(
+                                                        message: zone.name,
+                                                        child: GestureDetector(
+                                                          onSecondaryTapUp:
+                                                              (
+                                                                details,
+                                                              ) => _showSearchMenu(
+                                                                details
+                                                                    .globalPosition,
+                                                                () => widget
+                                                                    .controller
+                                                                    .startSearchZone(
+                                                                      zone.id,
+                                                                    ),
+                                                              ),
+                                                          child: PileWidget(
+                                                            count: cards.length,
+                                                            topInstanceId:
+                                                                top.instanceId,
+                                                            topFaceUp:
+                                                                top.faceUp,
+                                                            topDefinition:
+                                                                widget
+                                                                    .definitionsById[top
+                                                                    .definitionId],
+                                                            onDraw: () => widget
+                                                                .controller
+                                                                .drawFromZone(
+                                                                  zone.id,
+                                                                ),
+                                                            onDragEnd: (offset) =>
+                                                                _handleDragEnd(
+                                                                  tableTops,
+                                                                  pickupCandidates,
+                                                                  top.instanceId,
+                                                                  offset,
+                                                                  localHand,
+                                                                ),
+                                                            onShuffle:
+                                                                zone.shuffleable
+                                                                ? () => widget
+                                                                      .controller
+                                                                      .shuffleZone(
+                                                                        zone.id,
+                                                                      )
+                                                                : null,
+                                                            cardBackImagePath:
+                                                                widget
+                                                                    .cardBackImagePath,
+                                                            isBeingSearched:
+                                                                isZoneSearched(
+                                                                  zone.id,
+                                                                  null,
+                                                                ),
+                                                          ),
+                                                        ),
+                                                      ),
+                                                    );
+                                                  }
+                                                  return Positioned(
+                                                    left:
+                                                        pos.dx - cardWidth / 2,
+                                                    top:
+                                                        pos.dy - cardHeight / 2,
+                                                    child: Tooltip(
+                                                      message: zone.name,
+                                                      child: DraggableCard(
+                                                        instance: top,
+                                                        definition:
+                                                            widget
+                                                                .definitionsById[top
+                                                                .definitionId],
+                                                        onDragEnd: (offset) =>
+                                                            _handleDragEnd(
+                                                              tableTops,
+                                                              pickupCandidates,
+                                                              top.instanceId,
+                                                              offset,
+                                                              localHand,
+                                                            ),
+                                                        onHover: (hovering) =>
+                                                            _setHoveredId(
+                                                              hovering
+                                                                  ? top.instanceId
+                                                                  : null,
+                                                            ),
+                                                        cardBackImagePath: widget
+                                                            .cardBackImagePath,
+                                                      ),
+                                                    ),
+                                                  );
+                                                },
+                                              ),
+                                        ],
+                                      ),
                                     ),
-                                  ),
-                                );
-                              },
+                                  );
+                                },
+                              ),
                             ),
-                          ),
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              Expanded(
-                                child: HandZoneWidget(
-                                  key: _handZoneKey,
-                                  cards: localHand,
-                                  definitionsById: widget.definitionsById,
-                                  onDragEnd: (id, offset) => _handleDragEnd(
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                Expanded(
+                                  child: HandZoneWidget(
+                                    key: _handZoneKey,
+                                    cards: localHand,
+                                    definitionsById: widget.definitionsById,
+                                    onDragEnd: (id, offset) => _handleDragEnd(
+                                      tableTops,
+                                      pickupCandidates,
+                                      id,
+                                      offset,
+                                      localHand,
+                                    ),
+                                    onHoverCard: _setHoveredId,
+                                    cardBackImagePath: widget.cardBackImagePath,
+                                    cardKeyFor: _handCardKey,
+                                  ),
+                                ),
+                                for (final zone in ownedZones)
+                                  _buildLocalZoneWidget(
+                                    zone,
+                                    localZoneCardsById[zone.id]!,
                                     tableTops,
                                     pickupCandidates,
-                                    id,
-                                    offset,
                                     localHand,
+                                    isZoneSearched(
+                                      zone.id,
+                                      session.localPlayerId,
+                                    ),
                                   ),
-                                  onHoverCard: _setHoveredId,
-                                  cardBackImagePath: widget.cardBackImagePath,
-                                  cardKeyFor: _handCardKey,
-                                ),
-                              ),
-                              for (final zone in ownedZones)
-                                _buildLocalZoneWidget(
-                                  zone,
-                                  localZoneCardsById[zone.id]!,
-                                  tableTops,
-                                  pickupCandidates,
-                                  localHand,
-                                ),
-                            ],
-                          ),
-                        ],
-                      ),
-                      if (showPreview)
-                        _buildHoverPreview(
-                          hoveredInstance!,
-                          hoveredDefinition,
-                          screenSize,
+                              ],
+                            ),
+                          ],
                         ),
-                    ],
-                  ),
-                );
-              },
-            );
-          },
+                        ?searchOverlay,
+                        // Painted after (on top of) the search window itself,
+                        // so holding Space over a searched card's tile still
+                        // shows its preview instead of it being hidden behind
+                        // the window.
+                        if (showPreview)
+                          _buildHoverPreview(
+                            hoveredInstance!,
+                            hoveredDefinition,
+                            screenSize,
+                            _hoveredForceFaceUp,
+                          ),
+                      ],
+                    ),
+                  );
+                },
+              );
+            },
+          ),
         ),
       ),
     );

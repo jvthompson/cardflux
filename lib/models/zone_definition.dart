@@ -17,6 +17,7 @@ class ZoneDefinition {
     this.shuffleable = true,
     this.visibleToAll = false,
     this.isDiscardPile = false,
+    this.autoShuffle = false,
   });
 
   /// Stable identity referenced by `CardInstance.zoneId` -- never shown to
@@ -74,20 +75,32 @@ class ZoneDefinition {
   /// at most one owned zone per game should set this.
   final bool isDiscardPile;
 
+  /// Whether this zone's contents are dealt in randomized order at game
+  /// start instead of the order [entries] (or a loaded deck, for a
+  /// [dealsBuiltDeck] zone) lists them in -- false (the default) leaves the
+  /// dealt order exactly as authored/loaded. Unlike the in-game Shuffle
+  /// button, this only affects the initial deal order; it doesn't force
+  /// cards face-down (that's still governed by [faceUp]).
+  final bool autoShuffle;
+
   factory ZoneDefinition.fromJson(Map<String, dynamic> json) {
     return ZoneDefinition(
       id: json['id'] as String,
       name: json['name'] as String,
       shared: json['shared'] as bool? ?? false,
       dealsBuiltDeck: json['dealsBuiltDeck'] as bool? ?? false,
-      entries: (json['entries'] as List?)
-              ?.map((e) => DeckEntry.fromJson((e as Map).cast<String, dynamic>()))
+      entries:
+          (json['entries'] as List?)
+              ?.map(
+                (e) => DeckEntry.fromJson((e as Map).cast<String, dynamic>()),
+              )
               .toList() ??
           const [],
       faceUp: json['faceUp'] as bool? ?? false,
       shuffleable: json['shuffleable'] as bool? ?? true,
       visibleToAll: json['visibleToAll'] as bool? ?? false,
       isDiscardPile: json['isDiscardPile'] as bool? ?? false,
+      autoShuffle: json['autoShuffle'] as bool? ?? false,
     );
   }
 
@@ -97,11 +110,13 @@ class ZoneDefinition {
       'name': name,
       if (shared) 'shared': shared,
       if (dealsBuiltDeck) 'dealsBuiltDeck': dealsBuiltDeck,
-      if (entries.isNotEmpty) 'entries': entries.map((e) => e.toJson()).toList(),
+      if (entries.isNotEmpty)
+        'entries': entries.map((e) => e.toJson()).toList(),
       if (faceUp) 'faceUp': faceUp,
       if (!shuffleable) 'shuffleable': shuffleable,
       if (visibleToAll) 'visibleToAll': visibleToAll,
       if (isDiscardPile) 'isDiscardPile': isDiscardPile,
+      if (autoShuffle) 'autoShuffle': autoShuffle,
     };
   }
 
@@ -119,6 +134,7 @@ class ZoneDefinition {
     bool? shuffleable,
     bool? visibleToAll,
     bool? isDiscardPile,
+    bool? autoShuffle,
   }) {
     return ZoneDefinition(
       id: id ?? this.id,
@@ -130,6 +146,7 @@ class ZoneDefinition {
       shuffleable: shuffleable ?? this.shuffleable,
       visibleToAll: visibleToAll ?? this.visibleToAll,
       isDiscardPile: isDiscardPile ?? this.isDiscardPile,
+      autoShuffle: autoShuffle ?? this.autoShuffle,
     );
   }
 }
