@@ -3,6 +3,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../data/game_loader.dart';
+import '../data/games_directory_settings.dart';
+import '../data/image_path_resolver.dart';
 import '../game/game_session.dart';
 import '../game/table_controller.dart';
 import '../models/card_definition.dart';
@@ -24,7 +27,11 @@ import 'widgets/load_deck_screen.dart';
 /// later snapshot to it via [GameSession.applyRemoteState], and renders the
 /// shared [TableScreen] once a session exists.
 class ClientGameScreen extends StatefulWidget {
-  const ClientGameScreen({super.key, required this.gameClient, required this.localPlayerId});
+  const ClientGameScreen({
+    super.key,
+    required this.gameClient,
+    required this.localPlayerId,
+  });
 
   final GameClient gameClient;
   final String localPlayerId;
@@ -58,16 +65,25 @@ class _ClientGameScreenState extends State<ClientGameScreen> {
     // "Join Game" attempt from HomeScreen can open a new one.
     widget.gameClient.disconnect();
     Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => const HomeScreen(message: 'Disconnected from host.')),
+      MaterialPageRoute(
+        builder: (_) => const HomeScreen(message: 'Disconnected from host.'),
+      ),
       (route) => false,
     );
   }
 
   void _handleMessage(NetMessage msg) {
     if (msg.type == NetMessageType.gameData) {
+      final game = GameDefinition.fromJson(msg.payload);
       // Triggers a rebuild so `build()` can switch from the waiting spinner
       // to LoadDeckScreen now that a GameDefinition is available.
-      setState(() => _game = GameDefinition.fromJson(msg.payload));
+      setState(() => _game = game);
+      // The host's imagePath/cardBackImagePath values are absolute paths
+      // resolved on ITS machine -- they only happen to work here if this
+      // client's game library sits at the identical path. Fire-and-forget:
+      // swap in this machine's own locally-resolved paths for the same game
+      // once available, without blocking session bootstrap (below) on it.
+      unawaited(_resolveLocalImagePaths(game));
       return;
     }
     if (msg.type != NetMessageType.fullState) return;
@@ -80,7 +96,11 @@ class _ClientGameScreenState extends State<ClientGameScreen> {
       // definitions to render.
       if (game == null) return;
       setState(() {
-        _session = GameSession(game: game, localPlayerId: widget.localPlayerId, initialState: remoteState);
+        _session = GameSession(
+          game: game,
+          localPlayerId: widget.localPlayerId,
+          initialState: remoteState,
+        );
         _definitionsById = {for (final c in game.cards) c.id: c};
       });
     } else {
@@ -88,12 +108,46 @@ class _ClientGameScreenState extends State<ClientGameScreen> {
     }
   }
 
+  /// Looks up [remoteGame]'s id in this machine's own configured game
+  /// library (see `GamesDirectorySettings`) and, if found, re-resolves
+  /// `_game`'s (and, if already built, `_definitionsById`'s) image paths
+  /// against this client's own local copy -- see `mergeLocalImagePaths`. A
+  /// no-op if no games directory is configured, the game isn't found
+  /// locally, or this screen has since moved on to a different game.
+  Future<void> _resolveLocalImagePaths(GameDefinition remoteGame) async {
+    GameDefinition resolved;
+    try {
+      final root = await GamesDirectorySettings().getPath();
+      if (root == null) return;
+      final localGames = await GameLoader().loadGamesFromDirectory(root);
+      GameDefinition? localMatch;
+      for (final g in localGames) {
+        if (g.id == remoteGame.id) {
+          localMatch = g;
+          break;
+        }
+      }
+      if (localMatch == null) return;
+      resolved = mergeLocalImagePaths(remote: remoteGame, local: localMatch);
+    } catch (_) {
+      return;
+    }
+    if (!mounted || _game?.id != remoteGame.id) return;
+    setState(() {
+      _game = resolved;
+      if (_session != null)
+        _definitionsById = {for (final c in resolved.cards) c.id: c};
+    });
+  }
+
   void _chooseDeck(String zoneId, DeckConfig deck) {
     setState(() => _localDecks[zoneId] = deck);
-    widget.gameClient.send(NetMessage(
-      type: NetMessageType.requestDeckChosen,
-      payload: {'zoneId': zoneId, 'deck': deck.toJson()},
-    ));
+    widget.gameClient.send(
+      NetMessage(
+        type: NetMessageType.requestDeckChosen,
+        payload: {'zoneId': zoneId, 'deck': deck.toJson()},
+      ),
+    );
   }
 
   @override
@@ -112,7 +166,11 @@ class _ClientGameScreenState extends State<ClientGameScreen> {
       if (game != null && _localDecks.length < game.deckBuildingZones.length) {
         return Scaffold(
           appBar: AppBar(title: Text('Load Deck -- ${game.name}')),
-          body: LoadDeckScreen(game: game, zones: game.deckBuildingZones, onDeckChosen: _chooseDeck),
+          body: LoadDeckScreen(
+            game: game,
+            zones: game.deckBuildingZones,
+            onDeckChosen: _chooseDeck,
+          ),
         );
       }
       return const Scaffold(
@@ -135,7 +193,8 @@ class _ClientGameScreenState extends State<ClientGameScreen> {
         controller: ClientTableController(widget.gameClient),
         isMirrored: true,
         zones: _game?.zones ?? const [],
-        opponentCardBorderColor: _game?.opponentCardBorderColor ?? defaultOpponentCardBorderColor,
+        opponentCardBorderColor:
+            _game?.opponentCardBorderColor ?? defaultOpponentCardBorderColor,
         cardBackImagePath: _game?.cardBackImagePath,
       ),
     );

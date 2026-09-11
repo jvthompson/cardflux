@@ -39,12 +39,17 @@ class CounterWidget extends StatelessWidget {
     required this.instance,
     required this.onDragEnd,
     required this.onSecondaryTapUp,
+    required this.onDoubleTapSide,
     this.interactable = true,
   });
 
   final BoardWidgetInstance instance;
   final void Function(Offset globalPosition) onDragEnd;
   final void Function(Offset globalPosition) onSecondaryTapUp;
+
+  /// Double-tapping/double-clicking the face: `isRightSide` is true for a
+  /// tap on the right half (increment), false for the left half (decrement).
+  final void Function(bool isRightSide) onDoubleTapSide;
 
   /// False while TAB is held table-wide (see `TableScreen`), so a
   /// click-drag over this widget draws an arrow instead of moving it --
@@ -77,6 +82,8 @@ class CounterWidget extends StatelessWidget {
     if (!interactable) return _face();
     return GestureDetector(
       onSecondaryTapUp: (details) => onSecondaryTapUp(details.globalPosition),
+      onDoubleTapDown: (details) =>
+          onDoubleTapSide(details.localPosition.dx >= counterWidgetWidth / 2),
       child: Draggable<String>(
         data: instance.instanceId,
         feedback: Material(type: MaterialType.transparency, child: _face()),
