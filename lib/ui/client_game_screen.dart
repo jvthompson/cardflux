@@ -7,10 +7,12 @@ import '../data/game_loader.dart';
 import '../data/games_directory_settings.dart';
 import '../data/image_path_resolver.dart';
 import '../game/game_session.dart';
+import '../game/seat_utils.dart';
 import '../game/table_controller.dart';
 import '../models/card_definition.dart';
 import '../models/deck_config.dart';
 import '../models/game_definition.dart';
+import '../models/player.dart';
 import '../models/table_state.dart';
 import '../networking/game_client.dart';
 import '../networking/net_message.dart';
@@ -49,6 +51,9 @@ class _ClientGameScreenState extends State<ClientGameScreen> {
   final Map<String, DeckConfig> _localDecks = {};
   bool _localReady = false;
   bool _navigatedHome = false;
+  List<PlayerInfo> _roster = const [];
+  int _maxPlayers = 2;
+  Set<String> _readyPlayerIds = const {};
 
   @override
   void initState() {
@@ -74,6 +79,20 @@ class _ClientGameScreenState extends State<ClientGameScreen> {
   }
 
   void _handleMessage(NetMessage msg) {
+    if (msg.type == NetMessageType.lobbyRosterUpdate) {
+      final players = (msg.payload['players'] as List)
+          .map((e) => PlayerInfo.fromJson((e as Map).cast<String, dynamic>()))
+          .toList();
+      setState(() {
+        _roster = players;
+        _maxPlayers = msg.payload['maxPlayers'] as int;
+      });
+      return;
+    }
+    if (msg.type == NetMessageType.lobbyReadyUpdate) {
+      setState(() => _readyPlayerIds = (msg.payload['readyPlayerIds'] as List).cast<String>().toSet());
+      return;
+    }
     if (msg.type == NetMessageType.gameData) {
       final game = GameDefinition.fromJson(msg.payload);
       // Triggers a rebuild so `build()` can switch from the waiting spinner
@@ -204,14 +223,19 @@ class _ClientGameScreenState extends State<ClientGameScreen> {
                   ),
                 ),
               if (_localReady)
-                const Padding(
-                  padding: EdgeInsets.only(bottom: 32),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 32),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      CircularProgressIndicator(),
-                      SizedBox(height: 12),
-                      Text('Waiting for host to start the game...'),
+                      const CircularProgressIndicator(),
+                      const SizedBox(height: 12),
+                      const Text('Waiting for the other player(s)...'),
+                      for (final p in _roster.where((p) => p.id != widget.localPlayerId))
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 2),
+                          child: Text(_readyPlayerIds.contains(p.id) ? '${p.name}: Ready' : '${p.name}: not ready'),
+                        ),
                     ],
                   ),
                 ),
@@ -219,14 +243,18 @@ class _ClientGameScreenState extends State<ClientGameScreen> {
           ),
         );
       }
-      return const Scaffold(
+      return Scaffold(
         body: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              CircularProgressIndicator(),
-              SizedBox(height: 16),
-              Text('Waiting for host to start the game...'),
+              const CircularProgressIndicator(),
+              const SizedBox(height: 16),
+              const Text('Waiting for host to start the game...'),
+              if (_roster.length > 1) ...[
+                const SizedBox(height: 8),
+                Text('${_roster.length}/$_maxPlayers players joined'),
+              ],
             ],
           ),
         ),
@@ -237,12 +265,30 @@ class _ClientGameScreenState extends State<ClientGameScreen> {
       child: TableScreen(
         definitionsById: _definitionsById,
         controller: ClientTableController(widget.gameClient),
-        isMirrored: true,
+        isMirrored: _isMirrored,
         zones: _game?.zones ?? const [],
-        opponentCardBorderColor:
-            _game?.opponentCardBorderColor ?? defaultOpponentCardBorderColor,
         cardBackImagePath: _game?.cardBackImagePath,
       ),
     );
+  }
+
+  /// Whether the shared free-table area should render flipped for this
+  /// client's seat -- see `seat_utils.dart`'s doc. Deliberately reads seat
+  /// order from `session.state.players` (the authoritative, already-dealt
+  /// list `HostGameScreen` built from `HostServer.roster` -- reflecting any
+  /// host-assigned seating from `AssignSeatsScreen`), NOT from [_roster]
+  /// (this screen's own lobby-tracked copy, which is only ever refreshed by
+  /// a `lobbyRosterUpdate` broadcast on join/leave -- never re-sent after
+  /// the host calls `HostServer.setSeatOrder`, so it goes stale exactly when
+  /// the host reorders seats away from plain join order). Falls back to
+  /// `true` (this app's original, 2-player-only client behavior) if the
+  /// session isn't built yet for some reason.
+  bool get _isMirrored {
+    final players = _session?.state.players ?? const [];
+    final n = players.length;
+    if (n < 2) return true;
+    final mySeat = players.indexWhere((p) => p.id == widget.localPlayerId);
+    if (mySeat < 0) return true;
+    return isFarMirrorSeat(mySeat, n);
   }
 }

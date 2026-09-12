@@ -22,6 +22,8 @@ enum NetMessageType {
   fullState,
   requestDeckChosen,
   requestReady,
+  lobbyRosterUpdate,
+  lobbyReadyUpdate,
   requestMove,
   requestMoveStack,
   requestMoveGroup,
@@ -70,6 +72,18 @@ class NetMessage {
   }
 
   Map<String, dynamic> toJson() => {'type': type.name, 'payload': payload};
+}
+
+/// A [NetMessage] paired with the id of whichever connected client actually
+/// sent it -- [HostServer.incoming] emits this instead of a bare [NetMessage]
+/// so [HostGameEngine]/`HostLoadDeckScreen` can tell N clients' requests
+/// apart, instead of assuming (as when this app supported only one client)
+/// that every incoming message came from "the" one opponent.
+class IncomingMessage {
+  const IncomingMessage({required this.senderId, required this.message});
+
+  final String senderId;
+  final NetMessage message;
 }
 
 /// Encodes [msg] as one line of newline-delimited JSON, ready to write

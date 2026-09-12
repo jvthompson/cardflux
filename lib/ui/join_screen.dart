@@ -10,9 +10,10 @@ import 'client_game_screen.dart';
 /// [GameClient], and once connected navigates to [ClientGameScreen] to
 /// actually start the match.
 class JoinScreen extends StatefulWidget {
-  const JoinScreen({super.key, required this.localPlayerName});
+  const JoinScreen({super.key, required this.localPlayerName, required this.localPlayerColor});
 
   final String localPlayerName;
+  final int localPlayerColor;
 
   @override
   State<JoinScreen> createState() => _JoinScreenState();
@@ -38,14 +39,16 @@ class _JoinScreenState extends State<JoinScreen> {
   }
 
   Future<void> _connect() async {
-    final host = _ipController.text.trim();
+    // Left blank -- assume same-machine testing rather than making the user
+    // type it every time.
+    final typed = _ipController.text.trim();
+    final host = typed.isEmpty ? '127.0.0.1' : typed;
     final port = int.tryParse(_portController.text.trim()) ?? defaultGamePort;
-    if (host.isEmpty) return;
     setState(() => _connecting = true);
     _navSub = _client.statusStream.listen((status) {
       if (status == ClientConnectionStatus.connected) _navigateToGame();
     });
-    await _client.connect(host, port, widget.localPlayerName);
+    await _client.connect(host, port, widget.localPlayerName, widget.localPlayerColor);
     if (mounted) setState(() {});
   }
 
@@ -76,7 +79,7 @@ class _JoinScreenState extends State<JoinScreen> {
                         controller: _ipController,
                         decoration: const InputDecoration(
                           labelText: 'Host IP address',
-                          hintText: 'e.g. 192.168.1.42',
+                          hintText: 'e.g. 192.168.1.42 -- blank = 127.0.0.1',
                           border: OutlineInputBorder(),
                         ),
                       ),

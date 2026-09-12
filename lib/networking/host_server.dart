@@ -3,106 +3,218 @@ import 'dart:io';
 
 import 'package:uuid/uuid.dart';
 
+import '../models/color_palette.dart';
+import '../models/player.dart';
 import 'net_message.dart';
 
 const _uuid = Uuid();
 
-enum HostConnectionStatus { waiting, connected, disconnected }
+/// State for one connected (post-`hello`) client.
+class _ConnectedClient {
+  _ConnectedClient({required this.socket, required this.name, required this.color});
 
-/// Hosts a TCP session: binds a port, accepts exactly one opponent
-/// connection, and completes a hello/welcome handshake. Game-state messages
-/// (fullState/requestX) are surfaced via [incoming] but not interpreted here
-/// -- HostGameEngine (M4) owns applying them to the authoritative table.
-/// Also runs a [heartbeatInterval] ping/pong with the client (M6) so a
-/// silently-dead connection (as opposed to a clean process exit, which the
-/// socket's own `onDone`/`onError` already reports immediately) is detected
-/// within [heartbeatTimeout] instead of relying on the OS's TCP timeout.
+  final Socket socket;
+  final String name;
+  final int color;
+  StreamSubscription<NetMessage>? sub;
+  Timer? heartbeatTimer;
+  DateTime lastActivity = DateTime.now();
+}
+
+/// Hosts a TCP session for 2-4 total players (this host plus up to
+/// `maxPlayers - 1` clients): binds a port, accepts connections up to that
+/// cap (rejecting any beyond it), and completes a hello/welcome handshake
+/// per client. Game-state messages (fullState/requestX) are surfaced via
+/// [incoming] -- tagged with which client actually sent them, since with
+/// more than one client there's no single "the opponent" to assume -- but
+/// not interpreted here; `HostGameEngine` owns applying them to the
+/// authoritative table. Also runs a per-client [heartbeatInterval] ping/pong
+/// (M6) so a silently-dead connection (as opposed to a clean process exit,
+/// which the socket's own `onDone`/`onError` already reports immediately) is
+/// detected within [heartbeatTimeout] instead of relying on the OS's TCP
+/// timeout.
 class HostServer {
   ServerSocket? _serverSocket;
-  Socket? _clientSocket;
-  StreamSubscription<NetMessage>? _sub;
-  Timer? _heartbeatTimer;
-  DateTime _lastActivity = DateTime.now();
-  final _incomingController = StreamController<NetMessage>.broadcast();
-  final _statusController = StreamController<HostConnectionStatus>.broadcast();
+  final Map<String, _ConnectedClient> _clients = {};
+  final _incomingController = StreamController<IncomingMessage>.broadcast();
+  final _rosterController = StreamController<List<PlayerInfo>>.broadcast();
 
-  Stream<NetMessage> get incoming => _incomingController.stream;
-  Stream<HostConnectionStatus> get statusStream => _statusController.stream;
+  Stream<IncomingMessage> get incoming => _incomingController.stream;
+  Stream<List<PlayerInfo>> get rosterStream => _rosterController.stream;
 
-  String? opponentName;
-  String? opponentPlayerId;
-  HostConnectionStatus status = HostConnectionStatus.waiting;
+  late final PlayerInfo hostPlayer;
+  late final int maxPlayers;
+
+  /// Host-chosen seat order (player ids), set via [setSeatOrder] once the
+  /// lobby is full (see `AssignSeatsScreen`) -- null means "use join order"
+  /// (today's default, and the only option for a 2-player match, which has
+  /// no `AssignSeatsScreen` step at all).
+  List<String>? _seatOrder;
+
+  /// Reorders [roster] by [orderedPlayerIds] (every currently-connected
+  /// player's id, in the desired seat order) -- every downstream reader of
+  /// [roster] (`GameSelectScreen`, `HostLoadDeckScreen`,
+  /// `HostGameScreen._init`) picks this up automatically with no code
+  /// changes of their own, since none of them cache seat order themselves.
+  void setSeatOrder(List<String> orderedPlayerIds) {
+    _seatOrder = orderedPlayerIds;
+  }
+
+  /// Host first, then every currently-connected client in join order (a
+  /// `Map`'s iteration order is insertion order), reordered by
+  /// [_seatOrder] once the host has assigned seats -- the stable ordering
+  /// `HostGameScreen`/`HostLoadDeckScreen` build seat indices and
+  /// `computeHandRowLayout` from. A disconnected client drops out of this
+  /// list entirely (freeing its slot for a new joiner) -- this is a
+  /// lobby/live-connection concept only; once dealt, `TableState.players`
+  /// (built once from this list at deal time) is the durable seat/identity
+  /// record instead and no longer shrinks.
+  List<PlayerInfo> get roster {
+    final joinOrder = [
+      hostPlayer,
+      for (final entry in _clients.entries)
+        PlayerInfo(id: entry.key, name: entry.value.name, role: PlayerRole.client, color: entry.value.color),
+    ];
+    final order = _seatOrder;
+    if (order == null) return joinOrder;
+    final byId = {for (final p in joinOrder) p.id: p};
+    return [for (final id in order) if (byId[id] != null) byId[id]!];
+  }
 
   /// Binds to all interfaces on [port] and returns the bound port. Resolves
-  /// once bound; does not wait for a client to connect.
-  Future<int> start({required String localName, int port = defaultGamePort}) async {
+  /// once bound; does not wait for any client to connect.
+  Future<int> start({
+    required PlayerInfo hostPlayer,
+    required int maxPlayers,
+    int port = defaultGamePort,
+  }) async {
+    this.hostPlayer = hostPlayer;
+    this.maxPlayers = maxPlayers;
     _serverSocket = await ServerSocket.bind(InternetAddress.anyIPv4, port);
-    _serverSocket!.listen((socket) => _handleClient(socket, localName));
+    _serverSocket!.listen(_handleClient);
     return _serverSocket!.port;
   }
 
-  void _handleClient(Socket socket, String localName) {
-    // Two-player only -- reject a second concurrent connection attempt.
-    if (_clientSocket != null) {
+  /// If [requested] is unclaimed by the host or any currently-connected
+  /// client, keeps it; otherwise silently reassigns the first unclaimed
+  /// [boardWidgetColorPalette] entry -- a joining client displays whatever
+  /// color it's actually told back in `welcome`, not necessarily what it
+  /// asked for.
+  int _resolveColor(int? requested) {
+    final used = {hostPlayer.color, for (final c in _clients.values) c.color};
+    if (requested != null && !used.contains(requested)) return requested;
+    for (final c in boardWidgetColorPalette) {
+      if (!used.contains(c)) return c;
+    }
+    return requested ?? boardWidgetColorPalette.first;
+  }
+
+  void _handleClient(Socket socket) {
+    if (_clients.length >= maxPlayers - 1) {
       socket.destroy();
       return;
     }
-    _clientSocket = socket;
-    _lastActivity = DateTime.now();
-    _heartbeatTimer = Timer.periodic(heartbeatInterval, (_) => _onHeartbeatTick());
-    _sub = decodeMessages(socket).listen(
+    String? playerId;
+    late final StreamSubscription<NetMessage> sub;
+    sub = decodeMessages(socket).listen(
       (msg) {
-        _lastActivity = DateTime.now();
-        if (msg.type == NetMessageType.ping) {
-          send(NetMessage(type: NetMessageType.pong));
+        final id = playerId;
+        if (id == null) {
+          // Only a hello is meaningful before a playerId is assigned.
+          if (msg.type != NetMessageType.hello) return;
+          if (_clients.length >= maxPlayers - 1) {
+            socket.destroy();
+            return;
+          }
+          final name = msg.payload['name'] as String? ?? 'Player';
+          final color = _resolveColor(msg.payload['color'] as int?);
+          final newId = _uuid.v4();
+          playerId = newId;
+          final client = _ConnectedClient(socket: socket, name: name, color: color)
+            ..sub = sub
+            ..heartbeatTimer = Timer.periodic(heartbeatInterval, (_) => _onHeartbeatTick(newId));
+          _clients[newId] = client;
+          sendTo(
+            newId,
+            NetMessage(
+              type: NetMessageType.welcome,
+              payload: {'hostName': hostPlayer.name, 'playerId': newId, 'assignedColor': color},
+            ),
+          );
+          _broadcastRoster();
           return;
         }
-        if (msg.type == NetMessageType.hello) {
-          opponentName = msg.payload['name'] as String?;
-          opponentPlayerId = _uuid.v4();
-          send(NetMessage(
-            type: NetMessageType.welcome,
-            payload: {'name': localName, 'playerId': opponentPlayerId},
-          ));
-          status = HostConnectionStatus.connected;
-          _statusController.add(status);
+        final client = _clients[id];
+        if (client == null) return;
+        client.lastActivity = DateTime.now();
+        if (msg.type == NetMessageType.ping) {
+          sendTo(id, const NetMessage(type: NetMessageType.pong));
+          return;
         }
-        _incomingController.add(msg);
+        _incomingController.add(IncomingMessage(senderId: id, message: msg));
       },
-      onDone: _handleDisconnect,
-      onError: (_) => _handleDisconnect(),
+      onDone: () {
+        final id = playerId;
+        if (id != null) _handleClientDisconnect(id);
+      },
+      onError: (_) {
+        final id = playerId;
+        if (id != null) _handleClientDisconnect(id);
+      },
     );
   }
 
-  void _onHeartbeatTick() {
-    if (DateTime.now().difference(_lastActivity) > heartbeatTimeout) {
-      // No traffic at all (not even a ping) within the timeout -- the
+  void _onHeartbeatTick(String playerId) {
+    final client = _clients[playerId];
+    if (client == null) return;
+    if (DateTime.now().difference(client.lastActivity) > heartbeatTimeout) {
+      // No traffic at all (not even a ping) within the timeout -- this
       // client is silently gone; force the socket closed so onDone/onError
       // runs the normal disconnect path.
-      _clientSocket?.destroy();
+      client.socket.destroy();
       return;
     }
-    send(NetMessage(type: NetMessageType.ping));
+    sendTo(playerId, const NetMessage(type: NetMessageType.ping));
   }
 
-  void _handleDisconnect() {
-    if (status == HostConnectionStatus.disconnected) return;
-    status = HostConnectionStatus.disconnected;
-    _statusController.add(status);
-    _heartbeatTimer?.cancel();
-    _clientSocket = null;
+  void _handleClientDisconnect(String playerId) {
+    final client = _clients.remove(playerId);
+    if (client == null) return;
+    client.heartbeatTimer?.cancel();
+    _broadcastRoster();
   }
 
-  void send(NetMessage msg) {
-    _clientSocket?.write(encodeLine(msg));
+  void _broadcastRoster() {
+    final r = roster;
+    _rosterController.add(r);
+    broadcast(
+      NetMessage(
+        type: NetMessageType.lobbyRosterUpdate,
+        payload: {'maxPlayers': maxPlayers, 'players': r.map((p) => p.toJson()).toList()},
+      ),
+    );
+  }
+
+  void sendTo(String playerId, NetMessage msg) {
+    _clients[playerId]?.socket.write(encodeLine(msg));
+  }
+
+  void broadcast(NetMessage msg, {String? exceptPlayerId}) {
+    for (final entry in _clients.entries) {
+      if (entry.key == exceptPlayerId) continue;
+      entry.value.socket.write(encodeLine(msg));
+    }
   }
 
   Future<void> stop() async {
-    _heartbeatTimer?.cancel();
-    await _sub?.cancel();
-    _clientSocket?.destroy();
+    for (final client in _clients.values) {
+      client.heartbeatTimer?.cancel();
+      await client.sub?.cancel();
+      client.socket.destroy();
+    }
+    _clients.clear();
     await _serverSocket?.close();
     await _incomingController.close();
-    await _statusController.close();
+    await _rosterController.close();
   }
 }

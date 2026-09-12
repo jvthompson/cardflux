@@ -5,7 +5,6 @@ import '../data/game_loader.dart';
 import '../game/game_session.dart';
 import '../game/table_controller.dart';
 import '../models/card_definition.dart';
-import '../models/game_definition.dart';
 import '../models/zone_definition.dart';
 import 'table_screen.dart';
 
@@ -27,7 +26,6 @@ class _PracticeScreenState extends State<PracticeScreen> {
   Map<String, CardDefinition> _definitionsById = {};
   String? _cardBackImagePath;
   List<ZoneDefinition> _zones = const [];
-  String _opponentCardBorderColor = defaultOpponentCardBorderColor;
 
   @override
   void initState() {
@@ -43,7 +41,6 @@ class _PracticeScreenState extends State<PracticeScreen> {
       _definitionsById = {for (final c in game.cards) c.id: c};
       _cardBackImagePath = game.cardBackImagePath;
       _zones = game.zones;
-      _opponentCardBorderColor = game.opponentCardBorderColor;
     });
   }
 
@@ -60,7 +57,6 @@ class _PracticeScreenState extends State<PracticeScreen> {
         controller: HostTableController(session),
         isMirrored: false,
         zones: _zones,
-        opponentCardBorderColor: _opponentCardBorderColor,
         cardBackImagePath: _cardBackImagePath,
       ),
     );

@@ -20,6 +20,7 @@ class HandZoneWidget extends StatelessWidget {
     this.onHoverCard,
     this.cardBackImagePath,
     this.cardKeyFor,
+    this.borderColor,
   });
 
   final List<CardInstance> cards;
@@ -27,6 +28,10 @@ class HandZoneWidget extends StatelessWidget {
   final void Function(String instanceId, Offset globalPosition) onDragEnd;
   final void Function(String? instanceId)? onHoverCard;
   final String? cardBackImagePath;
+
+  /// This hand's owner's chosen color -- painted as a border on every card
+  /// in it, same as any other owned card (see `TableScreen._ownerBorderColor`).
+  final Color? borderColor;
 
   /// Supplies a stable [GlobalKey] per card instance so [TableScreen] can
   /// query each rendered card's real on-screen position later (used to
@@ -46,6 +51,7 @@ class HandZoneWidget extends StatelessWidget {
           ? null
           : (hovering) => onHoverCard!(hovering ? card.instanceId : null),
       cardBackImagePath: cardBackImagePath,
+      opponentBorderColor: borderColor,
     );
   }
 

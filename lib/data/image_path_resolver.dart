@@ -59,7 +59,6 @@ GameDefinition mergeLocalImagePaths({
     ],
     cardBackImagePath: local.cardBackImagePath,
     zones: remote.zones,
-    opponentCardBorderColor: remote.opponentCardBorderColor,
     tagGroups: remote.tagGroups,
     sets: remote.sets,
   );

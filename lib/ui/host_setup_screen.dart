@@ -3,19 +3,29 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 
+import '../models/player.dart';
 import '../networking/host_server.dart';
 import '../networking/network_info.dart';
+import 'assign_seats_screen.dart';
 import 'game_select_screen.dart';
 
 const _uuid = Uuid();
 
-/// Binds a [HostServer], shows the host's LAN IP address(es) and port for
-/// the opponent to join, and once connected navigates to [HostGameScreen]
-/// to actually start the match.
+/// Binds a [HostServer] for [maxPlayers] total players, shows the host's LAN
+/// IP address(es) and port for the other player(s) to join, and once the
+/// full roster (this host plus `maxPlayers - 1` clients) is connected,
+/// navigates to [GameSelectScreen] to actually start the match.
 class HostSetupScreen extends StatefulWidget {
-  const HostSetupScreen({super.key, required this.localPlayerName});
+  const HostSetupScreen({
+    super.key,
+    required this.localPlayerName,
+    required this.localPlayerColor,
+    required this.maxPlayers,
+  });
 
   final String localPlayerName;
+  final int localPlayerColor;
+  final int maxPlayers;
 
   @override
   State<HostSetupScreen> createState() => _HostSetupScreenState();
@@ -27,7 +37,7 @@ class _HostSetupScreenState extends State<HostSetupScreen> {
   List<String> _addresses = [];
   int? _port;
   String? _startError;
-  StreamSubscription<HostConnectionStatus>? _navSub;
+  StreamSubscription<List<PlayerInfo>>? _rosterSub;
   bool _navigated = false;
 
   @override
@@ -39,14 +49,22 @@ class _HostSetupScreenState extends State<HostSetupScreen> {
   Future<void> _start() async {
     try {
       final addresses = await localIPv4Addresses();
-      final port = await _server.start(localName: widget.localPlayerName);
+      final port = await _server.start(
+        hostPlayer: PlayerInfo(
+          id: _hostPlayerId,
+          name: widget.localPlayerName,
+          role: PlayerRole.host,
+          color: widget.localPlayerColor,
+        ),
+        maxPlayers: widget.maxPlayers,
+      );
       if (!mounted) return;
       setState(() {
         _addresses = addresses;
         _port = port;
       });
-      _navSub = _server.statusStream.listen((status) {
-        if (status == HostConnectionStatus.connected) _navigateToGame();
+      _rosterSub = _server.rosterStream.listen((roster) {
+        if (roster.length >= widget.maxPlayers) _navigateToGame();
       });
     } catch (e) {
       if (!mounted) return;
@@ -57,15 +75,20 @@ class _HostSetupScreenState extends State<HostSetupScreen> {
   void _navigateToGame() {
     if (_navigated || !mounted) return;
     _navigated = true;
+    // A 2-player match has exactly one sensible seating (host bottom,
+    // client top) -- skip straight to game selection, same as before
+    // AssignSeatsScreen existed.
     Navigator.of(context).pushReplacement(MaterialPageRoute(
-      builder: (_) => GameSelectScreen(hostServer: _server, hostPlayerId: _hostPlayerId),
+      builder: (_) => widget.maxPlayers > 2
+          ? AssignSeatsScreen(hostServer: _server, hostPlayerId: _hostPlayerId)
+          : GameSelectScreen(hostServer: _server, hostPlayerId: _hostPlayerId),
     ));
   }
 
   @override
   void dispose() {
-    _navSub?.cancel();
-    // GameSelectScreen/DeckBuildScreen/HostGameScreen own the server's
+    _rosterSub?.cancel();
+    // GameSelectScreen/HostLoadDeckScreen/HostGameScreen own the server's
     // lifecycle from here on -- only stop it here if we're leaving without
     // ever getting there.
     if (!_navigated) _server.stop();
@@ -85,40 +108,43 @@ class _HostSetupScreenState extends State<HostSetupScreen> {
                 ? Text('Failed to start hosting: $_startError', style: const TextStyle(color: Colors.red))
                 : _port == null
                     ? const CircularProgressIndicator()
-                    : StreamBuilder<HostConnectionStatus>(
-                        stream: _server.statusStream,
-                        initialData: _server.status,
+                    : StreamBuilder<List<PlayerInfo>>(
+                        stream: _server.rosterStream,
+                        initialData: _server.roster,
                         builder: (context, snapshot) {
-                          final status = snapshot.data ?? HostConnectionStatus.waiting;
+                          final roster = snapshot.data ?? _server.roster;
+                          final waitingFor = widget.maxPlayers - roster.length;
                           return Column(
                             mainAxisSize: MainAxisSize.min,
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
-                              const Text('Share this with your opponent:', style: TextStyle(fontWeight: FontWeight.bold)),
+                              const Text('Share this with the other player(s):', style: TextStyle(fontWeight: FontWeight.bold)),
                               const SizedBox(height: 8),
                               if (_addresses.isEmpty)
                                 const Text('No network interfaces found -- try 127.0.0.1 for same-machine testing.')
                               else
                                 for (final addr in _addresses)
                                   SelectableText('$addr : $_port', style: const TextStyle(fontSize: 16)),
-                              const SizedBox(height: 32),
-                              switch (status) {
-                                HostConnectionStatus.waiting => const Column(
+                              const SizedBox(height: 24),
+                              const Text('Players:', style: TextStyle(fontWeight: FontWeight.bold)),
+                              const SizedBox(height: 8),
+                              for (final p in roster)
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(vertical: 4),
+                                  child: Row(
                                     children: [
-                                      CircularProgressIndicator(),
-                                      SizedBox(height: 16),
-                                      Text('Waiting for opponent to join...'),
+                                      CircleAvatar(radius: 6, backgroundColor: Color(p.color)),
+                                      const SizedBox(width: 8),
+                                      Text(p.name),
                                     ],
                                   ),
-                                HostConnectionStatus.connected => Text(
-                                    'Connected to ${_server.opponentName ?? "opponent"}!',
-                                    style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold),
-                                  ),
-                                HostConnectionStatus.disconnected => const Text(
-                                    'Opponent disconnected.',
-                                    style: TextStyle(color: Colors.red),
-                                  ),
-                              },
+                                ),
+                              const SizedBox(height: 24),
+                              if (waitingFor > 0) ...[
+                                const CircularProgressIndicator(),
+                                const SizedBox(height: 16),
+                                Text('Waiting for $waitingFor more player${waitingFor == 1 ? '' : 's'}...'),
+                              ],
                             ],
                           );
                         },

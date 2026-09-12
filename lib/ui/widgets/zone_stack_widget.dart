@@ -31,6 +31,7 @@ class ZoneStackWidget extends StatefulWidget {
     required this.onShuffle,
     this.isBeingSearched = false,
     this.cardBackImagePath,
+    this.borderColor,
   });
 
   final String zoneName;
@@ -44,6 +45,10 @@ class ZoneStackWidget extends StatefulWidget {
   /// See `PileWidget.isBeingSearched`'s identical doc.
   final bool isBeingSearched;
   final String? cardBackImagePath;
+
+  /// This zone's owner's chosen color -- painted as a border on the top
+  /// card, same as any other owned card (see `TableScreen._ownerBorderColor`).
+  final Color? borderColor;
 
   @override
   State<ZoneStackWidget> createState() => _ZoneStackWidgetState();
@@ -76,9 +81,17 @@ class _ZoneStackWidgetState extends State<ZoneStackWidget>
   }
 
   Widget _topFace() {
-    return widget.topFaceUp && widget.topDefinition != null
+    final content = widget.topFaceUp && widget.topDefinition != null
         ? CardFaceWidget(definition: widget.topDefinition!)
         : CardBackWidget(imagePath: widget.cardBackImagePath);
+    if (widget.borderColor == null) return content;
+    return Container(
+      foregroundDecoration: BoxDecoration(
+        border: Border.all(color: widget.borderColor!, width: 2),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: content,
+    );
   }
 
   @override

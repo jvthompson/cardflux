@@ -24,6 +24,7 @@ class OpponentZoneStackWidget extends StatelessWidget {
     this.topDefinition,
     this.isBeingSearched = false,
     this.cardBackImagePath,
+    this.borderColor,
   });
 
   final String zoneName;
@@ -34,6 +35,10 @@ class OpponentZoneStackWidget extends StatelessWidget {
   /// See `PileWidget.isBeingSearched`'s identical doc.
   final bool isBeingSearched;
   final String? cardBackImagePath;
+
+  /// This zone's owner's chosen color -- painted as a border on the top
+  /// card, same as any other owned card (see `TableScreen._ownerBorderColor`).
+  final Color? borderColor;
 
   @override
   Widget build(BuildContext context) {
@@ -65,9 +70,18 @@ class OpponentZoneStackWidget extends StatelessWidget {
         ),
       );
     }
-    final content = topFaceUp && topDefinition != null
+    final rawContent = topFaceUp && topDefinition != null
         ? CardFaceWidget(definition: topDefinition!)
         : CardBackWidget(imagePath: cardBackImagePath);
+    final content = borderColor == null
+        ? rawContent
+        : Container(
+            foregroundDecoration: BoxDecoration(
+              border: Border.all(color: borderColor!, width: 2),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: rawContent,
+          );
     return SizedBox(
       width: cardWidth + pileWidgetExtra,
       height: cardHeight + pileWidgetExtra,

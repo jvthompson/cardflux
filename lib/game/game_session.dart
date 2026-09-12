@@ -42,11 +42,15 @@ class GameSession extends ChangeNotifier {
   factory GameSession.localSandbox({
     required GameDefinition game,
     required String localPlayerId,
+    // Matches boardWidgetColorPalette's "red" entry -- a literal rather than
+    // an index into that list, since a const list's `[]` isn't itself a
+    // constant expression.
+    int localPlayerColor = 0xFFD32F2F,
   }) {
     return GameSession.dealFromZones(
       game: game,
       players: [
-        PlayerInfo(id: localPlayerId, name: 'You', role: PlayerRole.host),
+        PlayerInfo(id: localPlayerId, name: 'You', role: PlayerRole.host, color: localPlayerColor),
       ],
       localPlayerId: localPlayerId,
     );
@@ -481,6 +485,20 @@ class GameSession extends ChangeNotifier {
   void applyRemoteState(TableState newState) {
     if (newState.revision <= _state.revision) return;
     _state = newState;
+    notifyListeners();
+  }
+
+  /// Updates every non-host player's [PlayerInfo.connected] flag from
+  /// [connectedNonHostIds] (`HostServer.roster`, minus the host) -- a
+  /// disconnected seat's cards/zones are left exactly where they are; this
+  /// only drives the cosmetic "disconnected" indicator on that player's
+  /// panel header (see `TableScreen`). The host itself is always connected.
+  void syncConnectedPlayerIds(Set<String> connectedNonHostIds) {
+    final updated = [
+      for (final p in _state.players)
+        p.copyWith(connected: p.role == PlayerRole.host || connectedNonHostIds.contains(p.id)),
+    ];
+    _state = _state.copyWith(players: updated, revision: _state.revision + 1);
     notifyListeners();
   }
 }

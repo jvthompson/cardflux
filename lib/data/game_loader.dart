@@ -91,7 +91,6 @@ class GameLoader {
           ? null
           : resolveBareImagePath(folderPath: folderPath, bareImagePath: cardBackImagePath),
       zones: game.zones,
-      opponentCardBorderColor: game.opponentCardBorderColor,
       tagGroups: game.tagGroups,
     );
   }

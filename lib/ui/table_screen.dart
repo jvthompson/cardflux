@@ -8,18 +8,20 @@ import 'package:uuid/uuid.dart';
 
 import '../game/game_session.dart';
 import '../game/geometry_utils.dart';
+import '../game/seat_utils.dart';
 import '../game/stack_utils.dart';
 import '../game/table_controller.dart';
 import '../models/active_search.dart';
 import '../models/board_widget_instance.dart';
 import '../models/card_definition.dart';
 import '../models/card_instance.dart';
-import '../models/game_definition.dart';
+import '../models/player.dart';
 import '../models/table_state.dart';
 import '../models/zone_definition.dart';
 import 'widgets/arrow_widget.dart';
 import 'widgets/card_back_widget.dart';
 import 'widgets/card_face_widget.dart';
+import 'widgets/color_swatch_row.dart';
 import 'widgets/counter_widget.dart';
 import 'widgets/draggable_card.dart';
 import 'widgets/hand_zone_widget.dart';
@@ -78,7 +80,6 @@ class TableScreen extends StatefulWidget {
     required this.controller,
     required this.isMirrored,
     required this.zones,
-    this.opponentCardBorderColor = defaultOpponentCardBorderColor,
     this.cardBackImagePath,
   });
 
@@ -91,8 +92,6 @@ class TableScreen extends StatefulWidget {
   /// table like any other pile.
   final List<ZoneDefinition> zones;
 
-  /// `#RRGGBB` -- see `GameDefinition.opponentCardBorderColor`.
-  final String opponentCardBorderColor;
   final String? cardBackImagePath;
 
   @override
@@ -187,6 +186,12 @@ class _TableScreenState extends State<TableScreen>
   /// instead of moving whatever's underneath the cursor. Same simple-boolean
   /// pattern as [_spacePressed].
   bool _tabPressed = false;
+
+  /// Toggled by F1 -- while true, [ownerBorderColor]-driven card borders are
+  /// hidden table-wide (they can get visually busy with 3-4 players' colors
+  /// all showing at once). Session-local only, resets to visible on the next
+  /// table screen build -- not a persisted preference.
+  bool _bordersHidden = false;
 
   /// The arrow drag currently in progress, if any -- both points in the
   /// table Stack's own local coordinate space (same convention as
@@ -459,6 +464,8 @@ class _TableScreenState extends State<TableScreen>
         _flipHovered();
       } else if (event.logicalKey == LogicalKeyboardKey.home) {
         setState(() => _cameraOffset = Offset.zero);
+      } else if (event.logicalKey == LogicalKeyboardKey.f1) {
+        setState(() => _bordersHidden = !_bordersHidden);
       }
     }
     return false;
@@ -1383,14 +1390,14 @@ class _TableScreenState extends State<TableScreen>
               children: [
                 const Text('Background'),
                 const SizedBox(height: 8),
-                _colorSwatchRow(
+                ColorSwatchRow(
                   selected: background,
                   onSelected: (c) => setState(() => background = c),
                 ),
                 const SizedBox(height: 16),
                 const Text('Text'),
                 const SizedBox(height: 8),
-                _colorSwatchRow(
+                ColorSwatchRow(
                   selected: text,
                   onSelected: (c) => setState(() => text = c),
                 ),
@@ -1461,7 +1468,7 @@ class _TableScreenState extends State<TableScreen>
         builder: (context, setState) => AlertDialog(
           title: const Text('Set Color'),
           content: SingleChildScrollView(
-            child: _colorSwatchRow(
+            child: ColorSwatchRow(
               selected: color,
               onSelected: (c) => setState(() => color = c),
             ),
@@ -1486,36 +1493,6 @@ class _TableScreenState extends State<TableScreen>
         instance.textColor,
       );
     }
-  }
-
-  /// One row of tappable swatches from [boardWidgetColorPalette] -- the
-  /// currently [selected] one gets a highlighted ring.
-  Widget _colorSwatchRow({
-    required int selected,
-    required ValueChanged<int> onSelected,
-  }) {
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      children: [
-        for (final c in boardWidgetColorPalette)
-          GestureDetector(
-            onTap: () => onSelected(c),
-            child: Container(
-              width: 28,
-              height: 28,
-              decoration: BoxDecoration(
-                color: Color(c),
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: c == selected ? Colors.blueAccent : Colors.black26,
-                  width: c == selected ? 3 : 1,
-                ),
-              ),
-            ),
-          ),
-      ],
-    );
   }
 
   /// The local player's own Search window, if [session] has an
@@ -1668,6 +1645,7 @@ class _TableScreenState extends State<TableScreen>
     List<CardInstance> pickupCandidates,
     List<CardInstance> localHand,
     bool isBeingSearched,
+    Color? borderColor,
   ) {
     final top = cards.isEmpty ? null : _stackUtils.topOf(cards);
     return GestureDetector(
@@ -1702,13 +1680,14 @@ class _TableScreenState extends State<TableScreen>
                 : () => widget.controller.shuffleZone(zone.id),
             isBeingSearched: isBeingSearched,
             cardBackImagePath: widget.cardBackImagePath,
+            borderColor: borderColor,
           ),
         ),
       ),
     );
   }
 
-  /// The opponent's instance of an owned [zone], read-only. [cards] is
+  /// The other player's instance of an owned [zone], read-only. [cards] is
   /// whatever this client's own filtered state carries for it -- real cards
   /// only for a `ZoneDefinition.visibleToAll` zone (see state_filter.dart),
   /// otherwise already-redacted stand-ins with no real face to show.
@@ -1716,6 +1695,7 @@ class _TableScreenState extends State<TableScreen>
     ZoneDefinition zone,
     List<CardInstance> cards,
     bool isBeingSearched,
+    Color? borderColor,
   ) {
     final top = cards.isEmpty ? null : _stackUtils.topOf(cards);
     return ColoredBox(
@@ -1731,8 +1711,189 @@ class _TableScreenState extends State<TableScreen>
               : widget.definitionsById[top.definitionId],
           isBeingSearched: isBeingSearched,
           cardBackImagePath: widget.cardBackImagePath,
+          borderColor: borderColor,
         ),
       ),
+    );
+  }
+
+  /// Builds one player's raw hand+owned-zones content, in either its
+  /// interactive form ([player] is the local player) or read-only form
+  /// (anyone else) -- shared by both the bottom and top rows so there's one
+  /// definition of "how a player's panel looks," not a separate hardcoded
+  /// local/opponent pair. Returned unwrapped (no `Expanded`, no rotation) so
+  /// the caller ([_buildPlayerRow]) can apply both in the right order --
+  /// wrapping an already-`Expanded` widget in a `RotatedBox` is invalid,
+  /// since `Expanded` must be a direct child of the `Row`/`Column` itself.
+  ({Widget hand, List<Widget> zones}) _panelContent({
+    required PlayerInfo player,
+    required GameSession session,
+    required List<ZoneDefinition> ownedZones,
+    required List<CardInstance> tableTops,
+    required List<CardInstance> pickupCandidates,
+    required List<CardInstance> localHand,
+    required Map<String, int> handCountByPlayerId,
+    required Map<String, List<CardInstance>> localZoneCardsById,
+    required Map<String, Map<String, List<CardInstance>>> zoneCardsByPlayerIdThenZoneId,
+    required bool Function(String zoneId, String? ownerId) isZoneSearched,
+    required Color? Function(String? ownerId) ownerBorderColor,
+  }) {
+    final isLocal = player.id == session.localPlayerId;
+    final borderColor = ownerBorderColor(player.id);
+    final handWidget = isLocal
+        ? HandZoneWidget(
+            key: _handZoneKey,
+            cards: localHand,
+            definitionsById: widget.definitionsById,
+            onDragEnd: (id, offset) =>
+                _handleDragEnd(tableTops, pickupCandidates, id, offset, localHand),
+            onHoverCard: _setHoveredId,
+            cardBackImagePath: widget.cardBackImagePath,
+            cardKeyFor: _handCardKey,
+            borderColor: borderColor,
+          )
+        : OpponentHandZoneWidget(
+            count: handCountByPlayerId[player.id] ?? 0,
+            cardBackImagePath: widget.cardBackImagePath,
+            borderColor: borderColor,
+          );
+    final zoneWidgets = [
+      for (final zone in ownedZones)
+        isLocal
+            ? _buildLocalZoneWidget(
+                zone,
+                localZoneCardsById[zone.id]!,
+                tableTops,
+                pickupCandidates,
+                localHand,
+                isZoneSearched(zone.id, player.id),
+                borderColor,
+              )
+            : _buildOpponentZoneWidget(
+                zone,
+                zoneCardsByPlayerIdThenZoneId[player.id]?[zone.id] ?? const [],
+                isZoneSearched(zone.id, player.id),
+                borderColor,
+              ),
+    ];
+    return (hand: handWidget, zones: zoneWidgets);
+  }
+
+  /// A compact name + color-dot header for one player's panel -- only shown
+  /// once a row can hold more than one player (3-4 total players), so a
+  /// 2-player game's layout stays pixel-identical to before this existed.
+  Widget _panelHeader(PlayerInfo player) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 4, bottom: 2),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          CircleAvatar(radius: 5, backgroundColor: Color(player.color)),
+          const SizedBox(width: 6),
+          Text(
+            player.connected ? player.name : '${player.name} (disconnected)',
+            style: TextStyle(
+              color: player.connected ? Colors.white70 : Colors.white38,
+              fontSize: 12,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// One full row (bottom or top) of 1-2 player panels, separated by a
+  /// small gutter when there are two, so they don't visually run together.
+  /// A non-local occupant of the *top* row has their hand/zone content
+  /// rendered upside-down (matching the original single-opponent visual
+  /// convention) whenever there are more than 2 total players -- a 2-player
+  /// game's single top occupant is never rotated here, keeping that layout
+  /// pixel-identical to before 3-4 player support existed.
+  Widget _buildPlayerRow({
+    required List<PlayerInfo> rowPlayers,
+    required bool isTopRow,
+    required int totalPlayerCount,
+    required bool crossAxisStart,
+    required GameSession session,
+    required List<ZoneDefinition> ownedZones,
+    required List<CardInstance> tableTops,
+    required List<CardInstance> pickupCandidates,
+    required List<CardInstance> localHand,
+    required Map<String, int> handCountByPlayerId,
+    required Map<String, List<CardInstance>> localZoneCardsById,
+    required Map<String, Map<String, List<CardInstance>>> zoneCardsByPlayerIdThenZoneId,
+    required bool Function(String zoneId, String? ownerId) isZoneSearched,
+    required Color? Function(String? ownerId) ownerBorderColor,
+  }) {
+    if (rowPlayers.isEmpty) return const SizedBox.shrink();
+    final showHeaders = totalPlayerCount > 2;
+    final panels = <Widget>[
+      for (final (i, player) in rowPlayers.indexed)
+        Expanded(
+          child: Column(
+            // Explicit min -- this Column sits under an effectively
+            // unbounded height constraint (a non-flex child of a Row that
+            // is itself a non-flex sibling of this screen's Expanded middle
+            // table), so the default MainAxisSize.max would try to consume
+            // all of it instead of sizing to exactly (header + content row)
+            // -- undefined-behavior territory that surfaced as the two
+            // side-by-side bottom panels ending up different heights.
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (showHeaders) _panelHeader(player),
+              Builder(
+                builder: (context) {
+                  final content = _panelContent(
+                    player: player,
+                    session: session,
+                    ownedZones: ownedZones,
+                    tableTops: tableTops,
+                    pickupCandidates: pickupCandidates,
+                    localHand: localHand,
+                    handCountByPlayerId: handCountByPlayerId,
+                    localZoneCardsById: localZoneCardsById,
+                    zoneCardsByPlayerIdThenZoneId: zoneCardsByPlayerIdThenZoneId,
+                    isZoneSearched: isZoneSearched,
+                    ownerBorderColor: ownerBorderColor,
+                  );
+                  // A non-local occupant of the top row renders upside-down
+                  // once there are more than 2 total players (see this
+                  // method's own doc) -- rotate the raw hand/zone content
+                  // here, before Expanded wraps the hand, since Expanded may
+                  // only be a direct Row/Column child.
+                  final rotate = isTopRow && totalPlayerCount > 2 && player.id != session.localPlayerId;
+                  Widget maybeRotate(Widget w) => rotate ? RotatedBox(quarterTurns: 2, child: w) : w;
+                  final handChild = Expanded(child: maybeRotate(content.hand));
+                  final zoneChildren = [for (final z in content.zones) maybeRotate(z)];
+                  final reversePileOrder = rowPlayers.length == 2 && i == 0;
+                  // On the "left" side of a pair, the hand still sits
+                  // closest to center (rightmost in this panel), but the
+                  // zones themselves must also reverse so the *first*-
+                  // defined zone (in gamedef.json) ends up adjacent to the
+                  // hand and later ones fan out away from center -- the
+                  // same visual rule the "right" side already gets for
+                  // free by just appending zones after the hand in their
+                  // natural order.
+                  final orderedZoneChildren = reversePileOrder ? zoneChildren.reversed.toList() : zoneChildren;
+                  return Row(
+                    crossAxisAlignment: crossAxisStart ? CrossAxisAlignment.start : CrossAxisAlignment.end,
+                    children: reversePileOrder ? [...orderedZoneChildren, handChild] : [handChild, ...orderedZoneChildren],
+                  );
+                },
+              ),
+            ],
+          ),
+        ),
+    ];
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (final (i, panel) in panels.indexed) ...[
+          if (i > 0) const SizedBox(width: 12),
+          panel,
+        ],
+      ],
     );
   }
 
@@ -1769,13 +1930,15 @@ class _TableScreenState extends State<TableScreen>
                       )
                       .toList()
                     ..sort((a, b) => a.zIndex.compareTo(b.zIndex));
-              final opponentHandCount = state.cards
-                  .where(
-                    (c) =>
-                        c.zone == CardZone.hand &&
-                        c.ownerId != session.localPlayerId,
-                  )
-                  .length;
+              // Per-player, not merged -- with 3-4 players, lumping every
+              // non-local player's cards into one "opponent" bucket would
+              // show a combined pile instead of each of theirs separately.
+              final handCountByPlayerId = {
+                for (final p in state.players)
+                  p.id: state.cards
+                      .where((c) => c.zone == CardZone.hand && c.ownerId == p.id)
+                      .length,
+              };
 
               final localZoneCardsById = {
                 for (final z in ownedZones)
@@ -1788,17 +1951,20 @@ class _TableScreenState extends State<TableScreen>
                       )
                       .toList(),
               };
-              final opponentZoneCardsById = {
-                for (final z in ownedZones)
-                  z.id: state.cards
-                      .where(
-                        (c) =>
-                            c.zone == CardZone.zone &&
-                            c.zoneId == z.id &&
-                            c.ownerId != null &&
-                            c.ownerId != session.localPlayerId,
-                      )
-                      .toList(),
+              final zoneCardsByPlayerIdThenZoneId = {
+                for (final p in state.players)
+                  if (p.id != session.localPlayerId)
+                    p.id: {
+                      for (final z in ownedZones)
+                        z.id: state.cards
+                            .where(
+                              (c) =>
+                                  c.zone == CardZone.zone &&
+                                  c.zoneId == z.id &&
+                                  c.ownerId == p.id,
+                            )
+                            .toList(),
+                    },
               };
               final sharedZoneCardsById = {
                 for (final z in sharedZones)
@@ -1819,13 +1985,6 @@ class _TableScreenState extends State<TableScreen>
                         s.targetId == zoneId &&
                         s.targetOwnerId == ownerId,
                   );
-              bool isOpponentZoneSearched(String zoneId) => state.searches.any(
-                (s) =>
-                    s.targetType == SearchTargetType.zone &&
-                    s.targetId == zoneId &&
-                    s.targetOwnerId != null &&
-                    s.targetOwnerId != session.localPlayerId,
-              );
               bool isPileSearched(String rootInstanceId) => state.searches.any(
                 (s) =>
                     s.targetType == SearchTargetType.pile &&
@@ -1886,9 +2045,36 @@ class _TableScreenState extends State<TableScreen>
                   ? null
                   : widget.definitionsById[hoveredInstance.definitionId];
               final showPreview = hoveredInstance != null && _spacePressed;
-              final opponentBorderColor = parseHexColor(
-                widget.opponentCardBorderColor,
-              );
+              // Every owned card's border is its owner's own chosen color --
+              // including the local player's own cards, so every seat (not
+              // just "the opponent") is visually distinguishable at a glance.
+              Color? ownerBorderColor(String? ownerId) {
+                if (ownerId == null || _bordersHidden) return null;
+                for (final p in state.players) {
+                  if (p.id == ownerId) return Color(p.color);
+                }
+                return null;
+              }
+
+              // Whether a card owned by [ownerId] should render rotated 180°
+              // for the local viewer -- true iff the owner sits on the
+              // opposite side of the table (a different isFarMirrorSeat
+              // group), not merely "owned by someone else." Two same-side
+              // players (e.g. P1/P4 sharing the near side) must see each
+              // other's cards upright, exactly as they'd see their own --
+              // distinct from `ownedByOpponent` below, which gates
+              // interactability/menus and is correctly about strict
+              // ownership, not table side.
+              bool cardFacesAwayFromMe(String? ownerId) {
+                if (ownerId == null) return false;
+                final n = state.players.length;
+                final ownerSeat = state.players.indexWhere((p) => p.id == ownerId);
+                final mySeat = state.players.indexWhere((p) => p.id == session.localPlayerId);
+                if (ownerSeat < 0 || mySeat < 0) return ownerId != session.localPlayerId;
+                return isFarMirrorSeat(ownerSeat, n) != isFarMirrorSeat(mySeat, n);
+              }
+
+              final handRowLayout = computeHandRowLayout(state.players, session.localPlayerId);
 
               return LayoutBuilder(
                 builder: (context, outerConstraints) {
@@ -1907,22 +2093,21 @@ class _TableScreenState extends State<TableScreen>
                       children: [
                         Column(
                           children: [
-                            Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Expanded(
-                                  child: OpponentHandZoneWidget(
-                                    count: opponentHandCount,
-                                    cardBackImagePath: widget.cardBackImagePath,
-                                  ),
-                                ),
-                                for (final zone in ownedZones)
-                                  _buildOpponentZoneWidget(
-                                    zone,
-                                    opponentZoneCardsById[zone.id]!,
-                                    isOpponentZoneSearched(zone.id),
-                                  ),
-                              ],
+                            _buildPlayerRow(
+                              rowPlayers: handRowLayout.topRow,
+                              isTopRow: true,
+                              totalPlayerCount: state.players.length,
+                              crossAxisStart: true,
+                              session: session,
+                              ownedZones: ownedZones,
+                              tableTops: tableTops,
+                              pickupCandidates: pickupCandidates,
+                              localHand: localHand,
+                              handCountByPlayerId: handCountByPlayerId,
+                              localZoneCardsById: localZoneCardsById,
+                              zoneCardsByPlayerIdThenZoneId: zoneCardsByPlayerIdThenZoneId,
+                              isZoneSearched: isZoneSearched,
+                              ownerBorderColor: ownerBorderColor,
                             ),
                             Expanded(
                               child: LayoutBuilder(
@@ -2132,16 +2317,18 @@ class _TableScreenState extends State<TableScreen>
                                                                     group.key,
                                                                   ),
                                                           isMirrored:
-                                                              ownedByOpponent,
+                                                              cardFacesAwayFromMe(
+                                                                top.ownerId,
+                                                              ),
                                                           interactable:
                                                               !ownedByOpponent &&
                                                               !_tabPressed,
                                                           applyOrientation:
                                                               true,
                                                           topBorderColor:
-                                                              ownedByOpponent
-                                                              ? opponentBorderColor
-                                                              : null,
+                                                              ownerBorderColor(
+                                                                top.ownerId,
+                                                              ),
                                                           onHover: (hovering) =>
                                                               _setHoveredId(
                                                                 hovering
@@ -2184,15 +2371,17 @@ class _TableScreenState extends State<TableScreen>
                                                               .definitionsById[top
                                                               .definitionId],
                                                       isMirrored:
-                                                          ownedByOpponent,
+                                                          cardFacesAwayFromMe(
+                                                            top.ownerId,
+                                                          ),
                                                       interactable:
                                                           !ownedByOpponent &&
                                                           !_tabPressed,
                                                       applyOrientation: true,
                                                       opponentBorderColor:
-                                                          ownedByOpponent
-                                                          ? opponentBorderColor
-                                                          : null,
+                                                          ownerBorderColor(
+                                                            top.ownerId,
+                                                          ),
                                                       onDragStarted: () =>
                                                           _startGroupDrag(
                                                             pickupGroup,
@@ -2548,39 +2737,21 @@ class _TableScreenState extends State<TableScreen>
                                 },
                               ),
                             ),
-                            Row(
-                              crossAxisAlignment: CrossAxisAlignment.end,
-                              children: [
-                                Expanded(
-                                  child: HandZoneWidget(
-                                    key: _handZoneKey,
-                                    cards: localHand,
-                                    definitionsById: widget.definitionsById,
-                                    onDragEnd: (id, offset) => _handleDragEnd(
-                                      tableTops,
-                                      pickupCandidates,
-                                      id,
-                                      offset,
-                                      localHand,
-                                    ),
-                                    onHoverCard: _setHoveredId,
-                                    cardBackImagePath: widget.cardBackImagePath,
-                                    cardKeyFor: _handCardKey,
-                                  ),
-                                ),
-                                for (final zone in ownedZones)
-                                  _buildLocalZoneWidget(
-                                    zone,
-                                    localZoneCardsById[zone.id]!,
-                                    tableTops,
-                                    pickupCandidates,
-                                    localHand,
-                                    isZoneSearched(
-                                      zone.id,
-                                      session.localPlayerId,
-                                    ),
-                                  ),
-                              ],
+                            _buildPlayerRow(
+                              rowPlayers: handRowLayout.bottomRow,
+                              isTopRow: false,
+                              totalPlayerCount: state.players.length,
+                              crossAxisStart: false,
+                              session: session,
+                              ownedZones: ownedZones,
+                              tableTops: tableTops,
+                              pickupCandidates: pickupCandidates,
+                              localHand: localHand,
+                              handCountByPlayerId: handCountByPlayerId,
+                              localZoneCardsById: localZoneCardsById,
+                              zoneCardsByPlayerIdThenZoneId: zoneCardsByPlayerIdThenZoneId,
+                              isZoneSearched: isZoneSearched,
+                              ownerBorderColor: ownerBorderColor,
                             ),
                           ],
                         ),

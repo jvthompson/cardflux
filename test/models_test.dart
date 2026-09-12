@@ -437,11 +437,13 @@ void main() {
 
   group('PlayerInfo', () {
     test('round-trips through JSON', () {
-      const player = PlayerInfo(id: 'p1', name: 'Alice', role: PlayerRole.host);
+      const player = PlayerInfo(id: 'p1', name: 'Alice', role: PlayerRole.host, color: 0xFFD32F2F);
       final roundTripped = PlayerInfo.fromJson(player.toJson());
       expect(roundTripped.id, 'p1');
       expect(roundTripped.name, 'Alice');
       expect(roundTripped.role, PlayerRole.host);
+      expect(roundTripped.color, 0xFFD32F2F);
+      expect(roundTripped.connected, isTrue);
     });
   });
 
@@ -605,31 +607,6 @@ void main() {
       final game = GameDefinition.fromJson(json);
       expect(game.zones, isEmpty);
       expect(game.needsDeckBuilding, isFalse);
-    });
-
-    test('opponentCardBorderColor defaults to red when absent from JSON', () {
-      final json = {
-        'id': 'g1',
-        'name': 'G',
-        'cards': [
-          {'id': 'a', 'cardTitle': 'A', 'colorHex': '#000000'},
-        ],
-      };
-      final game = GameDefinition.fromJson(json);
-      expect(game.opponentCardBorderColor, defaultOpponentCardBorderColor);
-      expect(game.toJson().containsKey('opponentCardBorderColor'), isFalse);
-    });
-
-    test('opponentCardBorderColor round-trips a custom color through JSON', () {
-      const game = GameDefinition(
-        id: 'g1',
-        name: 'G',
-        cards: [CardDefinition(id: 'a', cardTitle: 'A', colorHex: '#000000')],
-        opponentCardBorderColor: '#00FF00',
-      );
-      final roundTripped = GameDefinition.fromJson(game.toJson());
-      expect(roundTripped.opponentCardBorderColor, '#00FF00');
-      expect(game.toJson()['opponentCardBorderColor'], '#00FF00');
     });
 
     test('tagGroups defaults to empty when absent from JSON', () {
@@ -876,7 +853,7 @@ void main() {
       final state = TableState(
         gameId: 'standard_52',
         players: const [
-          PlayerInfo(id: 'p1', name: 'Alice', role: PlayerRole.host),
+          PlayerInfo(id: 'p1', name: 'Alice', role: PlayerRole.host, color: 0xFFD32F2F),
         ],
         cards: [
           CardInstance(

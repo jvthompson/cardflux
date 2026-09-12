@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 
 import '../game/game_session.dart';
 import '../game/host_game_engine.dart';
+import '../game/seat_utils.dart';
 import '../game/table_controller.dart';
 import '../models/card_definition.dart';
 import '../models/deck_config.dart';
@@ -50,7 +51,7 @@ class _HostGameScreenState extends State<HostGameScreen> {
   GameSession? _session;
   HostGameEngine? _engine;
   Map<String, CardDefinition> _definitionsById = {};
-  StreamSubscription<HostConnectionStatus>? _statusSub;
+  StreamSubscription<List<PlayerInfo>>? _rosterSub;
   bool _navigatedHome = false;
 
   @override
@@ -60,14 +61,10 @@ class _HostGameScreenState extends State<HostGameScreen> {
   }
 
   void _init() {
-    final clientId = widget.hostServer.opponentPlayerId!;
-    final players = [
-      PlayerInfo(id: widget.hostPlayerId, name: 'You', role: PlayerRole.host),
-      PlayerInfo(id: clientId, name: widget.hostServer.opponentName ?? 'Opponent', role: PlayerRole.client),
-    ];
+    final players = widget.hostServer.roster;
     // Harmless to send again for the deck-building path -- ClientGameScreen's
     // gameData handling just overwrites `_game` with an identical value.
-    widget.hostServer.send(NetMessage(type: NetMessageType.gameData, payload: widget.game.toJson()));
+    widget.hostServer.broadcast(NetMessage(type: NetMessageType.gameData, payload: widget.game.toJson()));
     final session = GameSession.dealFromZones(
       game: widget.game,
       players: players,
@@ -76,8 +73,13 @@ class _HostGameScreenState extends State<HostGameScreen> {
     );
     final engine = HostGameEngine(session: session, hostServer: widget.hostServer, hostPlayerId: widget.hostPlayerId);
     engine.start();
-    _statusSub = widget.hostServer.statusStream.listen((status) {
-      if (status == HostConnectionStatus.disconnected) _returnHome();
+    // A 2-player match keeps today's exact behavior: the sole client
+    // disconnecting ends the session for the host too. A 3-4 player match
+    // never bounces the host home -- the remaining players keep playing
+    // (HostGameEngine's own roster subscription flags the departed seat's
+    // `PlayerInfo.connected` for the UI instead).
+    _rosterSub = widget.hostServer.rosterStream.listen((roster) {
+      if (widget.hostServer.maxPlayers == 2 && roster.length < 2) _returnHome();
     });
     setState(() {
       _session = session;
@@ -100,7 +102,7 @@ class _HostGameScreenState extends State<HostGameScreen> {
 
   @override
   void dispose() {
-    _statusSub?.cancel();
+    _rosterSub?.cancel();
     _engine?.dispose();
     if (!_navigatedHome) widget.hostServer.stop();
     super.dispose();
@@ -117,9 +119,15 @@ class _HostGameScreenState extends State<HostGameScreen> {
       child: TableScreen(
         definitionsById: _definitionsById,
         controller: HostTableController(session),
-        isMirrored: false,
+        // The host can be assigned to any seat via AssignSeatsScreen, not
+        // just seat 0 -- look up where they actually landed rather than
+        // assuming near/seat-0, which was only ever true before hosts could
+        // reorder seats.
+        isMirrored: isFarMirrorSeat(
+          session.state.players.indexWhere((p) => p.id == widget.hostPlayerId),
+          session.state.players.length,
+        ),
         zones: widget.game.zones,
-        opponentCardBorderColor: widget.game.opponentCardBorderColor,
         cardBackImagePath: widget.game.cardBackImagePath,
       ),
     );

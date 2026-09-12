@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 
+import '../data/player_profile_settings.dart';
+import '../models/color_palette.dart';
 import 'deck_editor_game_select_screen.dart';
 import 'game_definition_editor_entry_screen.dart';
-import 'host_setup_screen.dart';
 import 'join_screen.dart';
+import 'player_count_screen.dart';
 import 'practice_screen.dart';
+import 'widgets/color_swatch_row.dart';
 
 /// Entry screen: choose a display name, then host a game, join one by IP,
 /// or practice offline in the single-player sandbox (M2). [message], when
@@ -22,6 +25,24 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final _nameController = TextEditingController(text: 'Player');
+  int _playerColor = boardWidgetColorPalette.first;
+  final _profileSettings = PlayerProfileSettings();
+
+  @override
+  void initState() {
+    super.initState();
+    _loadProfile();
+  }
+
+  Future<void> _loadProfile() async {
+    final name = await _profileSettings.getName();
+    final color = await _profileSettings.getColor();
+    if (!mounted) return;
+    setState(() {
+      if (name != null && name.isNotEmpty) _nameController.text = name;
+      if (color != null) _playerColor = color;
+    });
+  }
 
   @override
   void dispose() {
@@ -62,11 +83,22 @@ class _HomeScreenState extends State<HomeScreen> {
                 TextField(
                   controller: _nameController,
                   decoration: const InputDecoration(labelText: 'Your name', border: OutlineInputBorder()),
+                  onChanged: (value) => _profileSettings.setName(value.trim()),
+                ),
+                const SizedBox(height: 16),
+                const Align(alignment: Alignment.centerLeft, child: Text('Your color')),
+                const SizedBox(height: 8),
+                ColorSwatchRow(
+                  selected: _playerColor,
+                  onSelected: (c) {
+                    setState(() => _playerColor = c);
+                    _profileSettings.setColor(c);
+                  },
                 ),
                 const SizedBox(height: 24),
                 FilledButton(
                   onPressed: () => Navigator.of(context).push(MaterialPageRoute(
-                    builder: (_) => HostSetupScreen(localPlayerName: _playerName),
+                    builder: (_) => PlayerCountScreen(localPlayerName: _playerName, localPlayerColor: _playerColor),
                   )),
                   child: const Padding(
                     padding: EdgeInsets.symmetric(vertical: 12),
@@ -76,7 +108,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 const SizedBox(height: 12),
                 OutlinedButton(
                   onPressed: () => Navigator.of(context).push(MaterialPageRoute(
-                    builder: (_) => JoinScreen(localPlayerName: _playerName),
+                    builder: (_) => JoinScreen(localPlayerName: _playerName, localPlayerColor: _playerColor),
                   )),
                   child: const Padding(
                     padding: EdgeInsets.symmetric(vertical: 12),

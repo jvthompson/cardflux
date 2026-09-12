@@ -25,10 +25,11 @@ class GameClient {
 
   String? opponentName;
   String? assignedPlayerId;
+  int? assignedColor;
   ClientConnectionStatus status = ClientConnectionStatus.connecting;
   String? errorMessage;
 
-  Future<void> connect(String host, int port, String localName) async {
+  Future<void> connect(String host, int port, String localName, int localColor) async {
     status = ClientConnectionStatus.connecting;
     try {
       _socket = await Socket.connect(host, port, timeout: const Duration(seconds: 5));
@@ -49,8 +50,9 @@ class GameClient {
           return;
         }
         if (msg.type == NetMessageType.welcome) {
-          opponentName = msg.payload['name'] as String?;
+          opponentName = msg.payload['hostName'] as String?;
           assignedPlayerId = msg.payload['playerId'] as String?;
+          assignedColor = msg.payload['assignedColor'] as int?;
           status = ClientConnectionStatus.connected;
           _statusController.add(status);
         }
@@ -60,7 +62,7 @@ class GameClient {
       onError: (_) => _handleDisconnect(),
     );
 
-    send(NetMessage(type: NetMessageType.hello, payload: {'name': localName}));
+    send(NetMessage(type: NetMessageType.hello, payload: {'name': localName, 'color': localColor}));
   }
 
   void _onHeartbeatTick() {

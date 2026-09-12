@@ -32,6 +32,7 @@ class TableState {
   final List<ActiveSearch> searches;
 
   TableState copyWith({
+    List<PlayerInfo>? players,
     List<CardInstance>? cards,
     int? revision,
     List<BoardWidgetInstance>? widgets,
@@ -39,7 +40,7 @@ class TableState {
   }) {
     return TableState(
       gameId: gameId,
-      players: players,
+      players: players ?? this.players,
       cards: cards ?? this.cards,
       revision: revision ?? this.revision,
       widgets: widgets ?? this.widgets,

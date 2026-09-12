@@ -2,31 +2,12 @@ import 'package:flutter/material.dart';
 
 import '../../models/board_widget_instance.dart';
 
+export '../../models/color_palette.dart' show boardWidgetColorPalette;
+
 /// This tile's fixed on-screen footprint -- unlike a card, a counter has no
 /// per-instance size/orientation variation to account for.
 const double counterWidgetWidth = 80;
 const double counterWidgetHeight = 80;
-
-/// Preset swatches offered by every board widget's color prompt (see
-/// `TableScreen._colorSwatchRow`, used by both `_promptSetColors` for a
-/// Simple Counter and `_promptSetTokenColor` for a Token) -- a small fixed
-/// palette rather than a full color picker, since this app has no
-/// color-picker dependency and a board widget's color is a cosmetic touch,
-/// not something that needs an arbitrary RGB value.
-const List<int> boardWidgetColorPalette = [
-  0xFF455A64, // blueGrey (default background)
-  0xFFFFFFFF, // white (default text)
-  0xFF000000, // black
-  0xFFD32F2F, // red
-  0xFFF57C00, // orange
-  0xFFFBC02D, // yellow
-  0xFF388E3C, // green
-  0xFF1976D2, // blue
-  0xFF7B1FA2, // purple
-  0xFF5D4037, // brown
-  0xFF9E9E9E, // grey
-  0xFFEC407A, // pink
-];
 
 /// A Simple Counter placed on the table: an integer readout, draggable to
 /// reposition like a card, right-click for its own context menu (see

@@ -102,6 +102,8 @@ W / A / S / D   | Hold                              | Pans YOUR OWN camera over 
                 |                                   | space beyond the default framing that a card can also be         | placed into that revealed margin, but only up to a limit
                 |                                   | dropped into                                                      | (tablePanMarginFraction)
 Home            | Key-down                          | Resets your camera to the default (original) framing             |
+F1              | Key-down                          | Toggles the colored ownership border on every card on/off        | Session-local (resets to visible next time you open the table);
+                |                                   |                                                                    | doesn't affect the name/color dot in each player's panel header
 Alt (at drop)   | Dropping a dragged card near      | Stacks it instead of just placing it nearby                      | Not needed when the target is already a defined zone --
                 | another loose card                |                                                                    | that always stacks
 Alt (at drop)   | Dropping onto a defined zone      | Sends the card to the BOTTOM of that zone instead of the top      |

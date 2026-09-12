@@ -88,7 +88,7 @@ void main() {
     expect(games.single.needsDeckBuilding, isTrue);
   });
 
-  test('loadFromFolder preserves tagGroups, per-card types, and opponentCardBorderColor', () async {
+  test('loadFromFolder preserves tagGroups and per-card types', () async {
     final tempDir = await Directory.systemTemp.createTemp('flutter_deck_test_games_');
     addTearDown(() => tempDir.delete(recursive: true));
 
@@ -103,7 +103,6 @@ void main() {
           'tags': ['Character', 'Item'],
         },
       ],
-      'opponentCardBorderColor': '#00FF00',
       'cards': [
         {'id': 'c1', 'cardTitle': 'One', 'imagePath': 'one.jpg', 'types': ['Character']},
       ],
@@ -115,7 +114,6 @@ void main() {
     expect(game.tagGroups.single.id, 'kinds');
     expect(game.tagGroups.single.name, 'Kind');
     expect(game.tagGroups.single.tags, ['Character', 'Item']);
-    expect(game.opponentCardBorderColor, '#00FF00');
     expect(game.cards.single.types, ['Character']);
     // imagePath resolution (the reason this class exists) should still work
     // alongside the new fields.

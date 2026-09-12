@@ -2,6 +2,7 @@ import 'dart:async';
 
 import '../models/board_widget_instance.dart';
 import '../models/card_instance.dart';
+import '../models/player.dart';
 import '../networking/host_server.dart';
 import '../networking/net_message.dart';
 import '../networking/state_filter.dart';
@@ -25,42 +26,52 @@ class HostGameEngine {
 
   static const StackUtils _stacks = StackUtils();
 
-  StreamSubscription<NetMessage>? _incomingSub;
+  StreamSubscription<IncomingMessage>? _incomingSub;
+  StreamSubscription<List<PlayerInfo>>? _rosterSub;
   int _lastBroadcastRevision = -1;
 
   void start() {
     session.addListener(_broadcast);
     _incomingSub = hostServer.incoming.listen(_handleMessage);
+    _rosterSub = hostServer.rosterStream.listen(
+      (roster) => session.syncConnectedPlayerIds({for (final p in roster) if (p.role != PlayerRole.host) p.id}),
+    );
     _broadcast();
   }
 
   void dispose() {
     session.removeListener(_broadcast);
     _incomingSub?.cancel();
+    _rosterSub?.cancel();
   }
 
   void _broadcast() {
-    final clientId = hostServer.opponentPlayerId;
-    if (clientId == null) return;
     if (session.state.revision == _lastBroadcastRevision) return;
     _lastBroadcastRevision = session.state.revision;
     final visibleZoneIds = {
       for (final z in session.game.zones)
         if (z.visibleToAll) z.id,
     };
-    final filtered = filterForRecipient(
-      session.state,
-      clientId,
-      visibleZoneIds: visibleZoneIds,
-    );
-    hostServer.send(
-      NetMessage(type: NetMessageType.fullState, payload: filtered.toJson()),
-    );
+    // Every seat dealt at match start, not just currently-connected clients
+    // (see HostServer.roster's doc) -- a stale send to an already-
+    // disconnected id is a harmless no-op (HostServer.sendTo).
+    for (final player in session.state.players) {
+      if (player.id == hostPlayerId) continue; // the host reads state directly via Provider
+      final filtered = filterForRecipient(
+        session.state,
+        player.id,
+        visibleZoneIds: visibleZoneIds,
+      );
+      hostServer.sendTo(
+        player.id,
+        NetMessage(type: NetMessageType.fullState, payload: filtered.toJson()),
+      );
+    }
   }
 
-  void _handleMessage(NetMessage msg) {
-    final clientId = hostServer.opponentPlayerId;
-    if (clientId == null) return;
+  void _handleMessage(IncomingMessage incoming) {
+    final clientId = incoming.senderId;
+    final msg = incoming.message;
 
     switch (msg.type) {
       case NetMessageType.requestMove:
@@ -261,11 +272,13 @@ class HostGameEngine {
       case NetMessageType.fullState:
       case NetMessageType.requestDeckChosen:
       case NetMessageType.requestReady:
+      case NetMessageType.lobbyRosterUpdate:
+      case NetMessageType.lobbyReadyUpdate:
       case NetMessageType.ping:
       case NetMessageType.pong:
       case NetMessageType.disconnect:
-        // requestDeckChosen/requestReady are only meaningful before this
-        // engine exists (see HostLoadDeckScreen, which subscribes to
+        // requestDeckChosen/requestReady/lobby* are only meaningful before
+        // this engine exists (see HostLoadDeckScreen, which subscribes to
         // hostServer.incoming directly during deck selection) -- a
         // late/duplicate one here is a no-op.
         break;

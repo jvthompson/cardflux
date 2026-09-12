@@ -15,8 +15,8 @@ const _cards = [
 ];
 
 const _players = [
-  PlayerInfo(id: 'p1', name: 'Host', role: PlayerRole.host),
-  PlayerInfo(id: 'p2', name: 'Client', role: PlayerRole.client),
+  PlayerInfo(id: 'p1', name: 'Host', role: PlayerRole.host, color: 0xFFD32F2F),
+  PlayerInfo(id: 'p2', name: 'Client', role: PlayerRole.client, color: 0xFF1976D2),
 ];
 
 void main() {

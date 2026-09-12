@@ -21,10 +21,9 @@ import 'widgets/zones_tab.dart';
 /// `GameLoader`/`GamePicker`-resolved `GameDefinition`.
 ///
 /// No dirty-tracking/unsaved-changes prompt in v1 -- matches
-/// `DeckEditorScreen`, which has none either. `GameDefinition.id` and
-/// `opponentCardBorderColor` are carried through unedited: `id` is fixed to
-/// whatever the folder/loaded file gave it (see the entry screen), and
-/// `opponentCardBorderColor` has no UI here at all, just preserved silently.
+/// `DeckEditorScreen`, which has none either. `GameDefinition.id` is carried
+/// through unedited, fixed to whatever the folder/loaded file gave it (see
+/// the entry screen).
 class GameDefinitionEditorScreen extends StatefulWidget {
   const GameDefinitionEditorScreen({super.key, required this.folderPath, required this.initialGame});
 
@@ -40,7 +39,6 @@ class _GameDefinitionEditorScreenState extends State<GameDefinitionEditorScreen>
 
   late String _folderPath = widget.folderPath;
   late String _id = widget.initialGame.id;
-  late final String _opponentCardBorderColor = widget.initialGame.opponentCardBorderColor;
   late String _name = widget.initialGame.name;
   late String? _cardBackImagePath = widget.initialGame.cardBackImagePath;
   late List<TagGroup> _tagGroups = widget.initialGame.tagGroups.toList();
@@ -57,7 +55,6 @@ class _GameDefinitionEditorScreenState extends State<GameDefinitionEditorScreen>
         sets: _sets,
         cardBackImagePath: _cardBackImagePath,
         zones: _zones,
-        opponentCardBorderColor: _opponentCardBorderColor,
       );
 
   Future<void> _save() async {

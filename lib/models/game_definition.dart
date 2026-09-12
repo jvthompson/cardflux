@@ -3,10 +3,6 @@ import 'game_set.dart';
 import 'tag_group.dart';
 import 'zone_definition.dart';
 
-/// Default for [GameDefinition.opponentCardBorderColor] when a game's JSON
-/// doesn't specify one -- plain red.
-const String defaultOpponentCardBorderColor = '#FF0000';
-
 /// A loaded "game": a named pool of card definitions players can build decks
 /// from. Sourced either from a bundled asset (the default standard 52-card
 /// deck) or a JSON file in a user-chosen folder on disk (custom games).
@@ -17,7 +13,6 @@ class GameDefinition {
     required this.cards,
     this.cardBackImagePath,
     this.zones = const [],
-    this.opponentCardBorderColor = defaultOpponentCardBorderColor,
     this.tagGroups = const [],
     this.sets = const [],
   });
@@ -50,12 +45,6 @@ class GameDefinition {
   /// etc.) -- see [ZoneDefinition]. The hand zone is automatic and never
   /// listed here.
   final List<ZoneDefinition> zones;
-
-  /// `#RRGGBB` color for the thin border `TableScreen` draws around any
-  /// free-table card owned by someone other than the local player, so an
-  /// opponent's played card is easy to pick out at a glance. Defaults to
-  /// red; a game's JSON can override it.
-  final String opponentCardBorderColor;
 
   /// Every owned zone marked [ZoneDefinition.dealsBuiltDeck] -- each one
   /// needs its own separate deck file loaded per player (e.g. METW's Draw
@@ -96,7 +85,6 @@ class GameDefinition {
               ?.map((e) => ZoneDefinition.fromJson((e as Map).cast<String, dynamic>()))
               .toList() ??
           const [],
-      opponentCardBorderColor: json['opponentCardBorderColor'] as String? ?? defaultOpponentCardBorderColor,
       tagGroups: (json['tagGroups'] as List?)
               ?.map((e) => TagGroup.fromJson((e as Map).cast<String, dynamic>()))
               .toList() ??
@@ -142,7 +130,6 @@ class GameDefinition {
         'cards': cards.map((c) => c.toJson()).toList(),
       if (cardBackImagePath != null) 'cardBackImagePath': cardBackImagePath,
       if (zones.isNotEmpty) 'zones': zones.map((z) => z.toJson()).toList(),
-      if (opponentCardBorderColor != defaultOpponentCardBorderColor) 'opponentCardBorderColor': opponentCardBorderColor,
       if (tagGroups.isNotEmpty) 'tagGroups': tagGroups.map((g) => g.toJson()).toList(),
     };
   }
