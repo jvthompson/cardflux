@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -6,6 +8,7 @@ import 'package:provider/provider.dart';
 import '../data/game_loader.dart';
 import '../data/games_directory_settings.dart';
 import '../data/image_path_resolver.dart';
+import '../data/player_profile_settings.dart';
 import '../game/game_session.dart';
 import '../game/seat_utils.dart';
 import '../game/table_controller.dart';
@@ -54,6 +57,8 @@ class _ClientGameScreenState extends State<ClientGameScreen> {
   List<PlayerInfo> _roster = const [];
   int _maxPlayers = 2;
   Set<String> _readyPlayerIds = const {};
+  Map<String, Uint8List> _avatarsByPlayerId = const {};
+  String? _localAvatarPath;
 
   @override
   void initState() {
@@ -61,6 +66,10 @@ class _ClientGameScreenState extends State<ClientGameScreen> {
     _sub = widget.gameClient.incoming.listen(_handleMessage);
     _statusSub = widget.gameClient.statusStream.listen((status) {
       if (status == ClientConnectionStatus.disconnected) _returnHome();
+    });
+    PlayerProfileSettings().getAvatarPath().then((path) {
+      if (!mounted) return;
+      setState(() => _localAvatarPath = path);
     });
   }
 
@@ -83,9 +92,13 @@ class _ClientGameScreenState extends State<ClientGameScreen> {
       final players = (msg.payload['players'] as List)
           .map((e) => PlayerInfo.fromJson((e as Map).cast<String, dynamic>()))
           .toList();
+      final avatarsJson = (msg.payload['avatars'] as Map?)?.cast<String, dynamic>() ?? const {};
       setState(() {
         _roster = players;
         _maxPlayers = msg.payload['maxPlayers'] as int;
+        _avatarsByPlayerId = {
+          for (final e in avatarsJson.entries) e.key: base64Decode(e.value as String),
+        };
       });
       return;
     }
@@ -268,6 +281,8 @@ class _ClientGameScreenState extends State<ClientGameScreen> {
         isMirrored: _isMirrored,
         zones: _game?.zones ?? const [],
         cardBackImagePath: _game?.cardBackImagePath,
+        localPlayerAvatarPath: _localAvatarPath,
+        avatarBytesByPlayerId: _avatarsByPlayerId,
       ),
     );
   }

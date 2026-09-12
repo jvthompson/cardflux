@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'net_message.dart';
 
@@ -29,7 +31,13 @@ class GameClient {
   ClientConnectionStatus status = ClientConnectionStatus.connecting;
   String? errorMessage;
 
-  Future<void> connect(String host, int port, String localName, int localColor) async {
+  Future<void> connect(
+    String host,
+    int port,
+    String localName,
+    int localColor, {
+    Uint8List? localAvatarBytes,
+  }) async {
     status = ClientConnectionStatus.connecting;
     try {
       _socket = await Socket.connect(host, port, timeout: const Duration(seconds: 5));
@@ -62,7 +70,11 @@ class GameClient {
       onError: (_) => _handleDisconnect(),
     );
 
-    send(NetMessage(type: NetMessageType.hello, payload: {'name': localName, 'color': localColor}));
+    send(NetMessage(type: NetMessageType.hello, payload: {
+      'name': localName,
+      'color': localColor,
+      if (localAvatarBytes != null) 'avatar': base64Encode(localAvatarBytes),
+    }));
   }
 
   void _onHeartbeatTick() {

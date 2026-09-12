@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 
@@ -10,10 +12,16 @@ import 'client_game_screen.dart';
 /// [GameClient], and once connected navigates to [ClientGameScreen] to
 /// actually start the match.
 class JoinScreen extends StatefulWidget {
-  const JoinScreen({super.key, required this.localPlayerName, required this.localPlayerColor});
+  const JoinScreen({
+    super.key,
+    required this.localPlayerName,
+    required this.localPlayerColor,
+    this.localAvatarPath,
+  });
 
   final String localPlayerName;
   final int localPlayerColor;
+  final String? localAvatarPath;
 
   @override
   State<JoinScreen> createState() => _JoinScreenState();
@@ -48,7 +56,22 @@ class _JoinScreenState extends State<JoinScreen> {
     _navSub = _client.statusStream.listen((status) {
       if (status == ClientConnectionStatus.connected) _navigateToGame();
     });
-    await _client.connect(host, port, widget.localPlayerName, widget.localPlayerColor);
+    Uint8List? avatarBytes;
+    final avatarPath = widget.localAvatarPath;
+    if (avatarPath != null) {
+      try {
+        avatarBytes = await File(avatarPath).readAsBytes();
+      } catch (_) {
+        // No avatar available -- this client just shows the color fallback.
+      }
+    }
+    await _client.connect(
+      host,
+      port,
+      widget.localPlayerName,
+      widget.localPlayerColor,
+      localAvatarBytes: avatarBytes,
+    );
     if (mounted) setState(() {});
   }
 

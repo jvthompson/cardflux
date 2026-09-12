@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../data/player_profile_settings.dart';
 import '../game/game_session.dart';
 import '../game/host_game_engine.dart';
 import '../game/seat_utils.dart';
@@ -53,11 +54,16 @@ class _HostGameScreenState extends State<HostGameScreen> {
   Map<String, CardDefinition> _definitionsById = {};
   StreamSubscription<List<PlayerInfo>>? _rosterSub;
   bool _navigatedHome = false;
+  String? _localAvatarPath;
 
   @override
   void initState() {
     super.initState();
     _init();
+    PlayerProfileSettings().getAvatarPath().then((path) {
+      if (!mounted) return;
+      setState(() => _localAvatarPath = path);
+    });
   }
 
   void _init() {
@@ -129,6 +135,8 @@ class _HostGameScreenState extends State<HostGameScreen> {
         ),
         zones: widget.game.zones,
         cardBackImagePath: widget.game.cardBackImagePath,
+        localPlayerAvatarPath: _localAvatarPath,
+        avatarBytesByPlayerId: widget.hostServer.avatarsByPlayerId,
       ),
     );
   }

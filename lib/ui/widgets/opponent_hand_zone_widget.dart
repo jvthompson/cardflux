@@ -9,7 +9,13 @@ import 'pile_widget.dart' show pileWidgetExtra;
 /// of another player's hand cards (see state_filter.dart), so this widget
 /// has nothing more to render even if it wanted to.
 class OpponentHandZoneWidget extends StatelessWidget {
-  const OpponentHandZoneWidget({super.key, required this.count, this.cardBackImagePath, this.borderColor});
+  const OpponentHandZoneWidget({
+    super.key,
+    required this.count,
+    this.cardBackImagePath,
+    this.borderColor,
+    this.backgroundColor = const Color(0x26000000),
+  });
 
   final int count;
   final String? cardBackImagePath;
@@ -17,6 +23,13 @@ class OpponentHandZoneWidget extends StatelessWidget {
   /// This hand's owner's chosen color -- painted as a border on every back,
   /// same as any other owned card (see `TableScreen._ownerBorderColor`).
   final Color? borderColor;
+
+  /// This zone's background band color -- either the flat black tint every
+  /// zone/hand used before the F2 toggle existed, or a darkened shade of
+  /// this hand's owner's color (see `TableScreen._playerTintColor`/
+  /// `zoneBackgroundColor`), depending on that table-wide toggle's current
+  /// state.
+  final Color backgroundColor;
 
   Widget _back() {
     final content = CardBackWidget(imagePath: cardBackImagePath);
@@ -40,7 +53,7 @@ class OpponentHandZoneWidget extends StatelessWidget {
       // edges), but surfaces as a visible height difference now that they
       // can sit side-by-side in a split row (3-4 players).
       height: cardHeight + pileWidgetExtra,
-      color: Colors.black.withValues(alpha: 0.15),
+      color: backgroundColor,
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
       child: count == 0
           ? const Center(child: Text("Opponent's hand is empty", style: TextStyle(color: Colors.white70)))

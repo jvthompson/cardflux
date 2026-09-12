@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
@@ -20,11 +22,13 @@ class HostSetupScreen extends StatefulWidget {
     super.key,
     required this.localPlayerName,
     required this.localPlayerColor,
+    this.localAvatarPath,
     required this.maxPlayers,
   });
 
   final String localPlayerName;
   final int localPlayerColor;
+  final String? localAvatarPath;
   final int maxPlayers;
 
   @override
@@ -49,6 +53,15 @@ class _HostSetupScreenState extends State<HostSetupScreen> {
   Future<void> _start() async {
     try {
       final addresses = await localIPv4Addresses();
+      Uint8List? avatarBytes;
+      final avatarPath = widget.localAvatarPath;
+      if (avatarPath != null) {
+        try {
+          avatarBytes = await File(avatarPath).readAsBytes();
+        } catch (_) {
+          // No avatar available -- the host just shows the color fallback.
+        }
+      }
       final port = await _server.start(
         hostPlayer: PlayerInfo(
           id: _hostPlayerId,
@@ -57,6 +70,7 @@ class _HostSetupScreenState extends State<HostSetupScreen> {
           color: widget.localPlayerColor,
         ),
         maxPlayers: widget.maxPlayers,
+        hostAvatarBytes: avatarBytes,
       );
       if (!mounted) return;
       setState(() {

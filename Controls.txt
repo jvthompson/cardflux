@@ -103,7 +103,10 @@ W / A / S / D   | Hold                              | Pans YOUR OWN camera over 
                 |                                   | dropped into                                                      | (tablePanMarginFraction)
 Home            | Key-down                          | Resets your camera to the default (original) framing             |
 F1              | Key-down                          | Toggles the colored ownership border on every card on/off        | Session-local (resets to visible next time you open the table);
-                |                                   |                                                                    | doesn't affect the name/color dot in each player's panel header
+                |                                   |                                                                    | doesn't affect each player's avatar+name panel header
+F2              | Key-down                          | Toggles every zone/hand background AND every player's avatar     | Session-local (resets to color-tinted, the default, next
+                |                                   | header background, table-wide, between a darkened shade of       | time you open the table)
+                |                                   | each player's own color (default) and the flat black tint        |
 Alt (at drop)   | Dropping a dragged card near      | Stacks it instead of just placing it nearby                      | Not needed when the target is already a defined zone --
                 | another loose card                |                                                                    | that always stacks
 Alt (at drop)   | Dropping onto a defined zone      | Sends the card to the BOTTOM of that zone instead of the top      |

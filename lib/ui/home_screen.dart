@@ -248,7 +248,11 @@ class _HomeScreenState extends State<HomeScreen> {
                 const SizedBox(height: 24),
                 FilledButton(
                   onPressed: () => Navigator.of(context).push(MaterialPageRoute(
-                    builder: (_) => PlayerCountScreen(localPlayerName: _playerName, localPlayerColor: _playerColor),
+                    builder: (_) => PlayerCountScreen(
+                      localPlayerName: _playerName,
+                      localPlayerColor: _playerColor,
+                      localAvatarPath: _avatarPath,
+                    ),
                   )),
                   child: const Padding(
                     padding: EdgeInsets.symmetric(vertical: 12),
@@ -258,7 +262,11 @@ class _HomeScreenState extends State<HomeScreen> {
                 const SizedBox(height: 12),
                 OutlinedButton(
                   onPressed: () => Navigator.of(context).push(MaterialPageRoute(
-                    builder: (_) => JoinScreen(localPlayerName: _playerName, localPlayerColor: _playerColor),
+                    builder: (_) => JoinScreen(
+                      localPlayerName: _playerName,
+                      localPlayerColor: _playerColor,
+                      localAvatarPath: _avatarPath,
+                    ),
                   )),
                   child: const Padding(
                     padding: EdgeInsets.symmetric(vertical: 12),

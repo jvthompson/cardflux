@@ -2,17 +2,18 @@ import 'dart:io';
 
 import 'package:path_provider/path_provider.dart';
 
-import 'game_definition_file_ops.dart' show basenameOf, isSamePath;
+import 'avatar_image_utils.dart';
+import 'game_definition_file_ops.dart' show basenameOf;
 
 /// Manages the local player's single avatar image file on disk, stored
-/// under a deterministic name (`avatar.<ext>`) inside the app's own support
+/// under a deterministic name (`avatar.png`) inside the app's own support
 /// directory -- unlike `GameDefinitionFileOps`, which copies art into a
 /// user-chosen game folder, there's no "project folder" for a
 /// SharedPreferences-backed profile setting (see `PlayerProfileSettings`),
 /// so this resolves its own persistent location via `path_provider`.
-/// Re-picking (even with a different file extension) always fully replaces
-/// the prior file rather than accumulating orphans, since [avatarDirectory]
-/// is exclusively reserved for this single file.
+/// Re-picking always fully replaces the prior file rather than accumulating
+/// orphans, since [avatarDirectory] is exclusively reserved for this single
+/// file.
 class PlayerAvatarFileOps {
   static const _baseName = 'avatar';
 
@@ -24,19 +25,22 @@ class PlayerAvatarFileOps {
     return Directory('${supportDir.path}${Platform.pathSeparator}avatar');
   }
 
-  /// Copies the picked image at [sourcePath] into [avatarDirectory] as
-  /// `avatar.<ext>`, first deleting any previously stored avatar file
-  /// (whatever its extension) so re-picking never leaves an orphaned file
-  /// behind. Returns the absolute destination path -- what the caller
-  /// should persist via `PlayerProfileSettings.setAvatarPath`.
+  /// Downscales the picked image at [sourcePath] (see [resizeAvatarBytes])
+  /// and writes it into [avatarDirectory] as `avatar.png`, first deleting
+  /// any previously stored avatar file so re-picking never leaves an
+  /// orphaned file behind. The file is always re-encoded to PNG regardless
+  /// of the source format, both to keep it small (it's later read back
+  /// as-is for network transmission to other players -- see `HostServer`/
+  /// `GameClient`) and to keep the on-disk naming deterministic. Returns the
+  /// absolute destination path -- what the caller should persist via
+  /// `PlayerProfileSettings.setAvatarPath`.
   Future<String> saveAvatar(String sourcePath) async {
     final dir = await avatarDirectory();
     await dir.create(recursive: true);
     await _clearExisting(dir);
-    final destPath = '${dir.path}${Platform.pathSeparator}$_baseName${_extensionOf(sourcePath)}';
-    if (!isSamePath(sourcePath, destPath)) {
-      await File(sourcePath).copy(destPath);
-    }
+    final resized = await resizeAvatarBytes(await File(sourcePath).readAsBytes());
+    final destPath = '${dir.path}${Platform.pathSeparator}$_baseName.png';
+    await File(destPath).writeAsBytes(resized);
     return destPath;
   }
 
@@ -54,11 +58,5 @@ class PlayerAvatarFileOps {
         await entity.delete();
       }
     }
-  }
-
-  String _extensionOf(String path) {
-    final name = basenameOf(path);
-    final lastDot = name.lastIndexOf('.');
-    return lastDot == -1 ? '' : name.substring(lastDot).toLowerCase();
   }
 }

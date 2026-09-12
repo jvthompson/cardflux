@@ -21,6 +21,7 @@ class HandZoneWidget extends StatelessWidget {
     this.cardBackImagePath,
     this.cardKeyFor,
     this.borderColor,
+    this.backgroundColor = const Color(0x26000000),
   });
 
   final List<CardInstance> cards;
@@ -32,6 +33,13 @@ class HandZoneWidget extends StatelessWidget {
   /// This hand's owner's chosen color -- painted as a border on every card
   /// in it, same as any other owned card (see `TableScreen._ownerBorderColor`).
   final Color? borderColor;
+
+  /// This zone's background band color -- either the flat black tint every
+  /// zone/hand used before the F2 toggle existed, or a darkened shade of
+  /// this hand's owner's color (see `TableScreen._playerTintColor`/
+  /// `zoneBackgroundColor`), depending on that table-wide toggle's current
+  /// state.
+  final Color backgroundColor;
 
   /// Supplies a stable [GlobalKey] per card instance so [TableScreen] can
   /// query each rendered card's real on-screen position later (used to
@@ -63,7 +71,7 @@ class HandZoneWidget extends StatelessWidget {
       // the same Row line up instead of the hand's background band being a
       // visibly different height.
       height: cardHeight + pileWidgetExtra,
-      color: Colors.black.withValues(alpha: 0.15),
+      color: backgroundColor,
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
       child: cards.isEmpty
           ? const Center(

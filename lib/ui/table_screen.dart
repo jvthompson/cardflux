@@ -20,6 +20,7 @@ import '../models/player.dart';
 import '../models/table_state.dart';
 import '../models/zone_definition.dart';
 import 'widgets/arrow_widget.dart';
+import 'widgets/avatar_widget.dart';
 import 'widgets/card_back_widget.dart';
 import 'widgets/card_face_widget.dart';
 import 'widgets/color_swatch_row.dart';
@@ -82,6 +83,8 @@ class TableScreen extends StatefulWidget {
     required this.isMirrored,
     required this.zones,
     this.cardBackImagePath,
+    this.localPlayerAvatarPath,
+    this.avatarBytesByPlayerId = const {},
   });
 
   final Map<String, CardDefinition> definitionsById;
@@ -94,6 +97,18 @@ class TableScreen extends StatefulWidget {
   final List<ZoneDefinition> zones;
 
   final String? cardBackImagePath;
+
+  /// The local player's own avatar, read from their local
+  /// `PlayerProfileSettings`/`PlayerAvatarFileOps` file -- never round-
+  /// tripped over the network to itself, unlike [avatarBytesByPlayerId].
+  final String? localPlayerAvatarPath;
+
+  /// Every OTHER known player's avatar bytes, keyed by player id --
+  /// received over the network (see `HostServer`/`GameClient`'s `hello`/
+  /// `lobbyRosterUpdate` avatar payload) and passed down by
+  /// `HostGameScreen`/`ClientGameScreen`. The local player's own avatar is
+  /// always rendered from [localPlayerAvatarPath] instead.
+  final Map<String, Uint8List> avatarBytesByPlayerId;
 
   @override
   State<TableScreen> createState() => _TableScreenState();
@@ -193,6 +208,14 @@ class _TableScreenState extends State<TableScreen>
   /// all showing at once). Session-local only, resets to visible on the next
   /// table screen build -- not a persisted preference.
   bool _bordersHidden = false;
+
+  /// Toggled by F2 -- while true (the default), every zone/hand background
+  /// and each player's avatar+name header background use a darkened shade
+  /// of that player's own color (see `_playerTintColor`) instead of the flat
+  /// black tint every background used before this existed. Session-local
+  /// only, resets to the color-tinted default on the next table screen
+  /// build -- not a persisted preference, mirroring [_bordersHidden].
+  bool _colorTintEnabled = true;
 
   /// The arrow drag currently in progress, if any -- both points in the
   /// table Stack's own local coordinate space (same convention as
@@ -467,6 +490,8 @@ class _TableScreenState extends State<TableScreen>
         setState(() => _cameraOffset = Offset.zero);
       } else if (event.logicalKey == LogicalKeyboardKey.f1) {
         setState(() => _bordersHidden = !_bordersHidden);
+      } else if (event.logicalKey == LogicalKeyboardKey.f2) {
+        setState(() => _colorTintEnabled = !_colorTintEnabled);
       }
     }
     return false;
@@ -1647,6 +1672,7 @@ class _TableScreenState extends State<TableScreen>
     List<CardInstance> localHand,
     bool isBeingSearched,
     Color? borderColor,
+    Color backgroundColor,
   ) {
     final top = cards.isEmpty ? null : _stackUtils.topOf(cards);
     return GestureDetector(
@@ -1656,7 +1682,7 @@ class _TableScreenState extends State<TableScreen>
       ),
       child: ColoredBox(
         key: _zoneKey(zone.id),
-        color: Colors.black.withValues(alpha: 0.15),
+        color: backgroundColor,
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
           child: ZoneStackWidget(
@@ -1697,10 +1723,11 @@ class _TableScreenState extends State<TableScreen>
     List<CardInstance> cards,
     bool isBeingSearched,
     Color? borderColor,
+    Color backgroundColor,
   ) {
     final top = cards.isEmpty ? null : _stackUtils.topOf(cards);
     return ColoredBox(
-      color: Colors.black.withValues(alpha: 0.15),
+      color: backgroundColor,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
         child: OpponentZoneStackWidget(
@@ -1738,9 +1765,11 @@ class _TableScreenState extends State<TableScreen>
     required Map<String, Map<String, List<CardInstance>>> zoneCardsByPlayerIdThenZoneId,
     required bool Function(String zoneId, String? ownerId) isZoneSearched,
     required Color? Function(String? ownerId) ownerBorderColor,
+    required Color Function(String? ownerId) zoneBackgroundColor,
   }) {
     final isLocal = player.id == session.localPlayerId;
     final borderColor = ownerBorderColor(player.id);
+    final backgroundColor = zoneBackgroundColor(player.id);
     final handWidget = isLocal
         ? HandZoneWidget(
             key: _handZoneKey,
@@ -1752,11 +1781,13 @@ class _TableScreenState extends State<TableScreen>
             cardBackImagePath: widget.cardBackImagePath,
             cardKeyFor: _handCardKey,
             borderColor: borderColor,
+            backgroundColor: backgroundColor,
           )
         : OpponentHandZoneWidget(
             count: handCountByPlayerId[player.id] ?? 0,
             cardBackImagePath: widget.cardBackImagePath,
             borderColor: borderColor,
+            backgroundColor: backgroundColor,
           );
     final zoneWidgets = [
       for (final zone in ownedZones)
@@ -1769,36 +1800,79 @@ class _TableScreenState extends State<TableScreen>
                 localHand,
                 isZoneSearched(zone.id, player.id),
                 borderColor,
+                backgroundColor,
               )
             : _buildOpponentZoneWidget(
                 zone,
                 zoneCardsByPlayerIdThenZoneId[player.id]?[zone.id] ?? const [],
                 isZoneSearched(zone.id, player.id),
                 borderColor,
+                backgroundColor,
               ),
     ];
     return (hand: handWidget, zones: zoneWidgets);
   }
 
-  /// A compact name + color-dot header for one player's panel -- only shown
-  /// once a row can hold more than one player (3-4 total players), so a
-  /// 2-player game's layout stays pixel-identical to before this existed.
-  Widget _panelHeader(PlayerInfo player) {
-    return Padding(
-      padding: const EdgeInsets.only(left: 4, bottom: 2),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          CircleAvatar(radius: 5, backgroundColor: Color(player.color)),
-          const SizedBox(width: 6),
-          Text(
-            player.connected ? player.name : '${player.name} (disconnected)',
-            style: TextStyle(
-              color: player.connected ? Colors.white70 : Colors.white38,
-              fontSize: 12,
+  /// A darkened, semi-transparent tint of [rawColor] (a `PlayerInfo.color`
+  /// ARGB int) -- used for every zone/hand background (via
+  /// `zoneBackgroundColor` in [build]), table-wide whenever
+  /// [_colorTintEnabled] is true. Lightness is pulled down and
+  /// alpha kept well below opaque so the felt-green table still faintly
+  /// shows through, matching the flat black tint's own translucent feel
+  /// rather than reading as a solid block.
+  Color _playerTintColor(int rawColor) {
+    final hsl = HSLColor.fromColor(Color(rawColor));
+    final darker = hsl.withLightness((hsl.lightness - 0.30).clamp(0.0, 1.0));
+    return darker.toColor().withValues(alpha: 0.55);
+  }
+
+  /// A player's avatar + name, sized and styled to sit in their panel's
+  /// outer corner as if it were one more zone -- same `ColoredBox`+`Padding`
+  /// shape, same [cardWidth]/[cardHeight] + [pileWidgetExtra] footprint, and
+  /// the same [backgroundColor] as their actual zones (see
+  /// `zoneBackgroundColor` in [build]) so it reads as a continuous strip
+  /// with no visible seam, not a separate floating element -- square corners
+  /// (no radius) come for free from not adding any `BorderRadius` here, same
+  /// as the zone widgets. Never rotated even for a rotated top-row occupant
+  /// -- a name reads better upright regardless of seat side. The local
+  /// player's own avatar renders from their local file
+  /// ([TableScreen.localPlayerAvatarPath]); every other player's avatar
+  /// renders from bytes received over the network (see
+  /// [TableScreen.avatarBytesByPlayerId]). Dimmed when
+  /// [PlayerInfo.connected] is false, matching the zones' own disconnected
+  /// styling.
+  Widget _avatarCorner(PlayerInfo player, {required bool isLocal, required Color backgroundColor}) {
+    return ColoredBox(
+      color: backgroundColor,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+        child: SizedBox(
+          width: cardWidth + pileWidgetExtra,
+          height: cardHeight + pileWidgetExtra,
+          child: Opacity(
+            opacity: player.connected ? 1 : 0.5,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                AvatarWidget(
+                  color: player.color,
+                  imagePath: isLocal ? widget.localPlayerAvatarPath : null,
+                  imageBytes: isLocal ? null : widget.avatarBytesByPlayerId[player.id],
+                  size: cardWidth,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  player.connected ? player.name : '${player.name} (disconnected)',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: Colors.white70, fontSize: 10),
+                ),
+              ],
             ),
           ),
-        ],
+        ),
       ),
     );
   }
@@ -1825,9 +1899,9 @@ class _TableScreenState extends State<TableScreen>
     required Map<String, Map<String, List<CardInstance>>> zoneCardsByPlayerIdThenZoneId,
     required bool Function(String zoneId, String? ownerId) isZoneSearched,
     required Color? Function(String? ownerId) ownerBorderColor,
+    required Color Function(String? ownerId) zoneBackgroundColor,
   }) {
     if (rowPlayers.isEmpty) return const SizedBox.shrink();
-    final showHeaders = totalPlayerCount > 2;
     final panels = <Widget>[
       for (final (i, player) in rowPlayers.indexed)
         Expanded(
@@ -1842,7 +1916,6 @@ class _TableScreenState extends State<TableScreen>
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              if (showHeaders) _panelHeader(player),
               Builder(
                 builder: (context) {
                   final content = _panelContent(
@@ -1857,6 +1930,7 @@ class _TableScreenState extends State<TableScreen>
                     zoneCardsByPlayerIdThenZoneId: zoneCardsByPlayerIdThenZoneId,
                     isZoneSearched: isZoneSearched,
                     ownerBorderColor: ownerBorderColor,
+                    zoneBackgroundColor: zoneBackgroundColor,
                   );
                   // A non-local occupant of the top row renders upside-down
                   // once there are more than 2 total players (see this
@@ -1867,7 +1941,16 @@ class _TableScreenState extends State<TableScreen>
                   Widget maybeRotate(Widget w) => rotate ? RotatedBox(quarterTurns: 2, child: w) : w;
                   final handChild = Expanded(child: maybeRotate(content.hand));
                   final zoneChildren = [for (final z in content.zones) maybeRotate(z)];
-                  final reversePileOrder = rowPlayers.length == 2 && i == 0;
+                  // Reversed for the "left" side of a paired 3-4p row (see
+                  // the comment below), AND for a top row's sole occupant
+                  // whenever they're not already being rotated (true 2-player
+                  // games, always; a 3-4 player game only if the host seated
+                  // themselves alone in the top row) -- without rotation to
+                  // mirror the panel automatically, this is the only way an
+                  // unrotated top occupant's hand/zones/avatar end up
+                  // visually mirrored against the bottom row instead of
+                  // just repeating its exact left-to-right order.
+                  final reversePileOrder = (rowPlayers.length == 2 && i == 0) || (isTopRow && rowPlayers.length == 1 && !rotate);
                   // On the "left" side of a pair, the hand still sits
                   // closest to center (rightmost in this panel), but the
                   // zones themselves must also reverse so the *first*-
@@ -1877,9 +1960,21 @@ class _TableScreenState extends State<TableScreen>
                   // free by just appending zones after the hand in their
                   // natural order.
                   final orderedZoneChildren = reversePileOrder ? zoneChildren.reversed.toList() : zoneChildren;
+                  // The avatar always sits in the panel's outer corner --
+                  // past the last zone, on whichever end that turns out to
+                  // be -- never rotated itself (a name reads better upright
+                  // regardless of seat side), unlike the hand/zones above.
+                  final avatarChild = _avatarCorner(
+                    player,
+                    isLocal: player.id == session.localPlayerId,
+                    backgroundColor: zoneBackgroundColor(player.id),
+                  );
+                  final rowChildren = reversePileOrder
+                      ? [avatarChild, ...orderedZoneChildren, handChild]
+                      : [handChild, ...orderedZoneChildren, avatarChild];
                   return Row(
                     crossAxisAlignment: crossAxisStart ? CrossAxisAlignment.start : CrossAxisAlignment.end,
-                    children: reversePileOrder ? [...orderedZoneChildren, handChild] : [handChild, ...orderedZoneChildren],
+                    children: rowChildren,
                   );
                 },
               ),
@@ -2064,6 +2159,20 @@ class _TableScreenState extends State<TableScreen>
                 return null;
               }
 
+              // Every owned zone/hand background, and each player's
+              // avatar+name header background, use this -- one function so
+              // F2's table-wide toggle (see _colorTintEnabled's doc) can
+              // never go half-applied between the two kinds of background.
+              Color zoneBackgroundColor(String? ownerId) {
+                if (!_colorTintEnabled || ownerId == null) {
+                  return Colors.black.withValues(alpha: 0.15);
+                }
+                for (final p in state.players) {
+                  if (p.id == ownerId) return _playerTintColor(p.color);
+                }
+                return Colors.black.withValues(alpha: 0.15);
+              }
+
               // Whether a card owned by [ownerId] should render rotated 180°
               // for the local viewer -- true iff the owner sits on the
               // opposite side of the table (a different isFarMirrorSeat
@@ -2116,6 +2225,7 @@ class _TableScreenState extends State<TableScreen>
                               zoneCardsByPlayerIdThenZoneId: zoneCardsByPlayerIdThenZoneId,
                               isZoneSearched: isZoneSearched,
                               ownerBorderColor: ownerBorderColor,
+                              zoneBackgroundColor: zoneBackgroundColor,
                             ),
                             Expanded(
                               child: LayoutBuilder(
@@ -2760,6 +2870,7 @@ class _TableScreenState extends State<TableScreen>
                               zoneCardsByPlayerIdThenZoneId: zoneCardsByPlayerIdThenZoneId,
                               isZoneSearched: isZoneSearched,
                               ownerBorderColor: ownerBorderColor,
+                              zoneBackgroundColor: zoneBackgroundColor,
                             ),
                           ],
                         ),

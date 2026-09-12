@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:uuid/uuid.dart';
 
@@ -44,6 +46,21 @@ class HostServer {
 
   late final PlayerInfo hostPlayer;
   late final int maxPlayers;
+  Uint8List? _hostAvatarBytes;
+
+  /// Every known player's avatar bytes, keyed by player id -- host plus
+  /// every client that has ever sent one via `hello`. Deliberately backed by
+  /// a separate map from [_clients] (populated in [_handleClient], never
+  /// pruned in [_handleClientDisconnect]): a disconnected 3-4 player seat
+  /// stays in `TableState.players` (with `PlayerInfo.connected` false) and
+  /// should keep showing its avatar rather than losing it the moment its
+  /// socket drops.
+  final Map<String, Uint8List> _avatarBytesByPlayerId = {};
+
+  Map<String, Uint8List> get avatarsByPlayerId => {
+        hostPlayer.id: ?_hostAvatarBytes,
+        ..._avatarBytesByPlayerId,
+      };
 
   /// Host-chosen seat order (player ids), set via [setSeatOrder] once the
   /// lobby is full (see `AssignSeatsScreen`) -- null means "use join order"
@@ -86,10 +103,12 @@ class HostServer {
   Future<int> start({
     required PlayerInfo hostPlayer,
     required int maxPlayers,
+    Uint8List? hostAvatarBytes,
     int port = defaultGamePort,
   }) async {
     this.hostPlayer = hostPlayer;
     this.maxPlayers = maxPlayers;
+    _hostAvatarBytes = hostAvatarBytes;
     _serverSocket = await ServerSocket.bind(InternetAddress.anyIPv4, port);
     _serverSocket!.listen(_handleClient);
     return _serverSocket!.port;
@@ -130,6 +149,14 @@ class HostServer {
           final color = _resolveColor(msg.payload['color'] as int?);
           final newId = _uuid.v4();
           playerId = newId;
+          final avatarB64 = msg.payload['avatar'] as String?;
+          if (avatarB64 != null) {
+            try {
+              _avatarBytesByPlayerId[newId] = base64Decode(avatarB64);
+            } catch (_) {
+              // Ignore a malformed avatar payload -- the player still joins.
+            }
+          }
           final client = _ConnectedClient(socket: socket, name: name, color: color)
             ..sub = sub
             ..heartbeatTimer = Timer.periodic(heartbeatInterval, (_) => _onHeartbeatTick(newId));
@@ -190,7 +217,11 @@ class HostServer {
     broadcast(
       NetMessage(
         type: NetMessageType.lobbyRosterUpdate,
-        payload: {'maxPlayers': maxPlayers, 'players': r.map((p) => p.toJson()).toList()},
+        payload: {
+          'maxPlayers': maxPlayers,
+          'players': r.map((p) => p.toJson()).toList(),
+          'avatars': {for (final e in avatarsByPlayerId.entries) e.key: base64Encode(e.value)},
+        },
       ),
     );
   }

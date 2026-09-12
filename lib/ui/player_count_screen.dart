@@ -7,16 +7,23 @@ import 'host_setup_screen.dart';
 /// that many to be connected before letting the host proceed to game
 /// selection.
 class PlayerCountScreen extends StatelessWidget {
-  const PlayerCountScreen({super.key, required this.localPlayerName, required this.localPlayerColor});
+  const PlayerCountScreen({
+    super.key,
+    required this.localPlayerName,
+    required this.localPlayerColor,
+    this.localAvatarPath,
+  });
 
   final String localPlayerName;
   final int localPlayerColor;
+  final String? localAvatarPath;
 
   void _choose(BuildContext context, int maxPlayers) {
     Navigator.of(context).push(MaterialPageRoute(
       builder: (_) => HostSetupScreen(
         localPlayerName: localPlayerName,
         localPlayerColor: localPlayerColor,
+        localAvatarPath: localAvatarPath,
         maxPlayers: maxPlayers,
       ),
     ));
