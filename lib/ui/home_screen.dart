@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../data/player_profile_settings.dart';
+import '../main.dart';
 import '../models/color_palette.dart';
 import 'deck_editor_game_select_screen.dart';
 import 'game_definition_editor_entry_screen.dart';
@@ -58,7 +60,18 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Card Table')),
+      appBar: AppBar(
+        title: const Text('Cardflux'),
+        actions: [
+          Consumer<ThemeModeController>(
+            builder: (context, controller, _) => IconButton(
+              icon: Icon(controller.isDarkMode ? Icons.light_mode : Icons.dark_mode),
+              tooltip: controller.isDarkMode ? 'Switch to light mode' : 'Switch to dark mode',
+              onPressed: () => controller.setDarkMode(!controller.isDarkMode),
+            ),
+          ),
+        ],
+      ),
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 360),

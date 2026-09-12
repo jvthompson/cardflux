@@ -168,7 +168,7 @@ class _CardDetailPanelState extends State<CardDetailPanel> {
               height: 32,
               decoration: BoxDecoration(
                 color: swatchColor ?? Colors.transparent,
-                border: Border.all(color: Colors.black26),
+                border: Border.all(color: Theme.of(context).colorScheme.outline),
                 borderRadius: BorderRadius.circular(4),
               ),
             ),
@@ -224,16 +224,19 @@ class _CardDetailPanelState extends State<CardDetailPanel> {
             Container(
               width: cardWidth,
               height: cardHeight,
-              decoration: BoxDecoration(border: Border.all(color: Colors.black26), borderRadius: BorderRadius.circular(6)),
+              decoration: BoxDecoration(
+                border: Border.all(color: Theme.of(context).colorScheme.outline),
+                borderRadius: BorderRadius.circular(6),
+              ),
               child: resolvedImage == null
-                  ? const Icon(Icons.image_not_supported_outlined, color: Colors.black26)
+                  ? Icon(Icons.image_not_supported_outlined, color: Theme.of(context).colorScheme.outline)
                   : ClipRRect(
                       borderRadius: BorderRadius.circular(5),
                       child: Image.file(
                         File(resolvedImage),
                         fit: BoxFit.cover,
                         errorBuilder: (context, error, stackTrace) =>
-                            const Icon(Icons.broken_image_outlined, color: Colors.black26),
+                            Icon(Icons.broken_image_outlined, color: Theme.of(context).colorScheme.outline),
                       ),
                     ),
             ),

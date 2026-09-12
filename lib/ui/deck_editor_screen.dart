@@ -61,6 +61,18 @@ class _DeckEditorScreenState extends State<DeckEditorScreen> {
   /// all, in which case the filter bar doesn't render.
   late final Set<String> _selectedSetIds = widget.game.sets.map((s) => s.id).toSet();
 
+  /// Case-insensitive substring search against card title and ID, combined
+  /// with the tag/set filters in [_isVisible]; empty means no search filter.
+  String _searchQuery = '';
+
+  final TextEditingController _searchController = TextEditingController();
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
   int get _totalCards => _quantities.values.fold(0, (a, b) => a + b);
 
   /// Every currently-selected tag across every group, combined -- a card is
@@ -84,7 +96,10 @@ class _DeckEditorScreenState extends State<DeckEditorScreen> {
     if (card.types.any(_allExcludedTags.contains)) return false;
     final tagsOk = widget.game.tagGroups.isEmpty || card.types.isEmpty || card.types.any(_allSelectedTags.contains);
     final setOk = widget.game.sets.isEmpty || card.setId == null || _selectedSetIds.contains(card.setId);
-    return tagsOk && setOk;
+    final query = _searchQuery.trim().toLowerCase();
+    final searchOk =
+        query.isEmpty || card.cardTitle.toLowerCase().contains(query) || card.id.toLowerCase().contains(query);
+    return tagsOk && setOk && searchOk;
   }
 
   List<CardDefinition> get _visibleCards => widget.game.cards.where(_isVisible).toList();
@@ -221,6 +236,36 @@ class _DeckEditorScreenState extends State<DeckEditorScreen> {
     );
   }
 
+  /// Case-insensitive search box for card title/ID, shown beneath the set
+  /// and tag filter bars -- see [_isVisible] for how [_searchQuery] combines
+  /// with the other filters.
+  Widget _buildSearchField() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+      child: TextField(
+        controller: _searchController,
+        decoration: InputDecoration(
+          labelText: 'Search',
+          hintText: 'Search by name or ID',
+          prefixIcon: const Icon(Icons.search),
+          suffixIcon: _searchQuery.isEmpty
+              ? null
+              : IconButton(
+                  icon: const Icon(Icons.clear),
+                  tooltip: 'Clear search',
+                  onPressed: () => setState(() {
+                    _searchController.clear();
+                    _searchQuery = '';
+                  }),
+                ),
+          border: const OutlineInputBorder(),
+          isDense: true,
+        ),
+        onChanged: (value) => setState(() => _searchQuery = value),
+      ),
+    );
+  }
+
   /// One pool tile: the real card face at its native table size (not
   /// scaled), with the same left-click-to-add/right-click-to-remove wiring
   /// and hover-preview tracking the old text row had, plus a quantity badge
@@ -278,10 +323,10 @@ class _DeckEditorScreenState extends State<DeckEditorScreen> {
   Widget _buildPreviewPanel() {
     final hovered = _hoveredDefinitionId == null ? null : _definitionsById[_hoveredDefinitionId];
     return Container(
-      color: Colors.black.withValues(alpha: 0.05),
+      color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
       alignment: Alignment.center,
       child: hovered == null
-          ? const Text('Hover a card to preview', style: TextStyle(color: Colors.black45))
+          ? Text('Hover a card to preview', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant))
           : Padding(
               padding: const EdgeInsets.all(24),
               child: Column(
@@ -315,16 +360,28 @@ class _DeckEditorScreenState extends State<DeckEditorScreen> {
         const Divider(height: 1),
         Expanded(
           child: entries.isEmpty
-              ? const Center(child: Text('Left-click a card to add it', style: TextStyle(color: Colors.black45)))
+              ? Center(
+                  child: Text(
+                    'Left-click a card to add it',
+                    style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+                  ),
+                )
               : ListView.builder(
                   itemCount: entries.length,
                   itemBuilder: (context, index) {
                     final entry = entries[index];
                     final title = _definitionsById[entry.key]?.cardTitle ?? entry.key;
-                    return ListTile(
-                      dense: true,
-                      title: Text(title),
-                      trailing: Text('×${entry.value}'),
+                    return MouseRegion(
+                      onEnter: (_) => setState(() => _hoveredDefinitionId = entry.key),
+                      onExit: (_) => setState(() {
+                        if (_hoveredDefinitionId == entry.key) _hoveredDefinitionId = null;
+                      }),
+                      child: ListTile(
+                        dense: true,
+                        title: Text(title),
+                        trailing: Text('×${entry.value}'),
+                        onTap: () => _removeCopy(entry.key),
+                      ),
                     );
                   },
                 ),
@@ -356,6 +413,7 @@ class _DeckEditorScreenState extends State<DeckEditorScreen> {
                     children: [
                       _buildSetFilterBar(),
                       _buildTagGroupFilterBars(),
+                      _buildSearchField(),
                       Expanded(
                         child: GridView.builder(
                           padding: const EdgeInsets.all(12),

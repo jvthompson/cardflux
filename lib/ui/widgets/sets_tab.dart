@@ -168,8 +168,14 @@ class _SetEditorRowState extends State<_SetEditorRow> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(widget.set.id, style: const TextStyle(fontFamily: 'monospace', color: Colors.black54)),
-                  Text('${widget.cardCount} card(s)', style: const TextStyle(color: Colors.black45, fontSize: 12)),
+                  Text(
+                    widget.set.id,
+                    style: TextStyle(fontFamily: 'monospace', color: Theme.of(context).colorScheme.onSurfaceVariant),
+                  ),
+                  Text(
+                    '${widget.cardCount} card(s)',
+                    style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 12),
+                  ),
                 ],
               ),
             ),

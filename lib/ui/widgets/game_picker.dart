@@ -120,10 +120,10 @@ class _GamePickerState extends State<GamePicker> {
               ),
             const SizedBox(height: 16),
             if (_directoryPath == null) ...[
-              const Text(
+              Text(
                 'Choose a folder to find more games -- one subfolder per game '
                 '(each with its own game JSON).',
-                style: TextStyle(color: Colors.black45),
+                style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
               ),
               const SizedBox(height: 16),
               OutlinedButton(
@@ -139,8 +139,8 @@ class _GamePickerState extends State<GamePicker> {
                   Expanded(
                     child: Text(
                       _directoryPath!,
-                      style: const TextStyle(
-                        color: Colors.black45,
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                         fontSize: 12,
                       ),
                       overflow: TextOverflow.ellipsis,

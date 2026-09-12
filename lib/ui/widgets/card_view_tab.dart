@@ -307,8 +307,11 @@ class _CardViewTabState extends State<CardViewTab> with AutomaticKeepAliveClient
                   SizedBox(
                     width: previewWidth,
                     child: card == null
-                        ? const Center(
-                            child: Text('Select a card to preview', style: TextStyle(color: Colors.black45)))
+                        ? Center(
+                            child: Text(
+                              'Select a card to preview',
+                              style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+                            ))
                         : _CardPreviewPane(folderPath: widget.folderPath, card: card),
                   ),
                   _VerticalSplitHandle(
@@ -324,7 +327,11 @@ class _CardViewTabState extends State<CardViewTab> with AutomaticKeepAliveClient
                   SizedBox(
                     width: formWidth,
                     child: card == null
-                        ? const Center(child: Text('Select a card to edit', style: TextStyle(color: Colors.black45)))
+                        ? Center(
+                            child: Text(
+                              'Select a card to edit',
+                              style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+                            ))
                         : CardDetailPanel(
                             key: ValueKey(card.id),
                             folderPath: widget.folderPath,

@@ -28,7 +28,7 @@ class ColorSwatchRow extends StatelessWidget {
                 color: Color(c),
                 shape: BoxShape.circle,
                 border: Border.all(
-                  color: c == selected ? Colors.blueAccent : Colors.black26,
+                  color: c == selected ? Colors.blueAccent : Theme.of(context).colorScheme.outline,
                   width: c == selected ? 3 : 1,
                 ),
               ),

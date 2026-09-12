@@ -156,7 +156,7 @@ class _DeckLibraryScreenState extends State<DeckLibraryScreen> {
         Expanded(
           child: Text(
             _directoryPath ?? 'No Deck Library folder chosen',
-            style: const TextStyle(color: Colors.black45, fontSize: 12),
+            style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 12),
             overflow: TextOverflow.ellipsis,
           ),
         ),
@@ -195,7 +195,7 @@ class _DeckLibraryScreenState extends State<DeckLibraryScreen> {
             style: const TextStyle(fontSize: 11),
           ),
         ),
-        Text('${entry.cardCount} card(s)', style: const TextStyle(fontSize: 10, color: Colors.black45)),
+        Text('${entry.cardCount} card(s)', style: TextStyle(fontSize: 10, color: Theme.of(context).colorScheme.onSurfaceVariant)),
       ],
     );
   }
@@ -219,7 +219,7 @@ class _DeckLibraryScreenState extends State<DeckLibraryScreen> {
             'Choose a Deck Library folder to see saved decks for ${widget.game.name} -- '
             'or use Browse for file... below.',
             textAlign: TextAlign.center,
-            style: const TextStyle(color: Colors.black45),
+            style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
           ),
         ),
       );
@@ -231,7 +231,10 @@ class _DeckLibraryScreenState extends State<DeckLibraryScreen> {
     final decks = _decks ?? const [];
     if (decks.isEmpty) {
       return Center(
-        child: Text('No decks found for ${widget.game.name} in that folder.', style: const TextStyle(color: Colors.black45)),
+        child: Text(
+          'No decks found for ${widget.game.name} in that folder.',
+          style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+        ),
       );
     }
     return GridView.builder(

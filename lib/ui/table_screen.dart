@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
 
+import '../app_theme.dart';
 import '../game/game_session.dart';
 import '../game/geometry_utils.dart';
 import '../game/seat_utils.dart';
@@ -1899,6 +1900,13 @@ class _TableScreenState extends State<TableScreen>
 
   @override
   Widget build(BuildContext context) {
+    // Pinned to the light theme regardless of the app-wide dark-mode toggle
+    // (see ThemeModeController in main.dart) -- gameplay always keeps its
+    // current felt-green look.
+    return Theme(data: AppTheme.light, child: _buildTable(context));
+  }
+
+  Widget _buildTable(BuildContext context) {
     // This screen's controls are entirely mouse/drag- and raw-hotkey-driven
     // (see _handleKeyEvent) -- Space/Enter activating whatever button
     // happens to still hold keyboard focus (Flutter's default Shortcuts

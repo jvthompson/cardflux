@@ -225,12 +225,12 @@ class _ZoneEditorCardState extends State<_ZoneEditorCard> {
                           ),
                         ),
                         if (zone.dealsBuiltDeck)
-                          const Padding(
-                            padding: EdgeInsets.symmetric(vertical: 4),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 4),
                             child: Text(
                               'Ignored while Deals Built Deck is on.',
                               style: TextStyle(
-                                color: Colors.black45,
+                                color: Theme.of(context).colorScheme.onSurfaceVariant,
                                 fontSize: 12,
                               ),
                             ),

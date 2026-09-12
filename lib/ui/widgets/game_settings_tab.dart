@@ -134,10 +134,10 @@ class _GameSettingsTabState extends State<GameSettingsTab> with AutomaticKeepAli
         ),
         const SizedBox(height: 24),
         const Text('Tag Groups', style: TextStyle(fontWeight: FontWeight.bold)),
-        const Text(
+        Text(
           'Drag to reorder groups or the tags within them -- this also reorders their filter buttons '
           'and the Types fields on each card.',
-          style: TextStyle(color: Colors.black54, fontSize: 12),
+          style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 12),
         ),
         const SizedBox(height: 8),
         if (widget.tagGroups.isNotEmpty)
@@ -233,7 +233,10 @@ class _TagGroupEditorState extends State<_TagGroupEditor> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: BoxDecoration(border: Border.all(color: Colors.black12), borderRadius: BorderRadius.circular(8)),
+      decoration: BoxDecoration(
+        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+        borderRadius: BorderRadius.circular(8),
+      ),
       child: ExpansionTile(
         initiallyExpanded: false,
         onExpansionChanged: (v) => setState(() => _expanded = v),
@@ -268,7 +271,7 @@ class _TagGroupEditorState extends State<_TagGroupEditor> {
                           key: ValueKey(tag),
                           dense: true,
                           shape: RoundedRectangleBorder(
-                            side: const BorderSide(color: Colors.black12),
+                            side: BorderSide(color: Theme.of(context).colorScheme.outlineVariant),
                             borderRadius: BorderRadius.circular(6),
                           ),
                           title: Text(tag),
@@ -321,16 +324,19 @@ class _ImagePreviewBox extends StatelessWidget {
     return Container(
       width: cardWidth,
       height: cardHeight,
-      decoration: BoxDecoration(border: Border.all(color: Colors.black26), borderRadius: BorderRadius.circular(6)),
+      decoration: BoxDecoration(
+        border: Border.all(color: Theme.of(context).colorScheme.outline),
+        borderRadius: BorderRadius.circular(6),
+      ),
       child: resolvedPath == null
-          ? const Icon(Icons.image_not_supported_outlined, color: Colors.black26)
+          ? Icon(Icons.image_not_supported_outlined, color: Theme.of(context).colorScheme.outline)
           : ClipRRect(
               borderRadius: BorderRadius.circular(5),
               child: Image.file(
                 File(resolvedPath!),
                 fit: BoxFit.cover,
                 errorBuilder: (context, error, stackTrace) =>
-                    const Icon(Icons.broken_image_outlined, color: Colors.black26),
+                    Icon(Icons.broken_image_outlined, color: Theme.of(context).colorScheme.outline),
               ),
             ),
     );
