@@ -16,7 +16,7 @@ import '../networking/game_client.dart';
 import '../networking/net_message.dart';
 import 'home_screen.dart';
 import 'table_screen.dart';
-import 'widgets/load_deck_screen.dart';
+import 'widgets/deck_library_screen.dart';
 
 /// Waits for the host's `gameData` (the [GameDefinition] it's dealing from),
 /// shows [LoadDeckScreen] so the local player can pick their own deck file
@@ -47,6 +47,7 @@ class _ClientGameScreenState extends State<ClientGameScreen> {
   StreamSubscription<ClientConnectionStatus>? _statusSub;
   GameDefinition? _game;
   final Map<String, DeckConfig> _localDecks = {};
+  bool _localReady = false;
   bool _navigatedHome = false;
 
   @override
@@ -150,6 +151,18 @@ class _ClientGameScreenState extends State<ClientGameScreen> {
     );
   }
 
+  /// Locks the local player's own deck selection in -- irreversible from
+  /// this screen (mirrors the host's own `_markHostReady` in
+  /// `HostLoadDeckScreen`). The match doesn't actually begin until the host
+  /// also presses Ready and deals -- signaled implicitly by the eventual
+  /// `fullState` broadcast this screen already waits for.
+  void _markReady() {
+    final game = _game;
+    if (_localReady || game == null || _localDecks.length < game.deckBuildingZones.length) return;
+    setState(() => _localReady = true);
+    widget.gameClient.send(const NetMessage(type: NetMessageType.requestReady));
+  }
+
   @override
   void dispose() {
     _sub?.cancel();
@@ -163,13 +176,46 @@ class _ClientGameScreenState extends State<ClientGameScreen> {
     final session = _session;
     if (session == null) {
       final game = _game;
-      if (game != null && _localDecks.length < game.deckBuildingZones.length) {
+      final zones = game?.deckBuildingZones ?? const [];
+      if (game != null && zones.isNotEmpty) {
+        final localDecksComplete = _localDecks.length >= zones.length;
         return Scaffold(
           appBar: AppBar(title: Text('Load Deck -- ${game.name}')),
-          body: LoadDeckScreen(
-            game: game,
-            zones: game.deckBuildingZones,
-            onDeckChosen: _chooseDeck,
+          body: Column(
+            children: [
+              Expanded(
+                child: IgnorePointer(
+                  ignoring: _localReady,
+                  child: Opacity(
+                    opacity: _localReady ? 0.5 : 1,
+                    child: DeckLibraryScreen(game: game, zones: zones, onDeckChosen: _chooseDeck),
+                  ),
+                ),
+              ),
+              if (localDecksComplete && !_localReady)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 32),
+                  child: FilledButton(
+                    onPressed: _markReady,
+                    child: const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+                      child: Text('Ready'),
+                    ),
+                  ),
+                ),
+              if (_localReady)
+                const Padding(
+                  padding: EdgeInsets.only(bottom: 32),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      CircularProgressIndicator(),
+                      SizedBox(height: 12),
+                      Text('Waiting for host to start the game...'),
+                    ],
+                  ),
+                ),
+            ],
           ),
         );
       }

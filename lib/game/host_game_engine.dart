@@ -260,13 +260,14 @@ class HostGameEngine {
       case NetMessageType.gameData:
       case NetMessageType.fullState:
       case NetMessageType.requestDeckChosen:
+      case NetMessageType.requestReady:
       case NetMessageType.ping:
       case NetMessageType.pong:
       case NetMessageType.disconnect:
-        // requestDeckChosen is only meaningful before this engine exists
-        // (see HostLoadDeckScreen, which subscribes to hostServer.incoming
-        // directly during deck selection) -- a late/duplicate one here is a
-        // no-op.
+        // requestDeckChosen/requestReady are only meaningful before this
+        // engine exists (see HostLoadDeckScreen, which subscribes to
+        // hostServer.incoming directly during deck selection) -- a
+        // late/duplicate one here is a no-op.
         break;
     }
   }

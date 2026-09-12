@@ -8,7 +8,7 @@ import '../networking/host_server.dart';
 import '../networking/net_message.dart';
 import 'home_screen.dart';
 import 'host_game_screen.dart';
-import 'widgets/load_deck_screen.dart';
+import 'widgets/deck_library_screen.dart';
 
 /// Shown right after the host picks [game]: sends the client the
 /// [GameDefinition] immediately (so it can show its own Load Deck screen),
@@ -17,6 +17,11 @@ import 'widgets/load_deck_screen.dart';
 /// deal + table screen. Replaces the old quantity-picking `DeckBuildScreen`,
 /// which built one shared deck for both players; here each player brings
 /// their own.
+///
+/// Dealing doesn't start the instant both sides finish loading -- each side
+/// must explicitly press Ready (see [_markHostReady]/`requestReady`), which
+/// locks their own deck selection against further changes. The match begins
+/// once both the host and the client have pressed Ready.
 class HostLoadDeckScreen extends StatefulWidget {
   const HostLoadDeckScreen({super.key, required this.hostServer, required this.hostPlayerId, required this.game});
 
@@ -31,6 +36,8 @@ class HostLoadDeckScreen extends StatefulWidget {
 class _HostLoadDeckScreenState extends State<HostLoadDeckScreen> {
   final Map<String, DeckConfig> _hostDecks = {};
   final Map<String, DeckConfig> _clientDecks = {};
+  bool _hostReady = false;
+  bool _clientReady = false;
   StreamSubscription<NetMessage>? _sub;
   StreamSubscription<HostConnectionStatus>? _statusSub;
   bool _navigatedAway = false;
@@ -48,24 +55,35 @@ class _HostLoadDeckScreenState extends State<HostLoadDeckScreen> {
   }
 
   void _handleMessage(NetMessage msg) {
-    if (msg.type != NetMessageType.requestDeckChosen) return;
-    final zoneId = msg.payload['zoneId'] as String;
-    final deck = DeckConfig.fromJson((msg.payload['deck'] as Map).cast<String, dynamic>());
-    setState(() => _clientDecks[zoneId] = deck);
-    _maybeStart();
+    if (msg.type == NetMessageType.requestDeckChosen) {
+      final zoneId = msg.payload['zoneId'] as String;
+      final deck = DeckConfig.fromJson((msg.payload['deck'] as Map).cast<String, dynamic>());
+      setState(() => _clientDecks[zoneId] = deck);
+      return;
+    }
+    if (msg.type == NetMessageType.requestReady) {
+      setState(() => _clientReady = true);
+      _maybeBeginGame();
+    }
   }
 
   void _chooseHostDeck(String zoneId, DeckConfig deck) {
     setState(() => _hostDecks[zoneId] = deck);
-    _maybeStart();
   }
 
-  void _maybeStart() {
-    final zoneCount = widget.game.deckBuildingZones.length;
+  bool get _hostDecksComplete => _hostDecks.length >= widget.game.deckBuildingZones.length;
+
+  /// Locks the host's own deck selection in -- irreversible from this screen
+  /// (mirrors the client's own `_markReady` in `ClientGameScreen`).
+  void _markHostReady() {
+    if (_hostReady || !_hostDecksComplete) return;
+    setState(() => _hostReady = true);
+    _maybeBeginGame();
+  }
+
+  void _maybeBeginGame() {
     final clientId = widget.hostServer.opponentPlayerId;
-    if (_hostDecks.length < zoneCount || _clientDecks.length < zoneCount || clientId == null || _navigatedAway || !mounted) {
-      return;
-    }
+    if (!_hostReady || !_clientReady || clientId == null || _navigatedAway || !mounted) return;
     _navigatedAway = true;
     _sub?.cancel();
     _statusSub?.cancel();
@@ -100,14 +118,31 @@ class _HostLoadDeckScreenState extends State<HostLoadDeckScreen> {
   @override
   Widget build(BuildContext context) {
     final zones = widget.game.deckBuildingZones;
-    final hostDone = _hostDecks.length >= zones.length;
-    final clientDone = _clientDecks.length >= zones.length;
     return Scaffold(
       appBar: AppBar(title: Text('Load Deck -- ${widget.game.name}')),
       body: Column(
         children: [
-          Expanded(child: LoadDeckScreen(game: widget.game, zones: zones, onDeckChosen: _chooseHostDeck)),
-          if (hostDone && !clientDone)
+          Expanded(
+            child: IgnorePointer(
+              ignoring: _hostReady,
+              child: Opacity(
+                opacity: _hostReady ? 0.5 : 1,
+                child: DeckLibraryScreen(game: widget.game, zones: zones, onDeckChosen: _chooseHostDeck),
+              ),
+            ),
+          ),
+          if (_hostDecksComplete && !_hostReady)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 32),
+              child: FilledButton(
+                onPressed: _markHostReady,
+                child: const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+                  child: Text('Ready'),
+                ),
+              ),
+            ),
+          if (_hostReady && !_clientReady)
             Padding(
               padding: const EdgeInsets.only(bottom: 32),
               child: Column(
@@ -115,7 +150,11 @@ class _HostLoadDeckScreenState extends State<HostLoadDeckScreen> {
                 children: [
                   const CircularProgressIndicator(),
                   const SizedBox(height: 12),
-                  Text('Waiting for opponent to load their deck(s)... (${_clientDecks.length}/${zones.length})'),
+                  Text(
+                    _clientDecks.length < zones.length
+                        ? 'Waiting for opponent to load their deck(s) and select Ready... (${_clientDecks.length}/${zones.length})'
+                        : 'Waiting for opponent to select Ready...',
+                  ),
                 ],
               ),
             ),

@@ -21,6 +21,7 @@ enum NetMessageType {
   gameData,
   fullState,
   requestDeckChosen,
+  requestReady,
   requestMove,
   requestMoveStack,
   requestMoveGroup,
