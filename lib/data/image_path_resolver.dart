@@ -61,5 +61,6 @@ GameDefinition mergeLocalImagePaths({
     zones: remote.zones,
     tagGroups: remote.tagGroups,
     sets: remote.sets,
+    folderPath: local.folderPath,
   );
 }

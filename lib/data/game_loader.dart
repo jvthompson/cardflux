@@ -92,6 +92,7 @@ class GameLoader {
           : resolveBareImagePath(folderPath: folderPath, bareImagePath: cardBackImagePath),
       zones: game.zones,
       tagGroups: game.tagGroups,
+      folderPath: folderPath,
     );
   }
 }

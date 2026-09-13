@@ -1,8 +1,8 @@
 import 'dart:io';
 
-import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 
+import '../../data/directory_picker.dart';
 import '../../data/game_definition_file_ops.dart';
 import '../../models/card_definition.dart';
 import '../../models/game_set.dart';
@@ -42,7 +42,7 @@ class _SetsTabState extends State<SetsTab> {
   bool _busy = false;
 
   Future<void> _addSet() async {
-    final sourcePath = await getDirectoryPath();
+    final sourcePath = await pickDirectoryPath();
     if (sourcePath == null || !mounted) return;
 
     final id = deriveIdFromFolderPath(sourcePath);

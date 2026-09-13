@@ -43,6 +43,12 @@ function(APPLY_STANDARD_SETTINGS TARGET)
   target_compile_options(${TARGET} PRIVATE /EHsc)
   target_compile_definitions(${TARGET} PRIVATE "_HAS_EXCEPTIONS=0")
   target_compile_definitions(${TARGET} PRIVATE "$<$<CONFIG:Debug>:_DEBUG>")
+  # Newer MSVC (VS 18 Insiders) hard-errors on <experimental/coroutine>, which
+  # permission_handler_windows still includes; this is the suppression the
+  # compiler's own error message points to, applied here (rather than inside
+  # the plugin's pub-cache sources) since APPLY_STANDARD_SETTINGS already
+  # covers every plugin target by default.
+  target_compile_definitions(${TARGET} PRIVATE "_SILENCE_EXPERIMENTAL_COROUTINE_DEPRECATION_WARNINGS")
 endfunction()
 
 # Flutter library and tool build rules.

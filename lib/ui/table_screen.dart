@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -85,6 +86,7 @@ class TableScreen extends StatefulWidget {
     this.cardBackImagePath,
     this.localPlayerAvatarPath,
     this.avatarBytesByPlayerId = const {},
+    this.gameFolderPath,
   });
 
   final Map<String, CardDefinition> definitionsById;
@@ -97,6 +99,14 @@ class TableScreen extends StatefulWidget {
   final List<ZoneDefinition> zones;
 
   final String? cardBackImagePath;
+
+  /// This machine's own local folder for the game being played (see
+  /// `GameDefinition.folderPath`) -- null for the bundled standard-52 deck,
+  /// or if this is a client that hasn't yet resolved a local copy of the
+  /// host's game. Used only to look for a `_playmats` subfolder to pick a
+  /// random background image from (see [_TableScreenState._buildCenterMarker]);
+  /// gameplay itself never depends on it.
+  final String? gameFolderPath;
 
   /// The local player's own avatar, read from their local
   /// `PlayerProfileSettings`/`PlayerAvatarFileOps` file -- never round-
@@ -407,6 +417,60 @@ class _TableScreenState extends State<TableScreen>
   Offset _toScreenPixel(double fx, double fy) =>
       _toWorldPixel(fx, fy) + _worldOffset + _clampedCameraOffset;
 
+  /// Fixed size (in [kWorldSize]'s real, unscaled pixels) of the darker-green
+  /// landmark rectangle centered on the table -- 1600x900 so it fills most of
+  /// a 1920x1080 viewport's visible playspace, giving every player a shared
+  /// reference for "the general center of the table" regardless of their own
+  /// window size or camera pan.
+  static const Size _centerMarkerSize = Size(1600, 900);
+  static const double _centerMarkerRadius = 32;
+
+  /// A static rectangle centered on [kWorldSize] itself, not on any card or
+  /// canonical [0,1] position -- deliberately bypasses
+  /// [canonicalToLocalPixel]/[_toWorldPixel] (which exist for *card*
+  /// placement) and instead offsets straight from world-pixel space, since
+  /// this marker has no canonical fraction of its own and simply needs to
+  /// track the same camera pan/centering every card does.
+  ///
+  /// [_playmatImagePath], when set, is drawn faded (50% opacity, so it never
+  /// competes with cards placed over it) and clipped to the same rounded
+  /// rect as the border -- the border itself is a separate, fully-opaque
+  /// layer on top so it stays a crisp, reliable landmark regardless of how
+  /// busy or light/dark the chosen art is.
+  Widget _buildCenterMarker() {
+    final left = (kWorldSize.width - _centerMarkerSize.width) / 2;
+    final top = (kWorldSize.height - _centerMarkerSize.height) / 2;
+    final origin = Offset(left, top) + _worldOffset + _clampedCameraOffset;
+    final imagePath = _playmatImagePath;
+    return Positioned(
+      left: origin.dx,
+      top: origin.dy,
+      width: _centerMarkerSize.width,
+      height: _centerMarkerSize.height,
+      child: IgnorePointer(
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            if (imagePath != null)
+              ClipRRect(
+                borderRadius: BorderRadius.circular(_centerMarkerRadius),
+                child: Opacity(
+                  opacity: 0.5,
+                  child: Image.file(File(imagePath), fit: BoxFit.cover),
+                ),
+              ),
+            DecoratedBox(
+              decoration: BoxDecoration(
+                border: Border.all(color: const Color(0xFF063D2A), width: 4),
+                borderRadius: BorderRadius.circular(_centerMarkerRadius),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   /// Canonical fraction -> world-pixel, in the same "canonical 0 = pixel 0"
   /// convention [_globalToTableLocal] returns -- i.e. [_toScreenPixel]
   /// without the centering/camera offset added for actually painting it on
@@ -433,6 +497,81 @@ class _TableScreenState extends State<TableScreen>
   void initState() {
     super.initState();
     HardwareKeyboard.instance.addHandler(_handleKeyEvent);
+    _maybeLoadPlaymat();
+  }
+
+  @override
+  void didUpdateWidget(covariant TableScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.gameFolderPath != widget.gameFolderPath) _maybeLoadPlaymat();
+  }
+
+  /// Every playmat image found in [widget.gameFolderPath]'s `_playmats`
+  /// subfolder, shuffled once when the folder is first scanned (see
+  /// [_maybeLoadPlaymat]) -- [_playmatIndex] then just walks this fixed
+  /// order as F12 is pressed (see [_cyclePlaymat]), rather than re-rolling
+  /// randomly each time, so cycling forward eventually visits every image
+  /// exactly once before wrapping back around. Purely local/visual --
+  /// deliberately never synced over the network (unlike table state), so
+  /// each player is free to cycle their own playmat independently.
+  List<String> _playmatImages = const [];
+
+  /// Index into [_playmatImages], or -1 for "no playmat" (just the plain
+  /// bordered rectangle) -- the initial state even once images are found, so
+  /// the table starts bare and F12 has to be pressed to bring the first
+  /// image in. [_cyclePlaymat] walks 0, 1, ..., length-1, -1, 0, ... so "no
+  /// playmat" is one stop in the cycle, not just a fallback for the empty
+  /// case.
+  int _playmatIndex = -1;
+  String? _playmatScannedFolderPath;
+
+  /// The playmat currently shown by [_buildCenterMarker] -- null (falling
+  /// back to a plain bordered rectangle) if [widget.gameFolderPath] has no
+  /// `_playmats` subfolder, none with any image in it, or [_playmatIndex] is
+  /// currently on the "no playmat" stop of the cycle.
+  String? get _playmatImagePath =>
+      _playmatIndex < 0 ? null : _playmatImages[_playmatIndex];
+
+  static const _playmatExtensions = {'.png', '.jpg', '.jpeg', '.webp'};
+
+  static String _extensionOf(String path) {
+    final dot = path.lastIndexOf('.');
+    return dot == -1 ? '' : path.substring(dot).toLowerCase();
+  }
+
+  Future<void> _maybeLoadPlaymat() async {
+    final folderPath = widget.gameFolderPath;
+    if (folderPath == null || folderPath == _playmatScannedFolderPath) return;
+    _playmatScannedFolderPath = folderPath;
+    final playmatsDir = Directory(
+      '$folderPath${Platform.pathSeparator}_playmats',
+    );
+    List<FileSystemEntity> entries;
+    try {
+      entries = await playmatsDir.list().toList();
+    } catch (_) {
+      return;
+    }
+    final images = [
+      for (final e in entries)
+        if (e is File && _playmatExtensions.contains(_extensionOf(e.path)))
+          e.path,
+    ];
+    if (images.isEmpty || !mounted) return;
+    images.shuffle();
+    setState(() => _playmatImages = images);
+  }
+
+  /// Advances [_playmatIndex] to the next stop in the cycle: image 0, 1, ...,
+  /// length-1, then -1 ("no playmat") before wrapping back to image 0 -- a
+  /// no-op with no images at all, since there's nothing to cycle to.
+  void _cyclePlaymat() {
+    if (_playmatImages.isEmpty) return;
+    setState(() {
+      _playmatIndex = _playmatIndex + 1 >= _playmatImages.length
+          ? -1
+          : _playmatIndex + 1;
+    });
   }
 
   @override
@@ -492,6 +631,8 @@ class _TableScreenState extends State<TableScreen>
         setState(() => _bordersHidden = !_bordersHidden);
       } else if (event.logicalKey == LogicalKeyboardKey.f2) {
         setState(() => _colorTintEnabled = !_colorTintEnabled);
+      } else if (event.logicalKey == LogicalKeyboardKey.f12) {
+        _cyclePlaymat();
       }
     }
     return false;
@@ -2296,6 +2437,11 @@ class _TableScreenState extends State<TableScreen>
                                         key: _tableKey,
                                         clipBehavior: Clip.none,
                                         children: [
+                                          // Purely a visual landmark marking the table's fixed
+                                          // center -- painted first (and IgnorePointer-wrapped)
+                                          // so it always sits beneath every card/zone/widget and
+                                          // never intercepts a click or drag meant for them.
+                                          _buildCenterMarker(),
                                           for (final group in sortedPileEntries)
                                             Builder(
                                               key: ValueKey(group.key),

@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 
+import '../data/directory_picker.dart';
 import '../data/game_definition_file_ops.dart';
 import '../data/games_directory_settings.dart';
 import '../models/game_definition.dart';
@@ -59,7 +60,7 @@ String? _validateGameId(String id) {
 /// prompts, regardless of any existing saved value -- used by "Change
 /// Folder...".
 Future<String?> _pickAndSaveLibraryRoot() async {
-  final chosen = await getDirectoryPath();
+  final chosen = await pickDirectoryPath();
   if (chosen == null) return null;
   await GamesDirectorySettings().setPath(chosen);
   return chosen;

@@ -281,6 +281,7 @@ class _ClientGameScreenState extends State<ClientGameScreen> {
         isMirrored: _isMirrored,
         zones: _game?.zones ?? const [],
         cardBackImagePath: _game?.cardBackImagePath,
+        gameFolderPath: _game?.folderPath,
         localPlayerAvatarPath: _localAvatarPath,
         avatarBytesByPlayerId: _avatarsByPlayerId,
       ),

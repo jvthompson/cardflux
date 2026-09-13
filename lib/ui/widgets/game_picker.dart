@@ -1,6 +1,6 @@
-import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 
+import '../../data/directory_picker.dart';
 import '../../data/game_loader.dart';
 import '../../data/games_directory_settings.dart';
 import '../../models/game_definition.dart';
@@ -78,7 +78,7 @@ class _GamePickerState extends State<GamePicker> {
   }
 
   Future<void> _chooseDirectory() async {
-    final path = await getDirectoryPath();
+    final path = await pickDirectoryPath();
     if (path == null || !mounted) return;
     await _settings.setPath(path);
     if (!mounted) return;

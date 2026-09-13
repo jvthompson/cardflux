@@ -15,11 +15,23 @@ class GameDefinition {
     this.zones = const [],
     this.tagGroups = const [],
     this.sets = const [],
+    this.folderPath,
   });
 
   final String id;
   final String name;
   final List<CardDefinition> cards;
+
+  /// This machine's own on-disk folder for this game (e.g.
+  /// `game_library/lorcana`), set by `GameLoader` when loading from a games
+  /// directory -- null for the bundled standard-52 asset (which lives in the
+  /// app bundle, not a real folder a player could drop extra content into).
+  /// Purely local, like `CardDefinition.imagePath`/[cardBackImagePath]
+  /// themselves: never round-tripped through [fromJson]/[toJson], since a
+  /// path on the host's disk means nothing on a client's -- see
+  /// `mergeLocalImagePaths`, which re-populates it from the client's own
+  /// local copy of the game instead of trusting whatever the host sent.
+  final String? folderPath;
 
   /// This game's declared tag taxonomy, grouped into independently-named
   /// [TagGroup]s (e.g. "Card Type", "Mana Color") -- see

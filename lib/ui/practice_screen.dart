@@ -25,6 +25,7 @@ class _PracticeScreenState extends State<PracticeScreen> {
   GameSession? _session;
   Map<String, CardDefinition> _definitionsById = {};
   String? _cardBackImagePath;
+  String? _gameFolderPath;
   List<ZoneDefinition> _zones = const [];
 
   @override
@@ -40,6 +41,7 @@ class _PracticeScreenState extends State<PracticeScreen> {
       _session = GameSession.localSandbox(game: game, localPlayerId: _localPlayerId);
       _definitionsById = {for (final c in game.cards) c.id: c};
       _cardBackImagePath = game.cardBackImagePath;
+      _gameFolderPath = game.folderPath;
       _zones = game.zones;
     });
   }
@@ -58,6 +60,7 @@ class _PracticeScreenState extends State<PracticeScreen> {
         isMirrored: false,
         zones: _zones,
         cardBackImagePath: _cardBackImagePath,
+        gameFolderPath: _gameFolderPath,
       ),
     );
   }

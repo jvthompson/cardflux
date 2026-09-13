@@ -14,9 +14,10 @@ import 'game_select_screen.dart';
 const _uuid = Uuid();
 
 /// Binds a [HostServer] for [maxPlayers] total players, shows the host's LAN
-/// IP address(es) and port for the other player(s) to join, and once the
-/// full roster (this host plus `maxPlayers - 1` clients) is connected,
-/// navigates to [GameSelectScreen] to actually start the match.
+/// IP address(es) plus their public IP (for players joining over the
+/// internet) and port for the other player(s) to join, and once the full
+/// roster (this host plus `maxPlayers - 1` clients) is connected, navigates
+/// to [GameSelectScreen] to actually start the match.
 class HostSetupScreen extends StatefulWidget {
   const HostSetupScreen({
     super.key,
@@ -41,6 +42,8 @@ class _HostSetupScreenState extends State<HostSetupScreen> {
   List<String> _addresses = [];
   int? _port;
   String? _startError;
+  String? _publicIP;
+  bool _publicIPLoading = true;
   StreamSubscription<List<PlayerInfo>>? _rosterSub;
   bool _navigated = false;
 
@@ -48,6 +51,16 @@ class _HostSetupScreenState extends State<HostSetupScreen> {
   void initState() {
     super.initState();
     _start();
+    _loadPublicIP();
+  }
+
+  Future<void> _loadPublicIP() async {
+    final ip = await fetchPublicIPv4();
+    if (!mounted) return;
+    setState(() {
+      _publicIP = ip;
+      _publicIPLoading = false;
+    });
   }
 
   Future<void> _start() async {
@@ -132,13 +145,28 @@ class _HostSetupScreenState extends State<HostSetupScreen> {
                             mainAxisSize: MainAxisSize.min,
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
-                              const Text('Share this with the other player(s):', style: TextStyle(fontWeight: FontWeight.bold)),
+                              const Text('Same network (LAN):', style: TextStyle(fontWeight: FontWeight.bold)),
                               const SizedBox(height: 8),
                               if (_addresses.isEmpty)
                                 const Text('No network interfaces found -- try 127.0.0.1 for same-machine testing.')
                               else
                                 for (final addr in _addresses)
                                   SelectableText('$addr : $_port', style: const TextStyle(fontSize: 16)),
+                              const SizedBox(height: 16),
+                              const Text('Over the internet:', style: TextStyle(fontWeight: FontWeight.bold)),
+                              const SizedBox(height: 8),
+                              if (_publicIPLoading)
+                                const Text('Looking up public IP...')
+                              else if (_publicIP == null)
+                                const Text("Couldn't determine your public IP -- check your internet connection.")
+                              else ...[
+                                SelectableText('$_publicIP : $_port', style: const TextStyle(fontSize: 16)),
+                                const SizedBox(height: 4),
+                                const Text(
+                                  "Requires port-forwarding this port to this PC on your router.",
+                                  style: TextStyle(fontSize: 12, color: Colors.grey),
+                                ),
+                              ],
                               const SizedBox(height: 24),
                               const Text('Players:', style: TextStyle(fontWeight: FontWeight.bold)),
                               const SizedBox(height: 8),

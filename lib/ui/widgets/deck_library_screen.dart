@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 
 import '../../data/deck_library_loader.dart';
 import '../../data/decks_directory_settings.dart';
+import '../../data/directory_picker.dart';
 import '../../models/deck_config.dart';
 import '../../models/game_definition.dart';
 import '../../models/zone_definition.dart';
@@ -92,7 +93,7 @@ class _DeckLibraryScreenState extends State<DeckLibraryScreen> {
   }
 
   Future<void> _chooseDirectory() async {
-    final path = await getDirectoryPath();
+    final path = await pickDirectoryPath();
     if (path == null || !mounted) return;
     await _settings.setPath(path);
     if (!mounted) return;
