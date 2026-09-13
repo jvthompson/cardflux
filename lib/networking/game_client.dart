@@ -31,12 +31,30 @@ class GameClient {
   ClientConnectionStatus status = ClientConnectionStatus.connecting;
   String? errorMessage;
 
+  /// Set from `welcome`'s own `reconnected` field: true when the host
+  /// recognized [connect]'s `rejoinPlayerId` as a currently-disconnected
+  /// seat in a game already in progress and handed it back, rather than
+  /// minting a brand-new id. Purely informational -- `JoinScreen` may use
+  /// it to show "Reconnected!" instead of "Connected!", but nothing about
+  /// resuming the match depends on this flag itself.
+  bool reconnected = false;
+
+  /// Set from an incoming [NetMessageType.disconnect]'s `'reason'` payload
+  /// field, right before the socket actually closes -- `'kicked'` (the host
+  /// removed this player) or `'hostLeft'` (the host ended the whole
+  /// session). Null for any other disconnect (a genuine network drop, a
+  /// heartbeat timeout, the host's process crashing), in which case the
+  /// generic "Disconnected from host." message still applies. See
+  /// `ClientGameScreen._returnHome`.
+  String? disconnectReason;
+
   Future<void> connect(
     String host,
     int port,
     String localName,
     int localColor, {
     Uint8List? localAvatarBytes,
+    String? rejoinPlayerId,
   }) async {
     status = ClientConnectionStatus.connecting;
     try {
@@ -61,8 +79,14 @@ class GameClient {
           opponentName = msg.payload['hostName'] as String?;
           assignedPlayerId = msg.payload['playerId'] as String?;
           assignedColor = msg.payload['assignedColor'] as int?;
+          reconnected = msg.payload['reconnected'] as bool? ?? false;
           status = ClientConnectionStatus.connected;
           _statusController.add(status);
+          return;
+        }
+        if (msg.type == NetMessageType.disconnect) {
+          disconnectReason = msg.payload['reason'] as String?;
+          return;
         }
         _incomingController.add(msg);
       },
@@ -74,6 +98,7 @@ class GameClient {
       'name': localName,
       'color': localColor,
       if (localAvatarBytes != null) 'avatar': base64Encode(localAvatarBytes),
+      'rejoinPlayerId': ?rejoinPlayerId,
     }));
   }
 

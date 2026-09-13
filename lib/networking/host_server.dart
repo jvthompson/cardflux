@@ -68,6 +68,18 @@ class HostServer {
   /// no `AssignSeatsScreen` step at all).
   List<String>? _seatOrder;
 
+  /// Set by `HostGameEngine` once a game has been dealt: given a candidate
+  /// id a connecting client's `hello` presents as `rejoinPlayerId`, returns
+  /// true if it's a real, currently-disconnected seat in the live
+  /// `GameSession` that this new socket should be allowed to reclaim
+  /// instead of being minted a brand-new id -- see [_handleClient]. Left
+  /// null before a game exists (nothing to reclaim yet) or after the
+  /// session ends, in which case a rejoin request always falls back to a
+  /// fresh id, exactly like any other new connection. Deliberately typed
+  /// with no `GameSession`/game-model dependency -- this class stays a pure
+  /// networking layer.
+  bool Function(String candidateId)? reclaimableIdCheck;
+
   /// Reorders [roster] by [orderedPlayerIds] (every currently-connected
   /// player's id, in the desired seat order) -- every downstream reader of
   /// [roster] (`GameSelectScreen`, `HostLoadDeckScreen`,
@@ -147,7 +159,9 @@ class HostServer {
           }
           final name = msg.payload['name'] as String? ?? 'Player';
           final color = _resolveColor(msg.payload['color'] as int?);
-          final newId = _uuid.v4();
+          final rejoinId = msg.payload['rejoinPlayerId'] as String?;
+          final reclaimed = rejoinId != null && (reclaimableIdCheck?.call(rejoinId) ?? false);
+          final newId = reclaimed ? rejoinId : _uuid.v4();
           playerId = newId;
           final avatarB64 = msg.payload['avatar'] as String?;
           if (avatarB64 != null) {
@@ -165,7 +179,12 @@ class HostServer {
             newId,
             NetMessage(
               type: NetMessageType.welcome,
-              payload: {'hostName': hostPlayer.name, 'playerId': newId, 'assignedColor': color},
+              payload: {
+                'hostName': hostPlayer.name,
+                'playerId': newId,
+                'assignedColor': color,
+                'reconnected': reclaimed,
+              },
             ),
           );
           _broadcastRoster();
@@ -209,6 +228,26 @@ class HostServer {
     if (client == null) return;
     client.heartbeatTimer?.cancel();
     _broadcastRoster();
+  }
+
+  /// Forcibly disconnects [playerId] -- e.g. the host removing a disruptive
+  /// player via the in-game menu. Silently does nothing if that id isn't
+  /// currently connected. Sends a [NetMessageType.disconnect] with a
+  /// `'kicked'` reason first so that client can show a specific message
+  /// (see `GameClient.disconnectReason`) instead of a generic dropped-
+  /// connection one, then destroys the socket -- the normal `onDone`
+  /// disconnect path (`_handleClientDisconnect`) takes it from there,
+  /// exactly like a heartbeat-timeout forced close already does.
+  void kick(String playerId) {
+    if (!_clients.containsKey(playerId)) return;
+    sendTo(
+      playerId,
+      const NetMessage(
+        type: NetMessageType.disconnect,
+        payload: {'reason': 'kicked'},
+      ),
+    );
+    _clients[playerId]?.socket.destroy();
   }
 
   void _broadcastRoster() {

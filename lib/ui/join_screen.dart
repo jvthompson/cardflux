@@ -4,13 +4,18 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 
+import '../data/reconnect_settings.dart';
 import '../networking/game_client.dart';
 import '../networking/net_message.dart';
 import 'client_game_screen.dart';
 
 /// Lets the joining player enter the host's IP address and port, connects a
 /// [GameClient], and once connected navigates to [ClientGameScreen] to
-/// actually start the match.
+/// actually start the match. If this same host:port previously handed us a
+/// player id (see [ReconnectSettings]), offers it back as a rejoin request
+/// -- if the host still recognizes it as a disconnected seat in a game
+/// already in progress, [ClientGameScreen] resumes straight into that same
+/// seat/hand once its `fullState` arrives, skipping deck-loading entirely.
 class JoinScreen extends StatefulWidget {
   const JoinScreen({
     super.key,
@@ -52,9 +57,10 @@ class _JoinScreenState extends State<JoinScreen> {
     final typed = _ipController.text.trim();
     final host = typed.isEmpty ? '127.0.0.1' : typed;
     final port = int.tryParse(_portController.text.trim()) ?? defaultGamePort;
+    final hostKey = '$host:$port';
     setState(() => _connecting = true);
     _navSub = _client.statusStream.listen((status) {
-      if (status == ClientConnectionStatus.connected) _navigateToGame();
+      if (status == ClientConnectionStatus.connected) _navigateToGame(hostKey);
     });
     Uint8List? avatarBytes;
     final avatarPath = widget.localAvatarPath;
@@ -65,21 +71,28 @@ class _JoinScreenState extends State<JoinScreen> {
         // No avatar available -- this client just shows the color fallback.
       }
     }
+    // If we were last given an id for this exact host:port, offer it back --
+    // the host only honors it if it's a currently-disconnected seat in a
+    // game already in progress; otherwise this is silently ignored and we
+    // get a fresh id like any other new join.
+    final rejoinPlayerId = await ReconnectSettings().getPlayerIdFor(hostKey);
     await _client.connect(
       host,
       port,
       widget.localPlayerName,
       widget.localPlayerColor,
       localAvatarBytes: avatarBytes,
+      rejoinPlayerId: rejoinPlayerId,
     );
     if (mounted) setState(() {});
   }
 
-  void _navigateToGame() {
+  void _navigateToGame(String hostKey) {
     if (_navigated || !mounted) return;
     final playerId = _client.assignedPlayerId;
     if (playerId == null) return;
     _navigated = true;
+    unawaited(ReconnectSettings().save(hostKey: hostKey, playerId: playerId));
     Navigator.of(context).pushReplacement(MaterialPageRoute(
       builder: (_) => ClientGameScreen(gameClient: _client, localPlayerId: playerId),
     ));
@@ -137,7 +150,9 @@ class _JoinScreenState extends State<JoinScreen> {
                             ],
                           ClientConnectionStatus.connected => [
                               Text(
-                                'Connected to ${_client.opponentName ?? "host"}!',
+                                _client.reconnected
+                                    ? 'Reconnected to ${_client.opponentName ?? "host"}!'
+                                    : 'Connected to ${_client.opponentName ?? "host"}!',
                                 style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold),
                               ),
                             ],

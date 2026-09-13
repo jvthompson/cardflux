@@ -65,7 +65,12 @@ class _ClientGameScreenState extends State<ClientGameScreen> {
     super.initState();
     _sub = widget.gameClient.incoming.listen(_handleMessage);
     _statusSub = widget.gameClient.statusStream.listen((status) {
-      if (status == ClientConnectionStatus.disconnected) _returnHome();
+      if (status != ClientConnectionStatus.disconnected) return;
+      _returnHome(switch (widget.gameClient.disconnectReason) {
+        'kicked' => 'You were removed from the game by the host.',
+        'hostLeft' => 'The host ended the game.',
+        _ => 'Disconnected from host.',
+      });
     });
     PlayerProfileSettings().getAvatarPath().then((path) {
       if (!mounted) return;
@@ -73,16 +78,14 @@ class _ClientGameScreenState extends State<ClientGameScreen> {
     });
   }
 
-  void _returnHome() {
+  void _returnHome([String message = 'Disconnected from host.']) {
     if (_navigatedHome || !mounted) return;
     _navigatedHome = true;
     // This connection is over either way -- release the socket so a fresh
     // "Join Game" attempt from HomeScreen can open a new one.
     widget.gameClient.disconnect();
     Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(
-        builder: (_) => const HomeScreen(message: 'Disconnected from host.'),
-      ),
+      MaterialPageRoute(builder: (_) => HomeScreen(message: message)),
       (route) => false,
     );
   }
@@ -284,6 +287,10 @@ class _ClientGameScreenState extends State<ClientGameScreen> {
         gameFolderPath: _game?.folderPath,
         localPlayerAvatarPath: _localAvatarPath,
         avatarBytesByPlayerId: _avatarsByPlayerId,
+        onLeaveGame: () => _returnHome('You left the game.'),
+        leaveButtonLabel: 'Leave Game',
+        leaveConfirmationMessage: 'Leave the game? If the host is still '
+            'hosting, you can rejoin in the same seat later.',
       ),
     );
   }

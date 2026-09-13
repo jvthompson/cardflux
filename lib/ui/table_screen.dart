@@ -28,6 +28,7 @@ import 'widgets/card_face_widget.dart';
 import 'widgets/color_swatch_row.dart';
 import 'widgets/counter_widget.dart';
 import 'widgets/draggable_card.dart';
+import 'widgets/game_menu_overlay.dart';
 import 'widgets/hand_zone_widget.dart';
 import 'widgets/opponent_hand_zone_widget.dart';
 import 'widgets/opponent_zone_stack_widget.dart';
@@ -84,10 +85,14 @@ class TableScreen extends StatefulWidget {
     required this.controller,
     required this.isMirrored,
     required this.zones,
+    required this.onLeaveGame,
+    required this.leaveButtonLabel,
+    required this.leaveConfirmationMessage,
     this.cardBackImagePath,
     this.localPlayerAvatarPath,
     this.avatarBytesByPlayerId = const {},
     this.gameFolderPath,
+    this.onKickPlayer,
   });
 
   final Map<String, CardDefinition> definitionsById;
@@ -120,6 +125,29 @@ class TableScreen extends StatefulWidget {
   /// `HostGameScreen`/`ClientGameScreen`. The local player's own avatar is
   /// always rendered from [localPlayerAvatarPath] instead.
   final Map<String, Uint8List> avatarBytesByPlayerId;
+
+  /// The Escape-triggered Game Menu's "Leave"/"End Game" action, supplied
+  /// by `HostGameScreen`/`ClientGameScreen` -- they own the actual
+  /// `HostServer`/`GameClient` teardown and the `Navigator` back to
+  /// `HomeScreen`, so this screen never touches either directly. See
+  /// `_TableScreenState._handleKeyEvent`/[GameMenuOverlay].
+  final VoidCallback onLeaveGame;
+
+  /// The [GameMenuOverlay]'s leave/end-game button label and confirmation
+  /// dialog copy -- caller-supplied (rather than inferred from
+  /// [onKickPlayer]) since there are three distinct contexts: the
+  /// networked host (leaving ends the whole session for everyone), a
+  /// networked client (leaving just themselves, can rejoin later), and
+  /// solo practice (no networking at all, neither of the other two framings
+  /// fits).
+  final String leaveButtonLabel;
+  final String leaveConfirmationMessage;
+
+  /// Non-null only for the host's own `TableScreen` instance -- its
+  /// presence is what tells [GameMenuOverlay] to show the "Kick a Player"
+  /// section at all (a client has no such capability, so this stays null
+  /// there). Forcibly disconnects the given player id.
+  final void Function(String playerId)? onKickPlayer;
 
   @override
   State<TableScreen> createState() => _TableScreenState();
@@ -213,6 +241,13 @@ class _TableScreenState extends State<TableScreen>
   /// instead of moving whatever's underneath the cursor. Same simple-boolean
   /// pattern as [_spacePressed].
   bool _tabPressed = false;
+
+  /// Whether the Escape-triggered [GameMenuOverlay] is open -- while true,
+  /// every other keyboard shortcut is suppressed (see [_handleKeyEvent]);
+  /// mouse interaction with the table is already blocked the same way the
+  /// Search overlay's is, just by the menu's own scrim sitting on top of it
+  /// in [build]'s `Stack`.
+  bool _gameMenuOpen = false;
 
   /// Toggled by F1 -- while true, [ownerBorderColor]-driven card borders are
   /// hidden table-wide (they can get visually busy with 3-4 players' colors
@@ -615,6 +650,20 @@ class _TableScreenState extends State<TableScreen>
   };
 
   bool _handleKeyEvent(KeyEvent event) {
+    if (event.logicalKey == LogicalKeyboardKey.escape) {
+      if (event is KeyDownEvent) _toggleGameMenu();
+      return false;
+    }
+    if (_gameMenuOpen) {
+      // Swallow everything else while the menu is open -- both a fresh
+      // KeyDownEvent (so Q/E/X/F/digit-draw/F1/F2/F12 can't fire on
+      // whatever's still hovered underneath) and any KeyRepeatEvent (so a
+      // key that was already held before the menu opened doesn't keep
+      // acting, e.g. an in-progress WASD pan). [_toggleGameMenu] already
+      // clears every held-key flag the moment the menu opens, so there's
+      // nothing left to clean up here.
+      return false;
+    }
     if (event.logicalKey == LogicalKeyboardKey.space) {
       final pressed = event is! KeyUpEvent;
       if (pressed != _spacePressed) setState(() => _spacePressed = pressed);
@@ -663,6 +712,27 @@ class _TableScreenState extends State<TableScreen>
       }
     }
     return false;
+  }
+
+  /// Opens/closes the Game Menu. Opening it clears every currently-held
+  /// key/drag flag first (WASD panning, Space preview, TAB's arrow-drag
+  /// tool) rather than just gating future key events -- otherwise a key
+  /// already held down when Escape is pressed (e.g. panning with W) would
+  /// keep acting the whole time the menu is open, since a `Ticker`-driven
+  /// effect like camera panning doesn't need further key events to
+  /// continue once started.
+  void _toggleGameMenu() {
+    setState(() {
+      _gameMenuOpen = !_gameMenuOpen;
+      if (_gameMenuOpen) {
+        for (final key in _movementKeys) {
+          _setMovementKeyPressed(key, false);
+        }
+        _spacePressed = false;
+        _tabPressed = false;
+        _arrowDrag.value = null;
+      }
+    });
   }
 
   /// The hovered card, if it exists, sits on the table, and belongs to the
@@ -1776,6 +1846,26 @@ class _TableScreenState extends State<TableScreen>
     }
   }
 
+  /// The Escape-triggered Game Menu overlay (see [_toggleGameMenu]), built
+  /// fresh from the current roster every time so a kicked/reconnected
+  /// player's row appears/disappears live while the menu stays open, with
+  /// no state of its own to keep in sync.
+  Widget? _buildGameMenuOverlay(GameSession session) {
+    if (!_gameMenuOpen) return null;
+    return GameMenuOverlay(
+      onClose: _toggleGameMenu,
+      onLeaveGame: widget.onLeaveGame,
+      leaveButtonLabel: widget.leaveButtonLabel,
+      leaveConfirmationMessage: widget.leaveConfirmationMessage,
+      kickablePlayers: widget.onKickPlayer == null
+          ? const []
+          : session.state.players
+                .where((p) => p.role != PlayerRole.host && p.connected)
+                .toList(),
+      onKickPlayer: widget.onKickPlayer,
+    );
+  }
+
   /// The local player's own Search window, if [session] has an
   /// [ActiveSearch] recorded for them in [state.searches] -- null otherwise
   /// (every other client only ever sees the eyeball badge, wired at each
@@ -2493,6 +2583,7 @@ class _TableScreenState extends State<TableScreen>
                     pickupCandidates,
                     localHand,
                   );
+                  final gameMenuOverlay = _buildGameMenuOverlay(session);
                   return MouseRegion(
                     onHover: (event) => _lastMousePos = event.position,
                     child: Stack(
@@ -3241,6 +3332,9 @@ class _TableScreenState extends State<TableScreen>
                             screenSize,
                             _hoveredForceFaceUp,
                           ),
+                        // Topmost of all -- Escape should always bring up the
+                        // Game Menu above whatever else is on screen.
+                        ?gameMenuOverlay,
                       ],
                     ),
                   );

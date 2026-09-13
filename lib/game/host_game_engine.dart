@@ -30,12 +30,45 @@ class HostGameEngine {
   StreamSubscription<List<PlayerInfo>>? _rosterSub;
   int _lastBroadcastRevision = -1;
 
+  /// Every non-host id [_rosterSub] has already seen connected at least
+  /// once, so a freshly-appearing one (a brand-new joiner, or a reconnected
+  /// player's new socket) can be told apart from one that was already live
+  /// last time around -- see [start]'s doc on why that new arrival needs
+  /// its own [NetMessageType.gameData] resend.
+  Set<String> _previouslyConnectedIds = {};
+
   void start() {
     session.addListener(_broadcast);
     _incomingSub = hostServer.incoming.listen(_handleMessage);
-    _rosterSub = hostServer.rosterStream.listen(
-      (roster) => session.syncConnectedPlayerIds({for (final p in roster) if (p.role != PlayerRole.host) p.id}),
-    );
+    // Lets a reconnecting client's `hello` reclaim its old id instead of
+    // being minted a new one -- only a currently-disconnected seat in the
+    // already-dealt session qualifies (see `HostServer.reclaimableIdCheck`'s
+    // own doc).
+    hostServer.reclaimableIdCheck = (id) =>
+        session.state.players.any((p) => p.id == id && !p.connected);
+    _rosterSub = hostServer.rosterStream.listen((roster) {
+      final connectedIds = {
+        for (final p in roster)
+          if (p.role != PlayerRole.host) p.id,
+      };
+      // A client that's newly connected (first-time joiner, or a
+      // reconnecting player's new socket) missed the one-time `gameData`
+      // broadcast(s) sent before it ever connected -- resend it directly,
+      // and do so *before* `syncConnectedPlayerIds` below bumps the
+      // revision and triggers `_broadcast`'s `fullState` send: a `fullState`
+      // arriving at a client before its `gameData` is silently dropped
+      // (`ClientGameScreen._handleMessage`), with nothing else to prompt a
+      // resend, so ordering here matters. Both writes go out on the same
+      // socket via `HostServer.sendTo`, so TCP preserves that order.
+      for (final id in connectedIds.difference(_previouslyConnectedIds)) {
+        hostServer.sendTo(
+          id,
+          NetMessage(type: NetMessageType.gameData, payload: session.game.toJson()),
+        );
+      }
+      _previouslyConnectedIds = connectedIds;
+      session.syncConnectedPlayerIds(connectedIds);
+    });
     _broadcast();
   }
 
@@ -43,6 +76,7 @@ class HostGameEngine {
     session.removeListener(_broadcast);
     _incomingSub?.cancel();
     _rosterSub?.cancel();
+    hostServer.reclaimableIdCheck = null;
   }
 
   void _broadcast() {

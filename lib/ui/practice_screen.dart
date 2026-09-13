@@ -6,6 +6,7 @@ import '../game/game_session.dart';
 import '../game/table_controller.dart';
 import '../models/card_definition.dart';
 import '../models/zone_definition.dart';
+import 'home_screen.dart';
 import 'table_screen.dart';
 
 const String _localPlayerId = 'local';
@@ -46,6 +47,13 @@ class _PracticeScreenState extends State<PracticeScreen> {
     });
   }
 
+  void _leaveGame() {
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const HomeScreen()),
+      (route) => false,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final session = _session;
@@ -61,6 +69,9 @@ class _PracticeScreenState extends State<PracticeScreen> {
         zones: _zones,
         cardBackImagePath: _cardBackImagePath,
         gameFolderPath: _gameFolderPath,
+        onLeaveGame: _leaveGame,
+        leaveButtonLabel: 'Leave Game',
+        leaveConfirmationMessage: 'Leave this practice game and return to the home screen?',
       ),
     );
   }

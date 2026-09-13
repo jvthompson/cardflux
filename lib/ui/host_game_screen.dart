@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -11,7 +9,6 @@ import '../game/table_controller.dart';
 import '../models/card_definition.dart';
 import '../models/deck_config.dart';
 import '../models/game_definition.dart';
-import '../models/player.dart';
 import '../networking/host_server.dart';
 import '../networking/net_message.dart';
 import 'home_screen.dart';
@@ -58,8 +55,6 @@ class _HostGameScreenState extends State<HostGameScreen> {
   GameSession? _session;
   HostGameEngine? _engine;
   Map<String, CardDefinition> _definitionsById = {};
-  StreamSubscription<List<PlayerInfo>>? _rosterSub;
-  bool _navigatedHome = false;
   String? _localAvatarPath;
 
   @override
@@ -86,14 +81,11 @@ class _HostGameScreenState extends State<HostGameScreen> {
     );
     final engine = HostGameEngine(session: session, hostServer: widget.hostServer, hostPlayerId: widget.hostPlayerId);
     engine.start();
-    // A 2-player match keeps today's exact behavior: the sole client
-    // disconnecting ends the session for the host too. A 3-4 player match
-    // never bounces the host home -- the remaining players keep playing
-    // (HostGameEngine's own roster subscription flags the departed seat's
-    // `PlayerInfo.connected` for the UI instead).
-    _rosterSub = widget.hostServer.rosterStream.listen((roster) {
-      if (widget.hostServer.maxPlayers == 2 && roster.length < 2) _returnHome();
-    });
+    // No player count auto-ends the session on disconnect, for any match
+    // size: a departed seat just dims (`PlayerInfo.connected`, synced by
+    // HostGameEngine's own roster subscription) while everyone else keeps
+    // playing, and the departed player can rejoin later (same seat, same
+    // hand) via `HostServer.reclaimableIdCheck` -- see JoinScreen.
     setState(() {
       _session = session;
       _engine = engine;
@@ -101,24 +93,29 @@ class _HostGameScreenState extends State<HostGameScreen> {
     });
   }
 
-  void _returnHome() {
-    if (_navigatedHome || !mounted) return;
-    _navigatedHome = true;
-    // This hosting session is over either way -- release the port so a
-    // fresh "Host Game" attempt from HomeScreen can rebind it.
-    widget.hostServer.stop();
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => const HomeScreen(message: 'Opponent disconnected.')),
-      (route) => false,
-    );
-  }
-
   @override
   void dispose() {
-    _rosterSub?.cancel();
     _engine?.dispose();
-    if (!_navigatedHome) widget.hostServer.stop();
+    widget.hostServer.stop();
     super.dispose();
+  }
+
+  /// The Game Menu's "End Game" action: tells every connected client why
+  /// (so they show a specific message instead of a generic dropped-
+  /// connection one -- see `GameClient.disconnectReason`) before navigating
+  /// home, which triggers this screen's own [dispose] to actually tear down
+  /// the engine/server.
+  void _leaveGame() {
+    widget.hostServer.broadcast(
+      const NetMessage(
+        type: NetMessageType.disconnect,
+        payload: {'reason': 'hostLeft'},
+      ),
+    );
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const HomeScreen(message: 'You ended the game.')),
+      (route) => false,
+    );
   }
 
   @override
@@ -145,6 +142,12 @@ class _HostGameScreenState extends State<HostGameScreen> {
         gameFolderPath: widget.game.folderPath,
         localPlayerAvatarPath: _localAvatarPath,
         avatarBytesByPlayerId: widget.hostServer.avatarsByPlayerId,
+        onLeaveGame: _leaveGame,
+        leaveButtonLabel: 'End Game',
+        leaveConfirmationMessage: 'End the game for everyone? Every connected '
+            'player will be disconnected -- you can start a new session any '
+            'time.',
+        onKickPlayer: widget.hostServer.kick,
       ),
     );
   }
