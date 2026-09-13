@@ -259,6 +259,45 @@ class _PileWidgetState extends State<PileWidget>
   }
 }
 
+/// An empty card-sized outline shown in place of a zone's pile when it
+/// currently holds no cards -- e.g. an unplayed discard pile, or a shared
+/// zone before anything's landed there. Sized/positioned identically to a
+/// real [PileWidget]/`ZoneStackWidget` top card, so a zone's reserved slot
+/// looks the same whether or not it's occupied yet. Shared by
+/// `ZoneStackWidget` (an owned zone's fixed panel slot) and `TableScreen`
+/// (an empty shared zone's canonical table position).
+class EmptyZoneBox extends StatelessWidget {
+  const EmptyZoneBox({super.key, this.isBeingSearched = false});
+
+  /// See [PileWidget.isBeingSearched]'s identical doc.
+  final bool isBeingSearched;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: cardWidth + pileWidgetExtra,
+      height: cardHeight + pileWidgetExtra,
+      child: Stack(
+        clipBehavior: Clip.none,
+        alignment: Alignment.center,
+        children: [
+          Center(
+            child: Container(
+              width: cardWidth,
+              height: cardHeight,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: Colors.white24, width: 1.5),
+              ),
+            ),
+          ),
+          if (isBeingSearched) const Positioned(top: -12, child: SearchBadge()),
+        ],
+      ),
+    );
+  }
+}
+
 /// A large eyeball badge marking a zone/pile as currently being searched --
 /// roughly twice the size of the Shuffle button's own circular badge (see
 /// [PileWidget]'s Shuffle `Positioned`/`Material`/`CircleBorder` recipe,

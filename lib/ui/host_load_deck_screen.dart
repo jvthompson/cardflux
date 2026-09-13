@@ -25,11 +25,23 @@ import 'widgets/deck_library_screen.dart';
 /// begins once every currently-expected player (the host plus every
 /// connected client -- see [HostServer.roster]) has pressed Ready.
 class HostLoadDeckScreen extends StatefulWidget {
-  const HostLoadDeckScreen({super.key, required this.hostServer, required this.hostPlayerId, required this.game});
+  const HostLoadDeckScreen({
+    super.key,
+    required this.hostServer,
+    required this.hostPlayerId,
+    required this.game,
+    this.sharedDeckConfigsByZoneId = const {},
+  });
 
   final HostServer hostServer;
   final String hostPlayerId;
   final GameDefinition game;
+
+  /// Every Shared Deck zone's [DeckConfig], resolved by `GameSelectScreen`
+  /// before reaching here -- threaded straight through to
+  /// [HostGameScreen]/`GameSession.dealFromZones`, since this screen only
+  /// deals with each player's own owned-zone deck choice.
+  final Map<String, DeckConfig> sharedDeckConfigsByZoneId;
 
   @override
   State<HostLoadDeckScreen> createState() => _HostLoadDeckScreenState();
@@ -120,6 +132,7 @@ class _HostLoadDeckScreenState extends State<HostLoadDeckScreen> {
         hostPlayerId: widget.hostPlayerId,
         game: widget.game,
         deckConfigsByPlayerId: _decksByPlayerId,
+        sharedDeckConfigsByZoneId: widget.sharedDeckConfigsByZoneId,
       ),
     ));
   }

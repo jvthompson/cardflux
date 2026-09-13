@@ -37,12 +37,18 @@ class HostGameScreen extends StatefulWidget {
     required this.hostPlayerId,
     required this.game,
     required this.deckConfigsByPlayerId,
+    this.sharedDeckConfigsByZoneId = const {},
   });
 
   final HostServer hostServer;
   final String hostPlayerId;
   final GameDefinition game;
   final Map<String, Map<String, DeckConfig>>? deckConfigsByPlayerId;
+
+  /// Every Shared Deck zone's [DeckConfig], resolved from its `deckName` by
+  /// `GameSelectScreen` before this screen was ever built -- passed straight
+  /// to `GameSession.dealFromZones`.
+  final Map<String, DeckConfig> sharedDeckConfigsByZoneId;
 
   @override
   State<HostGameScreen> createState() => _HostGameScreenState();
@@ -76,6 +82,7 @@ class _HostGameScreenState extends State<HostGameScreen> {
       players: players,
       localPlayerId: widget.hostPlayerId,
       deckConfigsByPlayerId: widget.deckConfigsByPlayerId,
+      sharedDeckConfigsByZoneId: widget.sharedDeckConfigsByZoneId,
     );
     final engine = HostGameEngine(session: session, hostServer: widget.hostServer, hostPlayerId: widget.hostPlayerId);
     engine.start();

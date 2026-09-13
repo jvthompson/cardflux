@@ -1,11 +1,14 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_deck/game/game_session.dart';
+import 'package:flutter_deck/game/geometry_utils.dart';
+import 'package:flutter_deck/game/shared_zone_layout.dart';
 import 'package:flutter_deck/models/board_widget_instance.dart';
 import 'package:flutter_deck/models/card_definition.dart';
 import 'package:flutter_deck/models/card_instance.dart';
 import 'package:flutter_deck/models/deck_config.dart';
 import 'package:flutter_deck/models/game_definition.dart';
 import 'package:flutter_deck/models/player.dart';
+import 'package:flutter_deck/models/standard_deck.dart';
 import 'package:flutter_deck/models/table_state.dart';
 import 'package:flutter_deck/models/zone_definition.dart';
 
@@ -396,6 +399,51 @@ void main() {
         },
       );
 
+      test(
+        'returnToZone snaps the first card into a previously-empty shared zone to its reserved position',
+        () {
+          const game = GameDefinition(
+            id: 'g1',
+            name: 'G',
+            cards: _cards,
+            zones: [
+              ZoneDefinition(id: 'main_deck', name: 'Main Deck', shared: true),
+              ZoneDefinition(
+                id: 'discard_pile',
+                name: 'Discard Pile',
+                shared: true,
+                isDiscardPile: true,
+              ),
+            ],
+          );
+          final session = GameSession(
+            game: game,
+            localPlayerId: 'p1',
+            initialState: TableState(
+              gameId: 'g1',
+              players: [_players[0]],
+              cards: [
+                CardInstance(
+                  instanceId: 'c1',
+                  definitionId: 'a',
+                  x: 0.1,
+                  y: 0.9,
+                  zIndex: 0,
+                  faceUp: true,
+                  zone: CardZone.table,
+                ),
+              ],
+              revision: 0,
+            ),
+          );
+          session.returnToZone('c1', 'discard_pile', zoneOwnerId: null);
+          final expected = sharedZonePositions(game.zones)['discard_pile']!;
+          final moved = session.state.cards.single;
+          expect(moved.x, expected.$1);
+          expect(moved.y, expected.$2);
+        },
+      );
+
       test('shuffleZone is a no-op when the zone is not shuffleable', () {
         const game = GameDefinition(
           id: 'g1',
@@ -449,6 +497,32 @@ void main() {
   );
 
   group('GameSession.dealFromZones -- shared zones', () {
+    test('a shared isDiscardPile zone with empty entries starts empty, not with a full deck', () {
+      const game = GameDefinition(
+        id: 'g1',
+        name: 'G',
+        cards: _cards,
+        zones: [
+          ZoneDefinition(id: 'deck', name: 'Deck', shared: true, standardDeck: true),
+          ZoneDefinition(
+            id: 'discard',
+            name: 'Discard Pile',
+            shared: true,
+            faceUp: true,
+            isDiscardPile: true,
+          ),
+        ],
+      );
+      final session = GameSession.dealFromZones(
+        game: game,
+        players: [_players[0]],
+        localPlayerId: 'p1',
+      );
+
+      expect(session.state.cards.where((c) => c.zoneId == 'deck'), hasLength(52));
+      expect(session.state.cards.where((c) => c.zoneId == 'discard'), isEmpty);
+    });
+
     test('empty entries default to one of every game card, unowned', () {
       const game = GameDefinition(
         id: 'g1',
@@ -472,10 +546,13 @@ void main() {
         expect(card.zoneId, 'deck');
         expect(card.faceUp, isFalse);
         expect(card.ownerId, isNull);
+        // A single shared zone with no offset lands dead center.
+        expect(card.x, 0.5);
+        expect(card.y, 0.5);
       }
     });
 
-    test('multiple shared zones land at different positions and stay independently grouped', () {
+    test('multiple shared zones form a centered row and stay independently grouped', () {
       const game = GameDefinition(
         id: 'g1',
         name: 'G',
@@ -509,8 +586,99 @@ void main() {
           .toList();
       expect(mainCards, hasLength(2));
       expect(fateCards, hasLength(3));
-      // Positioned differently so the two piles don't overlap on the table.
-      expect(mainCards.first.y, isNot(fateCards.first.y));
+      // Arranged side by side through the table's vertical center...
+      expect(mainCards.first.y, 0.5);
+      expect(fateCards.first.y, 0.5);
+      // ...at different x positions so the two piles don't overlap.
+      expect(mainCards.first.x, isNot(fateCards.first.x));
+    });
+
+    test('a zone with a nonzero offset is placed that many pixels from center and excluded from the row', () {
+      const game = GameDefinition(
+        id: 'g1',
+        name: 'G',
+        cards: _cards,
+        zones: [
+          ZoneDefinition(
+            id: 'main_deck',
+            name: 'Main Deck',
+            shared: true,
+            entries: [DeckEntry(definitionId: 'a', quantity: 1)],
+          ),
+          ZoneDefinition(
+            id: 'pinned_deck',
+            name: 'Pinned Deck',
+            shared: true,
+            entries: [DeckEntry(definitionId: 'b', quantity: 1)],
+            offsetX: 400,
+            offsetY: -200,
+          ),
+        ],
+      );
+      final session = GameSession.dealFromZones(
+        game: game,
+        players: [_players[0]],
+        localPlayerId: 'p1',
+      );
+
+      final mainCard = session.state.cards.firstWhere((c) => c.zoneId == 'main_deck');
+      final pinnedCard = session.state.cards.firstWhere((c) => c.zoneId == 'pinned_deck');
+      // The offset zone doesn't affect the sole remaining zone's auto layout.
+      expect(mainCard.x, 0.5);
+      expect(mainCard.y, 0.5);
+      expect(pinnedCard.x, closeTo(0.5 + 400 / kWorldSize.width, 1e-9));
+      expect(pinnedCard.y, closeTo(0.5 - 200 / kWorldSize.height, 1e-9));
+    });
+
+    test('standardDeck deals one of each generated standard playing card', () {
+      const game = GameDefinition(
+        id: 'g1',
+        name: 'G',
+        cards: _cards,
+        zones: [
+          ZoneDefinition(id: 'deck', name: 'Deck', shared: true, standardDeck: true),
+        ],
+      );
+      final session = GameSession.dealFromZones(
+        game: game,
+        players: [_players[0]],
+        localPlayerId: 'p1',
+      );
+      expect(session.state.cards, hasLength(52));
+      expect(
+        session.state.cards.map((c) => c.definitionId).toSet(),
+        buildStandardDeckCards().map((c) => c.id).toSet(),
+      );
+    });
+
+    test('deckName resolves against sharedDeckConfigsByZoneId, overriding static entries', () {
+      const game = GameDefinition(
+        id: 'g1',
+        name: 'G',
+        cards: _cards,
+        zones: [
+          ZoneDefinition(
+            id: 'deck',
+            name: 'Deck',
+            shared: true,
+            deckName: 'My Deck',
+            entries: [DeckEntry(definitionId: 'a', quantity: 1)],
+          ),
+        ],
+      );
+      final session = GameSession.dealFromZones(
+        game: game,
+        players: [_players[0]],
+        localPlayerId: 'p1',
+        sharedDeckConfigsByZoneId: {
+          'deck': const DeckConfig(
+            gameId: 'g1',
+            entries: [DeckEntry(definitionId: 'b', quantity: 4)],
+          ),
+        },
+      );
+      expect(session.state.cards, hasLength(4));
+      expect(session.state.cards.every((c) => c.definitionId == 'b'), isTrue);
     });
 
     test('skips entries referencing an unknown definitionId', () {

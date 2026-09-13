@@ -81,11 +81,23 @@ class _ZoneEditorCardState extends State<_ZoneEditorCard> {
   late final TextEditingController _nameController = TextEditingController(
     text: widget.zone.name,
   );
+  late final TextEditingController _deckNameController = TextEditingController(
+    text: widget.zone.deckName ?? '',
+  );
+  late final TextEditingController _offsetXController = TextEditingController(
+    text: widget.zone.offsetX == 0 ? '' : '${widget.zone.offsetX}',
+  );
+  late final TextEditingController _offsetYController = TextEditingController(
+    text: widget.zone.offsetY == 0 ? '' : '${widget.zone.offsetY}',
+  );
 
   @override
   void dispose() {
     _idController.dispose();
     _nameController.dispose();
+    _deckNameController.dispose();
+    _offsetXController.dispose();
+    _offsetYController.dispose();
     super.dispose();
   }
 
@@ -211,9 +223,99 @@ class _ZoneEditorCardState extends State<_ZoneEditorCard> {
                 ),
                 const SizedBox(height: 8),
                 Opacity(
-                  opacity: zone.dealsBuiltDeck ? 0.4 : 1,
+                  opacity: zone.shared ? 1 : 0.4,
                   child: IgnorePointer(
-                    ignoring: zone.dealsBuiltDeck,
+                    ignoring: !zone.shared,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        const Align(
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            'Shared Deck',
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                        SwitchListTile(
+                          contentPadding: EdgeInsets.zero,
+                          title: const Text('Standard 52-Card Deck'),
+                          subtitle: const Text(
+                            'Deal one of each traditional playing card automatically',
+                          ),
+                          value: zone.standardDeck,
+                          onChanged: (v) =>
+                              widget.onChanged(zone.copyWith(standardDeck: v)),
+                        ),
+                        Opacity(
+                          opacity: zone.standardDeck ? 0.4 : 1,
+                          child: IgnorePointer(
+                            ignoring: zone.standardDeck,
+                            child: TextField(
+                              controller: _deckNameController,
+                              decoration: const InputDecoration(
+                                labelText: 'Deck Name',
+                                helperText:
+                                    "Loads this deck from the Deck Library's folder for this game",
+                                border: OutlineInputBorder(),
+                              ),
+                              onChanged: (v) => widget.onChanged(
+                                zone.copyWith(
+                                  deckName: v.isEmpty ? null : v,
+                                  clearDeckName: v.isEmpty,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: TextField(
+                                controller: _offsetXController,
+                                keyboardType: const TextInputType.numberWithOptions(
+                                  signed: true,
+                                  decimal: true,
+                                ),
+                                decoration: const InputDecoration(
+                                  labelText: 'Offset X (px from center)',
+                                  border: OutlineInputBorder(),
+                                ),
+                                onChanged: (v) => widget.onChanged(
+                                  zone.copyWith(offsetX: double.tryParse(v) ?? 0),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: TextField(
+                                controller: _offsetYController,
+                                keyboardType: const TextInputType.numberWithOptions(
+                                  signed: true,
+                                  decimal: true,
+                                ),
+                                decoration: const InputDecoration(
+                                  labelText: 'Offset Y (px from center)',
+                                  border: OutlineInputBorder(),
+                                ),
+                                onChanged: (v) => widget.onChanged(
+                                  zone.copyWith(offsetY: double.tryParse(v) ?? 0),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Opacity(
+                  opacity: zone.dealsBuiltDeck || zone.standardDeck || (zone.deckName?.isNotEmpty ?? false)
+                      ? 0.4
+                      : 1,
+                  child: IgnorePointer(
+                    ignoring: zone.dealsBuiltDeck || zone.standardDeck || (zone.deckName?.isNotEmpty ?? false),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
@@ -224,11 +326,15 @@ class _ZoneEditorCardState extends State<_ZoneEditorCard> {
                             style: TextStyle(fontWeight: FontWeight.bold),
                           ),
                         ),
-                        if (zone.dealsBuiltDeck)
+                        if (zone.dealsBuiltDeck || zone.standardDeck || (zone.deckName?.isNotEmpty ?? false))
                           Padding(
                             padding: const EdgeInsets.symmetric(vertical: 4),
                             child: Text(
-                              'Ignored while Deals Built Deck is on.',
+                              zone.dealsBuiltDeck
+                                  ? 'Ignored while Deals Built Deck is on.'
+                                  : zone.standardDeck
+                                  ? 'Ignored while Standard 52-Card Deck is on.'
+                                  : 'Ignored while a Deck Name is set.',
                               style: TextStyle(
                                 color: Theme.of(context).colorScheme.onSurfaceVariant,
                                 fontSize: 12,

@@ -3,12 +3,15 @@ import 'package:uuid/uuid.dart';
 
 import '../models/active_search.dart';
 import '../models/board_widget_instance.dart';
+import '../models/card_definition.dart';
 import '../models/card_instance.dart';
 import '../models/deck_config.dart';
 import '../models/game_definition.dart';
 import '../models/player.dart';
+import '../models/standard_deck.dart';
 import '../models/table_state.dart';
 import '../models/zone_definition.dart';
+import 'shared_zone_layout.dart';
 import 'table_actions.dart';
 
 const _uuid = Uuid();
@@ -65,11 +68,23 @@ class GameSession extends ChangeNotifier {
   /// if no config was supplied for that zone, e.g. Practice Mode) or its own
   /// static [ZoneDefinition.entries] (typically empty, e.g. a discard pile
   /// starting empty). Each shared zone is dealt once, unowned, at its own
-  /// canonical position (clustered around the host's middle-right, mirrored
-  /// automatically for the client -- see [_sharedZonePosition|), from its
-  /// own [ZoneDefinition.entries] (empty meaning one of every card, same
-  /// convention the old `FixedDeckDefinition` used). Entries referencing an
-  /// unknown [DeckEntry.definitionId] are skipped throughout.
+  /// canonical position: centered on the table, arranged side by side in a
+  /// row with any other shared zone that also uses the automatic layout,
+  /// unless it sets a nonzero [ZoneDefinition.offsetX]/[ZoneDefinition.offsetY],
+  /// in which case it's placed at that pixel offset from center instead (and
+  /// excluded from the row the remaining zones form) -- see
+  /// [_sharedZonePosition]. Its contents come from
+  /// [ZoneDefinition.standardDeck] (one of each generated standard playing
+  /// card) if set, else [sharedDeckConfigsByZoneId]'s entry for this zone (a
+  /// deck resolved from [ZoneDefinition.deckName] by the caller, since that
+  /// requires disk I/O this synchronous factory can't do itself) if present,
+  /// else its own [ZoneDefinition.entries] (empty meaning one of every card
+  /// in [game], same convention the old `FixedDeckDefinition` used -- unless
+  /// [ZoneDefinition.isDiscardPile] is set, in which case empty always means
+  /// "start empty" instead, exactly like an owned discard pile, since a
+  /// discard pile should never auto-populate with the full deck just for
+  /// being shared). Entries referencing an unknown [DeckEntry.definitionId]
+  /// are skipped throughout.
   ///
   /// Zone cards don't need a stack-root identity the way a free-table pile
   /// does (see `StackUtils`) -- a zone is found by `zone`/`zoneId`/`ownerId`
@@ -80,10 +95,24 @@ class GameSession extends ChangeNotifier {
     required List<PlayerInfo> players,
     required String localPlayerId,
     Map<String, Map<String, DeckConfig>>? deckConfigsByPlayerId,
+    Map<String, DeckConfig>? sharedDeckConfigsByZoneId,
   }) {
-    final validIds = {for (final c in game.cards) c.id};
+    // Generated here (rather than trusting every caller to have already
+    // merged them into `game.cards`, which `GameLoader` does for the real
+    // app) so a standard-deck zone deals correctly regardless of caller --
+    // see `ZoneDefinition.standardDeck`.
+    final standardDeckCards = game.zones.any((z) => z.shared && z.standardDeck)
+        ? buildStandardDeckCards()
+        : const <CardDefinition>[];
+    final validIds = {
+      for (final c in game.cards) c.id,
+      for (final c in standardDeckCards) c.id,
+    };
     final fullDeckEntries = [
       for (final c in game.cards) DeckEntry(definitionId: c.id, quantity: 1),
+    ];
+    final standardDeckEntries = [
+      for (final c in standardDeckCards) DeckEntry(definitionId: c.id, quantity: 1),
     ];
     final cards = <CardInstance>[];
     var i = 0;
@@ -144,10 +173,20 @@ class GameSession extends ChangeNotifier {
     }
 
     final sharedZones = game.zones.where((z) => z.shared).toList();
-    for (var d = 0; d < sharedZones.length; d++) {
-      final zone = sharedZones[d];
-      final entries = zone.entries.isNotEmpty ? zone.entries : fullDeckEntries;
-      final (px, py) = _sharedZonePosition(d, sharedZones.length);
+    final positionsByZoneId = sharedZonePositions(game.zones);
+    for (final zone in sharedZones) {
+      final List<DeckEntry> entries;
+      if (zone.standardDeck) {
+        entries = standardDeckEntries;
+      } else {
+        final loadedDeck = sharedDeckConfigsByZoneId?[zone.id];
+        entries = loadedDeck != null
+            ? loadedDeck.entries
+            : (zone.entries.isNotEmpty || zone.isDiscardPile
+                  ? zone.entries
+                  : fullDeckEntries);
+      }
+      final (px, py) = positionsByZoneId[zone.id]!;
       deal(
         entries,
         zoneId: zone.id,
@@ -170,17 +209,6 @@ class GameSession extends ChangeNotifier {
       localPlayerId: localPlayerId,
       initialState: state,
     );
-  }
-
-  /// Canonical [0,1] position for the [index]th of [count] shared zones,
-  /// clustered around the host's middle-right (`x` fixed, `y` spread evenly
-  /// around center for `count` > 1) so multiple shared zones don't overlap.
-  static (double, double) _sharedZonePosition(int index, int count) {
-    const x = 0.8;
-    const centerY = 0.5;
-    const spacing = 0.15;
-    if (count <= 1) return (x, centerY);
-    return (x, centerY + (index - (count - 1) / 2) * spacing);
   }
 
   void moveCard(String instanceId, double x, double y) {
@@ -302,20 +330,28 @@ class GameSession extends ChangeNotifier {
 
   /// Returns [instanceId] to the zone [zoneId] (owned by [zoneOwnerId], null
   /// for a shared zone), detached from wherever it was, showing its face
-  /// according to that zone's own [ZoneDefinition.faceUp].
+  /// according to that zone's own [ZoneDefinition.faceUp]. If [zoneId] is
+  /// shared, its reserved [sharedZonePositions] slot is passed through as a
+  /// fallback anchor, so landing the first card there (see
+  /// `TableActions.returnToZone`) snaps it into that slot instead of
+  /// wherever it was dropped from.
   void returnToZone(
     String instanceId,
     String zoneId, {
     required String? zoneOwnerId,
     bool toBottom = false,
   }) {
+    final zone = _zoneDefinition(zoneId);
     _state = _actions.returnToZone(
       _state,
       instanceId: instanceId,
       zoneId: zoneId,
       zoneOwnerId: zoneOwnerId,
-      faceUp: _zoneDefinition(zoneId).faceUp,
+      faceUp: zone.faceUp,
       toBottom: toBottom,
+      emptySharedPosition: zone.shared
+          ? sharedZonePositions(game.zones)[zoneId]
+          : null,
     );
     notifyListeners();
   }

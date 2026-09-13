@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import '../../models/card_definition.dart';
 import 'card_back_widget.dart';
 import 'card_face_widget.dart';
-import 'pile_widget.dart' show SearchBadge, pileWidgetExtra;
+import 'pile_widget.dart' show EmptyZoneBox, SearchBadge, pileWidgetExtra;
 
 /// The local player's own instance of a `ZoneDefinition` (owned or shared) --
 /// a fixed zone next to the hand zone (unlike table piles, never positioned
@@ -101,28 +101,7 @@ class _ZoneStackWidgetState extends State<ZoneStackWidget>
 
   Widget _buildContent() {
     if (widget.count == 0 || widget.topInstanceId == null) {
-      return SizedBox(
-        width: cardWidth + pileWidgetExtra,
-        height: cardHeight + pileWidgetExtra,
-        child: Stack(
-          clipBehavior: Clip.none,
-          alignment: Alignment.center,
-          children: [
-            Center(
-              child: Container(
-                width: cardWidth,
-                height: cardHeight,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(6),
-                  border: Border.all(color: Colors.white24, width: 1.5),
-                ),
-              ),
-            ),
-            if (widget.isBeingSearched)
-              const Positioned(top: -12, child: SearchBadge()),
-          ],
-        ),
-      );
+      return EmptyZoneBox(isBeingSearched: widget.isBeingSearched);
     }
     return SizedBox(
       width: cardWidth + pileWidgetExtra,

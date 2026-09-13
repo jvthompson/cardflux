@@ -11,6 +11,7 @@ import '../app_theme.dart';
 import '../game/game_session.dart';
 import '../game/geometry_utils.dart';
 import '../game/seat_utils.dart';
+import '../game/shared_zone_layout.dart';
 import '../game/stack_utils.dart';
 import '../game/table_controller.dart';
 import '../models/active_search.dart';
@@ -314,10 +315,10 @@ class _TableScreenState extends State<TableScreen>
     final dt =
         (elapsed - lastTick).inMicroseconds / Duration.microsecondsPerSecond;
     var dx = 0.0, dy = 0.0;
-    if (_pressedMovementKeys.contains(LogicalKeyboardKey.keyA)) dx -= 1;
-    if (_pressedMovementKeys.contains(LogicalKeyboardKey.keyD)) dx += 1;
-    if (_pressedMovementKeys.contains(LogicalKeyboardKey.keyW)) dy -= 1;
-    if (_pressedMovementKeys.contains(LogicalKeyboardKey.keyS)) dy += 1;
+    if (_pressedMovementKeys.contains(LogicalKeyboardKey.keyA)) dx += 1;
+    if (_pressedMovementKeys.contains(LogicalKeyboardKey.keyD)) dx -= 1;
+    if (_pressedMovementKeys.contains(LogicalKeyboardKey.keyW)) dy += 1;
+    if (_pressedMovementKeys.contains(LogicalKeyboardKey.keyS)) dy -= 1;
     if (dx == 0 && dy == 0) return;
     final maxX = _maxPanX;
     final maxY = _maxPanY;
@@ -1019,6 +1020,30 @@ class _TableScreenState extends State<TableScreen>
     return best;
   }
 
+  /// Finds the id of the nearest empty shared zone (see
+  /// [emptySharedZonePositions]) within [_stackHitRadius] of [center], if
+  /// any -- the empty-zone counterpart to [_findStackTarget], which only
+  /// matches a shared zone that already has a card in it (an empty zone has
+  /// no `CardInstance` to match against). Consulted only after
+  /// [_findStackTarget] returns null, so a drop that's simultaneously near a
+  /// real card/pile and an empty zone still prefers the real card.
+  String? _findEmptySharedZoneTarget({
+    required Map<String, (double, double)> emptySharedZonePositions,
+    required Offset center,
+  }) {
+    String? best;
+    double bestDist = double.infinity;
+    for (final entry in emptySharedZonePositions.entries) {
+      final (fx, fy) = entry.value;
+      final dist = (_toWorldPixel(fx, fy) - center).distance;
+      if (dist < _stackHitRadius && dist < bestDist) {
+        best = entry.key;
+        bestDist = dist;
+      }
+    }
+    return best;
+  }
+
   /// Every card in [candidates] overlapping [dragged]'s on-screen rect with a
   /// strictly higher zIndex, transitively -- i.e. everything currently
   /// resting on top of [dragged] as you'd pick it up off the table.
@@ -1059,6 +1084,7 @@ class _TableScreenState extends State<TableScreen>
 
   void _handleDragEnd(
     List<CardInstance> tableTops,
+    Map<String, (double, double)> emptySharedZonePositions,
     List<CardInstance> pickupCandidates,
     String instanceId,
     Offset globalTopLeft,
@@ -1164,21 +1190,39 @@ class _TableScreenState extends State<TableScreen>
         widget.controller.stackCard(instanceId, target.instanceId);
       }
     } else {
-      // Keep the whole card clear of both hand zones -- otherwise a drop
-      // released over a hand zone band lands behind it, unselectable.
-      final clampedY = clampCardCenterY(
-        proposedCenterY: rawCenter.dy,
-        tableHeight: kWorldSize.height,
-        cardHeight: cardHeight,
+      // No real card/pile nearby -- check for an empty shared zone's
+      // reserved placeholder before giving up and just moving the card.
+      // TableActions.returnToZone already anchors the first card landed in
+      // a previously-empty shared zone to that zone's own reserved
+      // position, so this snaps into place exactly like a drop onto a
+      // shared zone that already has cards does above.
+      final emptyZoneId = _findEmptySharedZoneTarget(
+        emptySharedZonePositions: emptySharedZonePositions,
+        center: rawCenter,
       );
-      final (fx, fy) = localPixelToCanonical(
-        pixelX: rawCenter.dx,
-        pixelY: clampedY,
-        tableWidth: kWorldSize.width,
-        tableHeight: kWorldSize.height,
-        isMirrored: widget.isMirrored,
-      );
-      widget.controller.moveCard(instanceId, fx, fy);
+      if (emptyZoneId != null) {
+        widget.controller.returnToZone(
+          instanceId,
+          emptyZoneId,
+          toBottom: altHeld,
+        );
+      } else {
+        // Keep the whole card clear of both hand zones -- otherwise a drop
+        // released over a hand zone band lands behind it, unselectable.
+        final clampedY = clampCardCenterY(
+          proposedCenterY: rawCenter.dy,
+          tableHeight: kWorldSize.height,
+          cardHeight: cardHeight,
+        );
+        final (fx, fy) = localPixelToCanonical(
+          pixelX: rawCenter.dx,
+          pixelY: clampedY,
+          tableWidth: kWorldSize.width,
+          tableHeight: kWorldSize.height,
+          isMirrored: widget.isMirrored,
+        );
+        widget.controller.moveCard(instanceId, fx, fy);
+      }
     }
   }
 
@@ -1674,6 +1718,7 @@ class _TableScreenState extends State<TableScreen>
     GameSession session,
     Size screenSize,
     List<CardInstance> tableTops,
+    Map<String, (double, double)> emptySharedZonePositions,
     List<CardInstance> pickupCandidates,
     List<CardInstance> localHand,
   ) {
@@ -1720,6 +1765,7 @@ class _TableScreenState extends State<TableScreen>
       onClose: () => widget.controller.stopSearch(),
       onCardDragEnd: (instanceId, offset) => _handleDragEnd(
         tableTops,
+        emptySharedZonePositions,
         pickupCandidates,
         instanceId,
         offset,
@@ -1809,6 +1855,7 @@ class _TableScreenState extends State<TableScreen>
     ZoneDefinition zone,
     List<CardInstance> cards,
     List<CardInstance> tableTops,
+    Map<String, (double, double)> emptySharedZonePositions,
     List<CardInstance> pickupCandidates,
     List<CardInstance> localHand,
     bool isBeingSearched,
@@ -1838,6 +1885,7 @@ class _TableScreenState extends State<TableScreen>
                 ? null
                 : (offset) => _handleDragEnd(
                     tableTops,
+                    emptySharedZonePositions,
                     pickupCandidates,
                     top.instanceId,
                     offset,
@@ -1899,6 +1947,7 @@ class _TableScreenState extends State<TableScreen>
     required GameSession session,
     required List<ZoneDefinition> ownedZones,
     required List<CardInstance> tableTops,
+    required Map<String, (double, double)> emptySharedZonePositions,
     required List<CardInstance> pickupCandidates,
     required List<CardInstance> localHand,
     required Map<String, int> handCountByPlayerId,
@@ -1916,8 +1965,14 @@ class _TableScreenState extends State<TableScreen>
             key: _handZoneKey,
             cards: localHand,
             definitionsById: widget.definitionsById,
-            onDragEnd: (id, offset) =>
-                _handleDragEnd(tableTops, pickupCandidates, id, offset, localHand),
+            onDragEnd: (id, offset) => _handleDragEnd(
+              tableTops,
+              emptySharedZonePositions,
+              pickupCandidates,
+              id,
+              offset,
+              localHand,
+            ),
             onHoverCard: _setHoveredId,
             cardBackImagePath: widget.cardBackImagePath,
             cardKeyFor: _handCardKey,
@@ -1937,6 +1992,7 @@ class _TableScreenState extends State<TableScreen>
                 zone,
                 localZoneCardsById[zone.id]!,
                 tableTops,
+                emptySharedZonePositions,
                 pickupCandidates,
                 localHand,
                 isZoneSearched(zone.id, player.id),
@@ -2033,6 +2089,7 @@ class _TableScreenState extends State<TableScreen>
     required GameSession session,
     required List<ZoneDefinition> ownedZones,
     required List<CardInstance> tableTops,
+    required Map<String, (double, double)> emptySharedZonePositions,
     required List<CardInstance> pickupCandidates,
     required List<CardInstance> localHand,
     required Map<String, int> handCountByPlayerId,
@@ -2064,6 +2121,7 @@ class _TableScreenState extends State<TableScreen>
                     session: session,
                     ownedZones: ownedZones,
                     tableTops: tableTops,
+                    emptySharedZonePositions: emptySharedZonePositions,
                     pickupCandidates: pickupCandidates,
                     localHand: localHand,
                     handCountByPlayerId: handCountByPlayerId,
@@ -2216,6 +2274,22 @@ class _TableScreenState extends State<TableScreen>
                       .where((c) => c.zone == CardZone.zone && c.zoneId == z.id)
                       .toList(),
               };
+              // Every shared zone's reserved canonical position, regardless
+              // of whether it currently has any cards -- a card's own x/y is
+              // only meaningful once it has one (see the render loop below,
+              // which uses this map instead for a zone with none).
+              final sharedZonePositionsById = sharedZonePositions(
+                widget.zones,
+              );
+              // The subset of sharedZonePositionsById with no cards
+              // currently in them -- _handleDragEnd's only other candidate
+              // target once _findStackTarget (which only sees zones that
+              // already have >=1 card, via tableTops below) comes up empty.
+              final emptySharedZonePositions = {
+                for (final z in sharedZones)
+                  if (sharedZoneCardsById[z.id]!.isEmpty)
+                    z.id: sharedZonePositionsById[z.id]!,
+              };
 
               // Whether some player currently has a Search window open on
               // zone [zoneId] (owned by [ownerId], null for shared) / the
@@ -2342,6 +2416,7 @@ class _TableScreenState extends State<TableScreen>
                     session,
                     screenSize,
                     tableTops,
+                    emptySharedZonePositions,
                     pickupCandidates,
                     localHand,
                   );
@@ -2359,6 +2434,7 @@ class _TableScreenState extends State<TableScreen>
                               session: session,
                               ownedZones: ownedZones,
                               tableTops: tableTops,
+                              emptySharedZonePositions: emptySharedZonePositions,
                               pickupCandidates: pickupCandidates,
                               localHand: localHand,
                               handCountByPlayerId: handCountByPlayerId,
@@ -2568,6 +2644,7 @@ class _TableScreenState extends State<TableScreen>
                                                             } else {
                                                               _handleDragEnd(
                                                                 tableTops,
+                                                                emptySharedZonePositions,
                                                                 pickupCandidates,
                                                                 top.instanceId,
                                                                 offset,
@@ -2661,6 +2738,7 @@ class _TableScreenState extends State<TableScreen>
                                                         _endGroupDrag();
                                                         _handleDragEnd(
                                                           tableTops,
+                                                          emptySharedZonePositions,
                                                           pickupCandidates,
                                                           top.instanceId,
                                                           offset,
@@ -2934,6 +3012,7 @@ class _TableScreenState extends State<TableScreen>
                                                             onDragEnd: (offset) =>
                                                                 _handleDragEnd(
                                                                   tableTops,
+                                                                  emptySharedZonePositions,
                                                                   pickupCandidates,
                                                                   top.instanceId,
                                                                   offset,
@@ -2976,6 +3055,7 @@ class _TableScreenState extends State<TableScreen>
                                                         onDragEnd: (offset) =>
                                                             _handleDragEnd(
                                                               tableTops,
+                                                              emptySharedZonePositions,
                                                               pickupCandidates,
                                                               top.instanceId,
                                                               offset,
@@ -2989,6 +3069,55 @@ class _TableScreenState extends State<TableScreen>
                                                             ),
                                                         cardBackImagePath: widget
                                                             .cardBackImagePath,
+                                                      ),
+                                                    ),
+                                                  );
+                                                },
+                                              )
+                                            else
+                                              Builder(
+                                                key: ValueKey(zone.id),
+                                                builder: (context) {
+                                                  final (fx, fy) =
+                                                      sharedZonePositionsById[zone
+                                                          .id]!;
+                                                  final pos = _toScreenPixel(
+                                                    fx,
+                                                    fy,
+                                                  );
+                                                  return Positioned(
+                                                    left:
+                                                        pos.dx -
+                                                        (cardWidth +
+                                                                pileWidgetExtra) /
+                                                            2,
+                                                    top:
+                                                        pos.dy -
+                                                        (cardHeight +
+                                                                pileWidgetExtra) /
+                                                            2,
+                                                    child: Tooltip(
+                                                      message: zone.name,
+                                                      child: GestureDetector(
+                                                        onSecondaryTapUp:
+                                                            (
+                                                              details,
+                                                            ) => _showSearchMenu(
+                                                              details
+                                                                  .globalPosition,
+                                                              () => widget
+                                                                  .controller
+                                                                  .startSearchZone(
+                                                                    zone.id,
+                                                                  ),
+                                                            ),
+                                                        child: EmptyZoneBox(
+                                                          isBeingSearched:
+                                                              isZoneSearched(
+                                                                zone.id,
+                                                                null,
+                                                              ),
+                                                        ),
                                                       ),
                                                     ),
                                                   );
@@ -3009,6 +3138,7 @@ class _TableScreenState extends State<TableScreen>
                               session: session,
                               ownedZones: ownedZones,
                               tableTops: tableTops,
+                              emptySharedZonePositions: emptySharedZonePositions,
                               pickupCandidates: pickupCandidates,
                               localHand: localHand,
                               handCountByPlayerId: handCountByPlayerId,

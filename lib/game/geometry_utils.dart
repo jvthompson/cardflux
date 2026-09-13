@@ -7,11 +7,12 @@ import 'dart:ui';
 /// sizes see the *same physical table at the same physical scale* -- a
 /// smaller window just shows less of it at once (see
 /// [worldCenteringOffset] and `TableScreen`'s WASD camera pan), rather than
-/// a zoomed-in or zoomed-out view of the same content. Sized at 4K
-/// (3840x2160) specifically so the table stays bigger than even a
-/// maximized window on a large/4K display -- comfortably fits ~54x21
-/// 70x100px cards edge-to-edge, with room to spread out and reason to pan.
-const Size kWorldSize = Size(3840, 2160);
+/// a zoomed-in or zoomed-out view of the same content. Sized at QHD
+/// (2560x1440) so the table stays bigger than a typical maximized window
+/// while still comfortably fitting ~36x14 70x100px cards edge-to-edge, with
+/// room to spread out and reason to pan, without leaving so much blank
+/// margin that panning feels like wandering an empty room.
+const Size kWorldSize = Size(2560, 1440);
 
 /// Where the fixed-size [world] sits by default within a [viewport] that
 /// may be a different size -- centers it (symmetric overflow/letterboxing

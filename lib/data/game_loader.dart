@@ -5,6 +5,7 @@ import 'package:flutter/services.dart' show rootBundle;
 
 import '../models/card_definition.dart';
 import '../models/game_definition.dart';
+import '../models/standard_deck.dart';
 import 'image_path_resolver.dart';
 
 const String standardDeckAssetPath = 'assets/games/standard_52/standard_52.json';
@@ -15,7 +16,8 @@ const String standardDeckAssetPath = 'assets/games/standard_52/standard_52.json'
 class GameLoader {
   Future<GameDefinition> loadStandardDeck() async {
     final raw = await rootBundle.loadString(standardDeckAssetPath);
-    return GameDefinition.fromJson(jsonDecode(raw) as Map<String, dynamic>);
+    final parsed = GameDefinition.fromJson(jsonDecode(raw) as Map<String, dynamic>);
+    return _withStandardDeckCards(parsed);
   }
 
   /// Scans [rootPath] (the user-chosen games directory, see
@@ -56,12 +58,34 @@ class GameLoader {
       try {
         final raw = await entity.readAsString();
         final parsed = GameDefinition.fromJson(jsonDecode(raw) as Map<String, dynamic>);
-        games.add(_resolveGameImagePaths(parsed, folderPath));
+        games.add(_withStandardDeckCards(_resolveGameImagePaths(parsed, folderPath)));
       } catch (_) {
         // Skip files that aren't valid game definitions.
       }
     }
     return games;
+  }
+
+  /// Appends [buildStandardDeckCards]'s cards into [game.cards] whenever any
+  /// zone has [ZoneDefinition.standardDeck] set, so they resolve normally
+  /// everywhere a [CardDefinition] is looked up (rendering, dealing's
+  /// `validIds`, etc.) exactly like an author-defined card -- skips any id
+  /// already present so this stays a no-op on a game with no such zone, and
+  /// idempotent if ever called twice on the same [GameDefinition].
+  GameDefinition _withStandardDeckCards(GameDefinition game) {
+    if (!game.zones.any((z) => z.standardDeck)) return game;
+    final existingIds = {for (final c in game.cards) c.id};
+    final newCards = buildStandardDeckCards().where((c) => !existingIds.contains(c.id));
+    return GameDefinition(
+      id: game.id,
+      name: game.name,
+      cards: [...game.cards, ...newCards],
+      sets: game.sets,
+      cardBackImagePath: game.cardBackImagePath,
+      zones: game.zones,
+      tagGroups: game.tagGroups,
+      folderPath: game.folderPath,
+    );
   }
 
   GameDefinition _resolveGameImagePaths(GameDefinition game, String folderPath) {

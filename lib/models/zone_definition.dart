@@ -18,6 +18,10 @@ class ZoneDefinition {
     this.visibleToAll = false,
     this.isDiscardPile = false,
     this.autoShuffle = false,
+    this.standardDeck = false,
+    this.deckName,
+    this.offsetX = 0,
+    this.offsetY = 0,
   });
 
   /// Stable identity referenced by `CardInstance.zoneId` -- never shown to
@@ -40,9 +44,12 @@ class ZoneDefinition {
   final bool dealsBuiltDeck;
 
   /// Static starting contents, dealt once at game start. Ignored when
-  /// [dealsBuiltDeck] is true. Empty means "start empty" for an owned zone
-  /// (e.g. a discard pile) or "one of every card in the game" for a shared
-  /// zone (e.g. Standard 52's Deck) -- the same convention the old
+  /// [dealsBuiltDeck] is true (an owned zone), or [standardDeck]/[deckName]
+  /// resolves to something (a shared zone). Empty means "start empty" for
+  /// an owned zone, or for any zone -- owned or shared -- with
+  /// [isDiscardPile] set (a discard pile should never auto-populate); for
+  /// every other shared zone, empty means "one of every card in the game"
+  /// instead (e.g. Standard 52's Deck) -- the same convention the old
   /// `FixedDeckDefinition` used.
   final List<DeckEntry> entries;
 
@@ -83,6 +90,28 @@ class ZoneDefinition {
   /// cards face-down (that's still governed by [faceUp]).
   final bool autoShuffle;
 
+  /// Only meaningful when [shared] is true: generate one of each traditional
+  /// playing card (via `buildStandardDeckCards`) as this zone's starting
+  /// contents instead of [entries]/[deckName] -- lets any game plug in a
+  /// standard 52-card deck with no deck file and no need to author those 52
+  /// cards itself. Takes precedence over [deckName] when both are set.
+  final bool standardDeck;
+
+  /// Only meaningful when [shared] is true and [standardDeck] is false: the
+  /// filename (minus `.json`) of a deck in the Deck Library's folder for
+  /// this game (see `DeckLibraryLoader`) to load as this zone's starting
+  /// contents instead of [entries]. Resolved once by the host at game start
+  /// -- if no such deck is found, falls back to [entries] like normal.
+  final String? deckName;
+
+  /// Only meaningful when [shared] is true: pixel offset from the table's
+  /// center used for this zone's on-table position instead of the automatic
+  /// centered row every other shared zone is arranged into (see
+  /// `GameSession.dealFromZones`). Zero (the default) for both means "use
+  /// the automatic layout."
+  final double offsetX;
+  final double offsetY;
+
   factory ZoneDefinition.fromJson(Map<String, dynamic> json) {
     return ZoneDefinition(
       id: json['id'] as String,
@@ -101,6 +130,10 @@ class ZoneDefinition {
       visibleToAll: json['visibleToAll'] as bool? ?? false,
       isDiscardPile: json['isDiscardPile'] as bool? ?? false,
       autoShuffle: json['autoShuffle'] as bool? ?? false,
+      standardDeck: json['standardDeck'] as bool? ?? false,
+      deckName: json['deckName'] as String?,
+      offsetX: (json['offsetX'] as num?)?.toDouble() ?? 0,
+      offsetY: (json['offsetY'] as num?)?.toDouble() ?? 0,
     );
   }
 
@@ -117,13 +150,19 @@ class ZoneDefinition {
       if (visibleToAll) 'visibleToAll': visibleToAll,
       if (isDiscardPile) 'isDiscardPile': isDiscardPile,
       if (autoShuffle) 'autoShuffle': autoShuffle,
+      if (standardDeck) 'standardDeck': standardDeck,
+      if (deckName != null) 'deckName': deckName,
+      if (offsetX != 0) 'offsetX': offsetX,
+      if (offsetY != 0) 'offsetY': offsetY,
     };
   }
 
-  /// Returns a copy with the given fields replaced; every field here is
-  /// non-nullable, so a plain `field ?? this.field` is sufficient -- unlike
-  /// `CardDefinition.copyWith`, no sentinel is needed to represent "clear
-  /// this field."
+  /// Returns a copy with the given fields replaced; every field here except
+  /// [deckName] is non-nullable, so a plain `field ?? this.field` is
+  /// sufficient -- unlike `CardDefinition.copyWith`, no sentinel is needed to
+  /// represent "clear this field." [deckName] is cleared with
+  /// [clearDeckName] instead, since `null` here means "keep the current
+  /// value," not "clear it."
   ZoneDefinition copyWith({
     String? id,
     String? name,
@@ -135,6 +174,11 @@ class ZoneDefinition {
     bool? visibleToAll,
     bool? isDiscardPile,
     bool? autoShuffle,
+    bool? standardDeck,
+    String? deckName,
+    bool clearDeckName = false,
+    double? offsetX,
+    double? offsetY,
   }) {
     return ZoneDefinition(
       id: id ?? this.id,
@@ -147,6 +191,10 @@ class ZoneDefinition {
       visibleToAll: visibleToAll ?? this.visibleToAll,
       isDiscardPile: isDiscardPile ?? this.isDiscardPile,
       autoShuffle: autoShuffle ?? this.autoShuffle,
+      standardDeck: standardDeck ?? this.standardDeck,
+      deckName: clearDeckName ? null : (deckName ?? this.deckName),
+      offsetX: offsetX ?? this.offsetX,
+      offsetY: offsetY ?? this.offsetY,
     );
   }
 }
