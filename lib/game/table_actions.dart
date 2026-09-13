@@ -56,7 +56,10 @@ class TableActions {
   /// Moves a card to a free table position, detaching it from any stack or
   /// zone (clearing [CardInstance.zoneId] -- leaving it stale would make the
   /// card linger in its old zone's grouping even though [CardZone.table]
-  /// says it's no longer there).
+  /// says it's no longer there). A [CardInstance.unownable] card has its
+  /// ownership forced back to null here -- this is the moment it lands on
+  /// the open table, so this is exactly where a stale owner (e.g. from
+  /// having been picked up into a hand) gets cleared.
   TableState moveCard(
     TableState state, {
     required String instanceId,
@@ -73,6 +76,7 @@ class TableActions {
         stackParentId: null,
         zoneId: null,
         zIndex: nextZ,
+        ownerId: c.unownable ? null : c.ownerId,
       );
     }).toList();
     return _syncAttachedWidgets(
@@ -221,12 +225,40 @@ class TableActions {
     return state.copyWith(cards: cards, revision: state.revision + 1);
   }
 
+  /// Reassigns a table card's ownership in place -- e.g. a player
+  /// right-clicking their own card to hand control of it to another player,
+  /// or to release it back to unowned (free-for-anyone), same convention
+  /// as an owned zone's discard pile. [newOwnerId] null means the latter;
+  /// passed straight through to [CardInstance.copyWith], whose sentinel
+  /// pattern clears the field rather than leaving it unchanged. An
+  /// unownable card always ends up null regardless of [newOwnerId] --
+  /// defense in depth, since the UI never offers this action for one in the
+  /// first place. Nothing else about the card (position, face, stack
+  /// membership) changes; brings it to the front like [flipCard] does.
+  TableState giveCard(
+    TableState state, {
+    required String instanceId,
+    required String? newOwnerId,
+  }) {
+    final nextZ = _nextZIndex(state);
+    final cards = state.cards.map((c) {
+      if (c.instanceId != instanceId) return c;
+      return c.copyWith(
+        ownerId: c.unownable ? null : newOwnerId,
+        zIndex: nextZ,
+      );
+    }).toList();
+    return state.copyWith(cards: cards, revision: state.revision + 1);
+  }
+
   /// Stacks [instanceId] on top of [ontoInstanceId], snapping its position
   /// and zone to match, and placing it above every existing card in the
   /// stack. Only ever called with a free-table pile as the target (see
   /// table_screen.dart -- a zone target goes through [TableActions] via
   /// `returnToZone` instead), so [zoneId] is always cleared: any zone
-  /// membership the dragged card had is left behind, not carried over.
+  /// membership the dragged card had is left behind, not carried over. See
+  /// [moveCard]'s doc for why an unownable card has its ownership cleared
+  /// here too.
   TableState stackCard(
     TableState state, {
     required String instanceId,
@@ -246,6 +278,7 @@ class TableActions {
         stackParentId: ontoInstanceId,
         zoneId: null,
         zIndex: nextZ,
+        ownerId: c.unownable ? null : c.ownerId,
       );
     }).toList();
     return _syncAttachedWidgets(
@@ -300,6 +333,7 @@ class TableActions {
           stackParentId: null,
           zoneId: null,
           zIndex: primaryNewZ,
+          ownerId: c.unownable ? null : c.ownerId,
         );
       }
       if (passengerIds.contains(c.instanceId)) {

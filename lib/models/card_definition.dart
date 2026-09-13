@@ -26,6 +26,7 @@ class CardDefinition {
     this.types = const [],
     this.orientation = CardOrientation.portrait,
     this.setId,
+    this.unownable = false,
   });
 
   final String id;
@@ -53,6 +54,17 @@ class CardDefinition {
   /// This card's default table rotation -- see [CardOrientation].
   final CardOrientation orientation;
 
+  /// Whether this card always stays unowned on the free table, regardless
+  /// of who last held it -- e.g. an ordinary playing card in a standard-52
+  /// game, which any player should be able to interact with even after
+  /// someone else picked it up into their hand and put it back down. See
+  /// `TableActions.moveCard`/`moveGroup`/`stackCard`/`giveCard`, which force
+  /// `CardInstance.ownerId` back to null for such a card whenever it lands
+  /// on the table -- this flag has no effect while the card is actually in
+  /// a hand or an owned zone, which still need a real owner to know whose
+  /// instance it is.
+  final bool unownable;
+
   factory CardDefinition.fromJson(Map<String, dynamic> json) {
     return CardDefinition(
       id: json['id'] as String,
@@ -65,6 +77,7 @@ class CardDefinition {
       types: (json['types'] as List?)?.cast<String>().toList() ?? const [],
       orientation: CardOrientation.values.byName(json['orientation'] as String? ?? 'portrait'),
       setId: json['setId'] as String?,
+      unownable: json['unownable'] as bool? ?? false,
     );
   }
 
@@ -80,6 +93,7 @@ class CardDefinition {
       if (types.isNotEmpty) 'types': types,
       if (orientation != CardOrientation.portrait) 'orientation': orientation.name,
       if (setId != null) 'setId': setId,
+      if (unownable) 'unownable': unownable,
     };
   }
 
@@ -97,6 +111,7 @@ class CardDefinition {
     List<String>? types,
     CardOrientation? orientation,
     Object? setId = _unset,
+    bool? unownable,
   }) {
     return CardDefinition(
       id: id ?? this.id,
@@ -109,6 +124,7 @@ class CardDefinition {
       types: types ?? this.types,
       orientation: orientation ?? this.orientation,
       setId: identical(setId, _unset) ? this.setId : setId as String?,
+      unownable: unownable ?? this.unownable,
     );
   }
 }

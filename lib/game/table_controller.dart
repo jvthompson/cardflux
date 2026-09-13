@@ -19,6 +19,10 @@ abstract class TableController {
   void moveStack(String rootInstanceId, double x, double y);
   void rotateStack(String rootInstanceId, {required bool clockwise});
   void flipCard(String instanceId);
+
+  /// Reassigns [instanceId]'s ownership to [newOwnerId] -- null releases it
+  /// back to unowned (free-for-anyone). See `TableActions.giveCard`.
+  void giveCard(String instanceId, String? newOwnerId);
   void stackCard(String instanceId, String ontoInstanceId);
   void moveToHand(String instanceId);
   void reorderHand(String instanceId, int targetIndex);
@@ -102,6 +106,13 @@ class HostTableController implements TableController {
   @override
   void flipCard(String instanceId) {
     if (_isOwnedOrUnowned(instanceId)) _session.flipCard(instanceId);
+  }
+
+  @override
+  void giveCard(String instanceId, String? newOwnerId) {
+    if (_isOwnedOrUnowned(instanceId)) {
+      _session.giveCard(instanceId, newOwnerId);
+    }
   }
 
   @override
@@ -309,6 +320,16 @@ class ClientTableController implements TableController {
       NetMessage(
         type: NetMessageType.requestFlip,
         payload: {'instanceId': instanceId},
+      ),
+    );
+  }
+
+  @override
+  void giveCard(String instanceId, String? newOwnerId) {
+    _client.send(
+      NetMessage(
+        type: NetMessageType.requestGiveCard,
+        payload: {'instanceId': instanceId, 'newOwnerId': newOwnerId},
       ),
     );
   }

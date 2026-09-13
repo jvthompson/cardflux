@@ -103,6 +103,7 @@ class GameLoader {
         types: c.types,
         orientation: c.orientation,
         setId: c.setId,
+        unownable: c.unownable,
       );
     }).toList();
     final cardBackImagePath = game.cardBackImagePath;

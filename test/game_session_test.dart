@@ -649,6 +649,35 @@ void main() {
         session.state.cards.map((c) => c.definitionId).toSet(),
         buildStandardDeckCards().map((c) => c.id).toSet(),
       );
+      // Every generated standard playing card is unownable -- see
+      // buildStandardDeckCards -- and dealFromZones must carry that flag
+      // through onto the dealt CardInstance.
+      expect(session.state.cards.every((c) => c.unownable), isTrue);
+    });
+
+    test("a dealt card's unownable flag matches its CardDefinition", () {
+      const game = GameDefinition(
+        id: 'g1',
+        name: 'G',
+        cards: [
+          CardDefinition(id: 'a', cardTitle: 'A', unownable: true),
+          CardDefinition(id: 'b', cardTitle: 'B'),
+        ],
+        zones: [ZoneDefinition(id: 'deck', name: 'Deck', shared: true)],
+      );
+      final session = GameSession.dealFromZones(
+        game: game,
+        players: [_players[0]],
+        localPlayerId: 'p1',
+      );
+      expect(
+        session.state.cards.firstWhere((c) => c.definitionId == 'a').unownable,
+        isTrue,
+      );
+      expect(
+        session.state.cards.firstWhere((c) => c.definitionId == 'b').unownable,
+        isFalse,
+      );
     });
 
     test('deckName resolves against sharedDeckConfigsByZoneId, overriding static entries', () {

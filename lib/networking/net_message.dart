@@ -29,6 +29,7 @@ enum NetMessageType {
   requestMoveGroup,
   requestRotateStack,
   requestFlip,
+  requestGiveCard,
   requestStack,
   requestMoveToHand,
   requestReorderHand,

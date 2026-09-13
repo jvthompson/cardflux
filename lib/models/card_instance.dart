@@ -33,6 +33,7 @@ class CardInstance {
     this.stackParentId,
     this.zoneId,
     this.rotationTurns = 0,
+    this.unownable = false,
   });
 
   final String instanceId;
@@ -67,6 +68,15 @@ class CardInstance {
   /// this to 0 so a card never shows up sideways in a hand or a deck.
   final int rotationTurns;
 
+  /// Copied once from `CardDefinition.unownable` at deal time (see
+  /// `GameSession.dealFromZones`) and never changed afterward -- when true,
+  /// `TableActions.moveCard`/`moveGroup`/`stackCard`/`giveCard` force
+  /// [ownerId] back to null every time this card lands on the free table,
+  /// regardless of who last held it in their hand. Has no effect while the
+  /// card is actually in a hand or an owned zone, which still need a real
+  /// [ownerId] to know whose instance it is.
+  final bool unownable;
+
   CardInstance copyWith({
     String? definitionId,
     double? x,
@@ -78,6 +88,7 @@ class CardInstance {
     Object? stackParentId = _unset,
     Object? zoneId = _unset,
     int? rotationTurns,
+    bool? unownable,
   }) {
     return CardInstance(
       instanceId: instanceId,
@@ -93,6 +104,7 @@ class CardInstance {
           : stackParentId as String?,
       zoneId: identical(zoneId, _unset) ? this.zoneId : zoneId as String?,
       rotationTurns: rotationTurns ?? this.rotationTurns,
+      unownable: unownable ?? this.unownable,
     );
   }
 
@@ -109,6 +121,7 @@ class CardInstance {
       stackParentId: json['stackParentId'] as String?,
       zoneId: json['zoneId'] as String?,
       rotationTurns: json['rotationTurns'] as int? ?? 0,
+      unownable: json['unownable'] as bool? ?? false,
     );
   }
 
@@ -125,6 +138,7 @@ class CardInstance {
       if (stackParentId != null) 'stackParentId': stackParentId,
       if (zoneId != null) 'zoneId': zoneId,
       if (rotationTurns != 0) 'rotationTurns': rotationTurns,
+      if (unownable) 'unownable': unownable,
     };
   }
 }

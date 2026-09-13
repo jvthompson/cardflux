@@ -165,6 +165,53 @@ void main() {
         expect(token.y, closeTo(0.77, 1e-9));
       },
     );
+
+    test('clears ownerId for an unownable card even if it previously had a real owner', () {
+      final state = TableState(
+        gameId: 'g',
+        players: const [],
+        cards: [
+          CardInstance(
+            instanceId: 'u1',
+            definitionId: 'd1',
+            x: 0,
+            y: 0,
+            zIndex: 0,
+            faceUp: false,
+            zone: CardZone.hand,
+            ownerId: 'p1',
+            unownable: true,
+          ),
+        ],
+        revision: 0,
+      );
+      final next = _actions.moveCard(state, instanceId: 'u1', x: 0.4, y: 0.5);
+      final moved = next.cards.single;
+      expect(moved.ownerId, isNull);
+      expect(moved.zone, CardZone.table);
+    });
+
+    test('preserves ownerId when the card is not unownable', () {
+      final state = TableState(
+        gameId: 'g',
+        players: const [],
+        cards: [
+          CardInstance(
+            instanceId: 'o1',
+            definitionId: 'd1',
+            x: 0,
+            y: 0,
+            zIndex: 0,
+            faceUp: false,
+            zone: CardZone.hand,
+            ownerId: 'p1',
+          ),
+        ],
+        revision: 0,
+      );
+      final next = _actions.moveCard(state, instanceId: 'o1', x: 0.4, y: 0.5);
+      expect(next.cards.single.ownerId, 'p1');
+    });
   });
 
   group('moveStack', () {
@@ -441,6 +488,46 @@ void main() {
       expect(token.x, passenger.x);
       expect(token.y, passenger.y);
     });
+
+    test('clears ownerId for an unownable primary card, but never touches passengers\' ownership', () {
+      final state = TableState(
+        gameId: 'g',
+        players: const [],
+        cards: [
+          CardInstance(
+            instanceId: 'primary',
+            definitionId: 'd1',
+            x: 0.1,
+            y: 0.1,
+            zIndex: 0,
+            faceUp: false,
+            zone: CardZone.table,
+            ownerId: 'p1',
+            unownable: true,
+          ),
+          CardInstance(
+            instanceId: 'passenger',
+            definitionId: 'd2',
+            x: 0.2,
+            y: 0.1,
+            zIndex: 1,
+            faceUp: false,
+            zone: CardZone.table,
+            ownerId: 'p2',
+          ),
+        ],
+        revision: 0,
+      );
+      final next = _actions.moveGroup(
+        state,
+        primaryInstanceId: 'primary',
+        passengerRootInstanceIds: const ['passenger'],
+        x: 0.15,
+        y: 0.25,
+      );
+      expect(next.cards.firstWhere((c) => c.instanceId == 'primary').ownerId, isNull);
+      expect(next.cards.firstWhere((c) => c.instanceId == 'passenger').ownerId, 'p2');
+    });
   });
 
   group('rotateStack', () {
@@ -623,6 +710,57 @@ void main() {
     });
   });
 
+  group('giveCard', () {
+    test('reassigns ownerId to the given player, leaving position/zone/face/stack untouched', () {
+      final state = _threeCardPile();
+      final next = _actions.giveCard(state, instanceId: 'a', newOwnerId: 'p2');
+      final given = next.cards.firstWhere((c) => c.instanceId == 'a');
+      expect(given.ownerId, 'p2');
+      expect(given.zone, CardZone.table);
+      expect(given.x, 0);
+      expect(given.y, 0);
+      expect(given.faceUp, isFalse);
+      expect(given.stackParentId, 'root');
+    });
+
+    test('reassigns ownerId to null to release ownership back to unowned', () {
+      final state = _threeCardPile();
+      final owned = state.copyWith(
+        cards: state.cards
+            .map((c) => c.instanceId == 'a' ? c.copyWith(ownerId: 'p1') : c)
+            .toList(),
+      );
+      final next = _actions.giveCard(owned, instanceId: 'a', newOwnerId: null);
+      expect(next.cards.firstWhere((c) => c.instanceId == 'a').ownerId, isNull);
+    });
+
+    test('bumps zIndex and revision, and does not touch any other card', () {
+      final state = _threeCardPile();
+      final next = _actions.giveCard(state, instanceId: 'a', newOwnerId: 'p2');
+      expect(next.revision, state.revision + 1);
+      expect(next.cards.firstWhere((c) => c.instanceId == 'a').zIndex, 3);
+      expect(
+        next.cards.firstWhere((c) => c.instanceId == 'root'),
+        same(state.cards.firstWhere((c) => c.instanceId == 'root')),
+      );
+      expect(
+        next.cards.firstWhere((c) => c.instanceId == 'b'),
+        same(state.cards.firstWhere((c) => c.instanceId == 'b')),
+      );
+    });
+
+    test('always results in ownerId: null for an unownable card, regardless of the requested target', () {
+      final state = _threeCardPile();
+      final unownable = state.copyWith(
+        cards: state.cards
+            .map((c) => c.instanceId == 'a' ? c.copyWith(unownable: true) : c)
+            .toList(),
+      );
+      final next = _actions.giveCard(unownable, instanceId: 'a', newOwnerId: 'p2');
+      expect(next.cards.firstWhere((c) => c.instanceId == 'a').ownerId, isNull);
+    });
+  });
+
   group('stackCard', () {
     test('snaps position/zone and links stackParentId', () {
       final state = TableState(
@@ -659,6 +797,38 @@ void main() {
       expect(stacked.x, 10);
       expect(stacked.y, 10);
       expect(stacked.stackParentId, 'x');
+    });
+
+    test('clears ownerId for an unownable card being stacked onto the table', () {
+      final state = TableState(
+        gameId: 'g',
+        players: const [],
+        cards: [
+          CardInstance(
+            instanceId: 'x',
+            definitionId: 'd1',
+            x: 10,
+            y: 10,
+            zIndex: 0,
+            faceUp: false,
+            zone: CardZone.table,
+          ),
+          CardInstance(
+            instanceId: 'y',
+            definitionId: 'd2',
+            x: 99,
+            y: 99,
+            zIndex: 1,
+            faceUp: false,
+            zone: CardZone.hand,
+            ownerId: 'p1',
+            unownable: true,
+          ),
+        ],
+        revision: 0,
+      );
+      final next = _actions.stackCard(state, instanceId: 'y', ontoInstanceId: 'x');
+      expect(next.cards.firstWhere((c) => c.instanceId == 'y').ownerId, isNull);
     });
 
     test('clears zoneId when stacking a zone card onto a free-table pile', () {

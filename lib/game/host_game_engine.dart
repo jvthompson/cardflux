@@ -159,6 +159,16 @@ class HostGameEngine {
           session.flipCard(instanceId);
         }
         break;
+      case NetMessageType.requestGiveCard:
+        final instanceId = msg.payload['instanceId'] as String;
+        final newOwnerId = msg.payload['newOwnerId'] as String?;
+        final targetIsValid =
+            newOwnerId == null ||
+            session.state.players.any((p) => p.id == newOwnerId);
+        if (_isAllowedToActOn(instanceId, clientId) && targetIsValid) {
+          session.giveCard(instanceId, newOwnerId);
+        }
+        break;
       case NetMessageType.requestStack:
         final instanceId = msg.payload['instanceId'] as String;
         final ontoInstanceId = msg.payload['ontoInstanceId'] as String;

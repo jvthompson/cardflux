@@ -31,6 +31,7 @@ List<CardDefinition> buildStandardDeckCards() {
           suit: suitId,
           rank: rank,
           types: [suitName],
+          unownable: true,
         ),
   ];
 }

@@ -1570,6 +1570,67 @@ class _TableScreenState extends State<TableScreen>
     if (action == 'search') onSearch();
   }
 
+  /// Sentinel [showMenu] value for "Remove Ownership" -- distinct from any
+  /// real player id (a UUID), so it can share one menu/one dispatch with
+  /// the per-player "Give to..." items below.
+  static const String _removeOwnershipValue = '__release__';
+
+  /// Right-clicking a free-table card/pile -- unlike a zone/pile's plain
+  /// Search menu ([_showSearchMenu], still used as-is for owned zones and
+  /// shared-zone piles), a free-table card can *also* be given away or
+  /// released if the local player owns it, so this builds one combined
+  /// menu instead of a separate popup per concern. [onSearch] is passed
+  /// through unchanged from each call site's own existing gating (e.g. an
+  /// opponent-owned pile passes null, exactly like [_showSearchMenu]'s old
+  /// direct call did) -- this method doesn't re-derive it. Shows nothing at
+  /// all if there's neither a search option nor anything ownership-related
+  /// to offer (an opponent's or an already-unowned card, with no
+  /// [onSearch]).
+  Future<void> _showCardMenu(
+    Offset globalPosition,
+    CardInstance card, {
+    VoidCallback? onSearch,
+  }) async {
+    final session = context.read<GameSession>();
+    // An unownable card (see CardInstance.unownable) never has anything
+    // ownership-related to offer -- it's always free-for-anyone, by design.
+    final isOwner = !card.unownable && card.ownerId == session.localPlayerId;
+    final givablePlayers = !isOwner
+        ? const <PlayerInfo>[]
+        : session.state.players
+              .where((p) => p.id != session.localPlayerId && p.connected)
+              .toList();
+    if (onSearch == null && !isOwner) return;
+    final action = await showMenu<String>(
+      context: context,
+      position: RelativeRect.fromLTRB(
+        globalPosition.dx,
+        globalPosition.dy,
+        globalPosition.dx,
+        globalPosition.dy,
+      ),
+      items: [
+        if (onSearch != null)
+          const PopupMenuItem(value: 'search', child: Text('Search...')),
+        for (final player in givablePlayers)
+          PopupMenuItem(value: player.id, child: Text('Give to ${player.name}')),
+        if (isOwner)
+          const PopupMenuItem(
+            value: _removeOwnershipValue,
+            child: Text('Remove Ownership'),
+          ),
+      ],
+    );
+    if (action == null) return;
+    if (action == 'search') {
+      onSearch?.call();
+    } else if (action == _removeOwnershipValue) {
+      widget.controller.giveCard(card.instanceId, null);
+    } else {
+      widget.controller.giveCard(card.instanceId, action);
+    }
+  }
+
   Future<void> _showBoardContextMenu(Offset globalPosition) async {
     final category = await showMenu<String>(
       context: context,
@@ -2752,20 +2813,21 @@ class _TableScreenState extends State<TableScreen>
                                                           ? 0.3
                                                           : 1.0,
                                                       child: GestureDetector(
-                                                        onSecondaryTapUp:
-                                                            ownedByOpponent
-                                                            ? null
-                                                            : (
-                                                                details,
-                                                              ) => _showSearchMenu(
-                                                                details
-                                                                    .globalPosition,
-                                                                () => widget
+                                                        onSecondaryTapUp: (
+                                                          details,
+                                                        ) => _showCardMenu(
+                                                          details
+                                                              .globalPosition,
+                                                          top,
+                                                          onSearch:
+                                                              ownedByOpponent
+                                                              ? null
+                                                              : () => widget
                                                                     .controller
                                                                     .startSearchPile(
                                                                       group.key,
                                                                     ),
-                                                              ),
+                                                        ),
                                                         child: PileWidget(
                                                           count: cards.length,
                                                           topInstanceId:
@@ -2869,54 +2931,63 @@ class _TableScreenState extends State<TableScreen>
                                                     opacity: isGhostedPassenger
                                                         ? 0.3
                                                         : 1.0,
-                                                    child: DraggableCard(
-                                                      instance: top,
-                                                      definition:
-                                                          widget
-                                                              .definitionsById[top
-                                                              .definitionId],
-                                                      isMirrored:
-                                                          cardFacesAwayFromMe(
-                                                            top.ownerId,
-                                                          ),
-                                                      interactable:
-                                                          !ownedByOpponent &&
-                                                          !_tabPressed,
-                                                      applyOrientation: true,
-                                                      opponentBorderColor:
-                                                          ownerBorderColor(
-                                                            top.ownerId,
-                                                          ),
-                                                      onDragStarted: () =>
-                                                          _startGroupDrag(
-                                                            pickupGroup,
-                                                          ),
-                                                      feedbackOverride:
-                                                          pickupGroup.length > 1
-                                                          ? _buildGroupFeedback(
+                                                    child: GestureDetector(
+                                                      onSecondaryTapUp: (
+                                                        details,
+                                                      ) => _showCardMenu(
+                                                        details.globalPosition,
+                                                        top,
+                                                      ),
+                                                      child: DraggableCard(
+                                                        instance: top,
+                                                        definition:
+                                                            widget
+                                                                .definitionsById[top
+                                                                .definitionId],
+                                                        isMirrored:
+                                                            cardFacesAwayFromMe(
+                                                              top.ownerId,
+                                                            ),
+                                                        interactable:
+                                                            !ownedByOpponent &&
+                                                            !_tabPressed,
+                                                        applyOrientation: true,
+                                                        opponentBorderColor:
+                                                            ownerBorderColor(
+                                                              top.ownerId,
+                                                            ),
+                                                        onDragStarted: () =>
+                                                            _startGroupDrag(
                                                               pickupGroup,
-                                                              top,
-                                                            )
-                                                          : null,
-                                                      onDragEnd: (offset) {
-                                                        _endGroupDrag();
-                                                        _handleDragEnd(
-                                                          tableTops,
-                                                          emptySharedZonePositions,
-                                                          pickupCandidates,
-                                                          top.instanceId,
-                                                          offset,
-                                                          localHand,
-                                                        );
-                                                      },
-                                                      onHover: (hovering) =>
-                                                          _setHoveredId(
-                                                            hovering
-                                                                ? top.instanceId
-                                                                : null,
-                                                          ),
-                                                      cardBackImagePath: widget
-                                                          .cardBackImagePath,
+                                                            ),
+                                                        feedbackOverride:
+                                                            pickupGroup.length >
+                                                                1
+                                                            ? _buildGroupFeedback(
+                                                                pickupGroup,
+                                                                top,
+                                                              )
+                                                            : null,
+                                                        onDragEnd: (offset) {
+                                                          _endGroupDrag();
+                                                          _handleDragEnd(
+                                                            tableTops,
+                                                            emptySharedZonePositions,
+                                                            pickupCandidates,
+                                                            top.instanceId,
+                                                            offset,
+                                                            localHand,
+                                                          );
+                                                        },
+                                                        onHover: (hovering) =>
+                                                            _setHoveredId(
+                                                              hovering
+                                                                  ? top.instanceId
+                                                                  : null,
+                                                            ),
+                                                        cardBackImagePath: widget
+                                                            .cardBackImagePath,
+                                                      ),
                                                     ),
                                                   ),
                                                 );

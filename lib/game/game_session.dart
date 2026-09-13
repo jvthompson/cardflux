@@ -108,6 +108,10 @@ class GameSession extends ChangeNotifier {
       for (final c in game.cards) c.id,
       for (final c in standardDeckCards) c.id,
     };
+    final definitionsById = {
+      for (final c in game.cards) c.id: c,
+      for (final c in standardDeckCards) c.id: c,
+    };
     final fullDeckEntries = [
       for (final c in game.cards) DeckEntry(definitionId: c.id, quantity: 1),
     ];
@@ -148,6 +152,7 @@ class GameSession extends ChangeNotifier {
             zone: CardZone.zone,
             zoneId: zoneId,
             ownerId: ownerId,
+            unownable: definitionsById[definitionId]?.unownable ?? false,
           ),
         );
         i++;
@@ -253,6 +258,17 @@ class GameSession extends ChangeNotifier {
 
   void flipCard(String instanceId) {
     _state = _actions.flipCard(_state, instanceId: instanceId);
+    notifyListeners();
+  }
+
+  /// Reassigns [instanceId]'s ownership to [newOwnerId] (null releases it
+  /// back to unowned) -- see `TableActions.giveCard`.
+  void giveCard(String instanceId, String? newOwnerId) {
+    _state = _actions.giveCard(
+      _state,
+      instanceId: instanceId,
+      newOwnerId: newOwnerId,
+    );
     notifyListeners();
   }
 

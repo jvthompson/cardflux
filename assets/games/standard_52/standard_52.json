@@ -10,7 +10,8 @@
       "rank": "A",
       "types": [
         "Hearts"
-      ]
+      ],
+      "unownable": true
     },
     {
       "id": "hearts_2",
@@ -20,7 +21,8 @@
       "rank": "2",
       "types": [
         "Hearts"
-      ]
+      ],
+      "unownable": true
     },
     {
       "id": "hearts_3",
@@ -30,7 +32,8 @@
       "rank": "3",
       "types": [
         "Hearts"
-      ]
+      ],
+      "unownable": true
     },
     {
       "id": "hearts_4",
@@ -40,7 +43,8 @@
       "rank": "4",
       "types": [
         "Hearts"
-      ]
+      ],
+      "unownable": true
     },
     {
       "id": "hearts_5",
@@ -50,7 +54,8 @@
       "rank": "5",
       "types": [
         "Hearts"
-      ]
+      ],
+      "unownable": true
     },
     {
       "id": "hearts_6",
@@ -60,7 +65,8 @@
       "rank": "6",
       "types": [
         "Hearts"
-      ]
+      ],
+      "unownable": true
     },
     {
       "id": "hearts_7",
@@ -70,7 +76,8 @@
       "rank": "7",
       "types": [
         "Hearts"
-      ]
+      ],
+      "unownable": true
     },
     {
       "id": "hearts_8",
@@ -80,7 +87,8 @@
       "rank": "8",
       "types": [
         "Hearts"
-      ]
+      ],
+      "unownable": true
     },
     {
       "id": "hearts_9",
@@ -90,7 +98,8 @@
       "rank": "9",
       "types": [
         "Hearts"
-      ]
+      ],
+      "unownable": true
     },
     {
       "id": "hearts_10",
@@ -100,7 +109,8 @@
       "rank": "10",
       "types": [
         "Hearts"
-      ]
+      ],
+      "unownable": true
     },
     {
       "id": "hearts_J",
@@ -110,7 +120,8 @@
       "rank": "J",
       "types": [
         "Hearts"
-      ]
+      ],
+      "unownable": true
     },
     {
       "id": "hearts_Q",
@@ -120,7 +131,8 @@
       "rank": "Q",
       "types": [
         "Hearts"
-      ]
+      ],
+      "unownable": true
     },
     {
       "id": "hearts_K",
@@ -130,7 +142,8 @@
       "rank": "K",
       "types": [
         "Hearts"
-      ]
+      ],
+      "unownable": true
     },
     {
       "id": "diamonds_A",
@@ -140,7 +153,8 @@
       "rank": "A",
       "types": [
         "Diamonds"
-      ]
+      ],
+      "unownable": true
     },
     {
       "id": "diamonds_2",
@@ -150,7 +164,8 @@
       "rank": "2",
       "types": [
         "Diamonds"
-      ]
+      ],
+      "unownable": true
     },
     {
       "id": "diamonds_3",
@@ -160,7 +175,8 @@
       "rank": "3",
       "types": [
         "Diamonds"
-      ]
+      ],
+      "unownable": true
     },
     {
       "id": "diamonds_4",
@@ -170,7 +186,8 @@
       "rank": "4",
       "types": [
         "Diamonds"
-      ]
+      ],
+      "unownable": true
     },
     {
       "id": "diamonds_5",
@@ -180,7 +197,8 @@
       "rank": "5",
       "types": [
         "Diamonds"
-      ]
+      ],
+      "unownable": true
     },
     {
       "id": "diamonds_6",
@@ -190,7 +208,8 @@
       "rank": "6",
       "types": [
         "Diamonds"
-      ]
+      ],
+      "unownable": true
     },
     {
       "id": "diamonds_7",
@@ -200,7 +219,8 @@
       "rank": "7",
       "types": [
         "Diamonds"
-      ]
+      ],
+      "unownable": true
     },
     {
       "id": "diamonds_8",
@@ -210,7 +230,8 @@
       "rank": "8",
       "types": [
         "Diamonds"
-      ]
+      ],
+      "unownable": true
     },
     {
       "id": "diamonds_9",
@@ -220,7 +241,8 @@
       "rank": "9",
       "types": [
         "Diamonds"
-      ]
+      ],
+      "unownable": true
     },
     {
       "id": "diamonds_10",
@@ -230,7 +252,8 @@
       "rank": "10",
       "types": [
         "Diamonds"
-      ]
+      ],
+      "unownable": true
     },
     {
       "id": "diamonds_J",
@@ -240,7 +263,8 @@
       "rank": "J",
       "types": [
         "Diamonds"
-      ]
+      ],
+      "unownable": true
     },
     {
       "id": "diamonds_Q",
@@ -250,7 +274,8 @@
       "rank": "Q",
       "types": [
         "Diamonds"
-      ]
+      ],
+      "unownable": true
     },
     {
       "id": "diamonds_K",
@@ -260,7 +285,8 @@
       "rank": "K",
       "types": [
         "Diamonds"
-      ]
+      ],
+      "unownable": true
     },
     {
       "id": "clubs_A",
@@ -270,7 +296,8 @@
       "rank": "A",
       "types": [
         "Clubs"
-      ]
+      ],
+      "unownable": true
     },
     {
       "id": "clubs_2",
@@ -280,7 +307,8 @@
       "rank": "2",
       "types": [
         "Clubs"
-      ]
+      ],
+      "unownable": true
     },
     {
       "id": "clubs_3",
@@ -290,7 +318,8 @@
       "rank": "3",
       "types": [
         "Clubs"
-      ]
+      ],
+      "unownable": true
     },
     {
       "id": "clubs_4",
@@ -300,7 +329,8 @@
       "rank": "4",
       "types": [
         "Clubs"
-      ]
+      ],
+      "unownable": true
     },
     {
       "id": "clubs_5",
@@ -310,7 +340,8 @@
       "rank": "5",
       "types": [
         "Clubs"
-      ]
+      ],
+      "unownable": true
     },
     {
       "id": "clubs_6",
@@ -320,7 +351,8 @@
       "rank": "6",
       "types": [
         "Clubs"
-      ]
+      ],
+      "unownable": true
     },
     {
       "id": "clubs_7",
@@ -330,7 +362,8 @@
       "rank": "7",
       "types": [
         "Clubs"
-      ]
+      ],
+      "unownable": true
     },
     {
       "id": "clubs_8",
@@ -340,7 +373,8 @@
       "rank": "8",
       "types": [
         "Clubs"
-      ]
+      ],
+      "unownable": true
     },
     {
       "id": "clubs_9",
@@ -350,7 +384,8 @@
       "rank": "9",
       "types": [
         "Clubs"
-      ]
+      ],
+      "unownable": true
     },
     {
       "id": "clubs_10",
@@ -360,7 +395,8 @@
       "rank": "10",
       "types": [
         "Clubs"
-      ]
+      ],
+      "unownable": true
     },
     {
       "id": "clubs_J",
@@ -370,7 +406,8 @@
       "rank": "J",
       "types": [
         "Clubs"
-      ]
+      ],
+      "unownable": true
     },
     {
       "id": "clubs_Q",
@@ -380,7 +417,8 @@
       "rank": "Q",
       "types": [
         "Clubs"
-      ]
+      ],
+      "unownable": true
     },
     {
       "id": "clubs_K",
@@ -390,7 +428,8 @@
       "rank": "K",
       "types": [
         "Clubs"
-      ]
+      ],
+      "unownable": true
     },
     {
       "id": "spades_A",
@@ -400,7 +439,8 @@
       "rank": "A",
       "types": [
         "Spades"
-      ]
+      ],
+      "unownable": true
     },
     {
       "id": "spades_2",
@@ -410,7 +450,8 @@
       "rank": "2",
       "types": [
         "Spades"
-      ]
+      ],
+      "unownable": true
     },
     {
       "id": "spades_3",
@@ -420,7 +461,8 @@
       "rank": "3",
       "types": [
         "Spades"
-      ]
+      ],
+      "unownable": true
     },
     {
       "id": "spades_4",
@@ -430,7 +472,8 @@
       "rank": "4",
       "types": [
         "Spades"
-      ]
+      ],
+      "unownable": true
     },
     {
       "id": "spades_5",
@@ -440,7 +483,8 @@
       "rank": "5",
       "types": [
         "Spades"
-      ]
+      ],
+      "unownable": true
     },
     {
       "id": "spades_6",
@@ -450,7 +494,8 @@
       "rank": "6",
       "types": [
         "Spades"
-      ]
+      ],
+      "unownable": true
     },
     {
       "id": "spades_7",
@@ -460,7 +505,8 @@
       "rank": "7",
       "types": [
         "Spades"
-      ]
+      ],
+      "unownable": true
     },
     {
       "id": "spades_8",
@@ -470,7 +516,8 @@
       "rank": "8",
       "types": [
         "Spades"
-      ]
+      ],
+      "unownable": true
     },
     {
       "id": "spades_9",
@@ -480,7 +527,8 @@
       "rank": "9",
       "types": [
         "Spades"
-      ]
+      ],
+      "unownable": true
     },
     {
       "id": "spades_10",
@@ -490,7 +538,8 @@
       "rank": "10",
       "types": [
         "Spades"
-      ]
+      ],
+      "unownable": true
     },
     {
       "id": "spades_J",
@@ -500,7 +549,8 @@
       "rank": "J",
       "types": [
         "Spades"
-      ]
+      ],
+      "unownable": true
     },
     {
       "id": "spades_Q",
@@ -510,7 +560,8 @@
       "rank": "Q",
       "types": [
         "Spades"
-      ]
+      ],
+      "unownable": true
     },
     {
       "id": "spades_K",
@@ -520,7 +571,8 @@
       "rank": "K",
       "types": [
         "Spades"
-      ]
+      ],
+      "unownable": true
     }
   ],
   "zones": [

@@ -119,6 +119,7 @@ class GameDefinition {
       types: card.types,
       orientation: card.orientation,
       setId: setId,
+      unownable: card.unownable,
     );
   }
 

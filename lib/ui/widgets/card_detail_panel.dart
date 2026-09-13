@@ -203,6 +203,13 @@ class _CardDetailPanelState extends State<CardDetailPanel> {
             if (v != null) widget.onChanged(card.copyWith(orientation: v));
           },
         ),
+        SwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          title: const Text('Unownable'),
+          subtitle: const Text('Always stays unowned on the table -- any player can interact with it'),
+          value: card.unownable,
+          onChanged: (v) => widget.onChanged(card.copyWith(unownable: v)),
+        ),
         if (widget.allSets.isNotEmpty) ...[
           const SizedBox(height: 12),
           DropdownButtonFormField<String?>(
