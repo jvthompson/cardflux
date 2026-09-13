@@ -22,9 +22,9 @@ abstract class TableController {
   void stackCard(String instanceId, String ontoInstanceId);
   void moveToHand(String instanceId);
   void reorderHand(String instanceId, int targetIndex);
-  void drawCard(String pileInstanceId);
+  void drawCard(String pileInstanceId, {int count = 1});
   void shufflePile(String pileRootInstanceId);
-  void drawFromZone(String zoneId);
+  void drawFromZone(String zoneId, {int count = 1});
   void returnToZone(String instanceId, String zoneId, {bool toBottom});
   void shuffleZone(String zoneId);
   void startSearchZone(String zoneId);
@@ -118,7 +118,8 @@ class HostTableController implements TableController {
       _session.reorderHand(instanceId, targetIndex);
 
   @override
-  void drawCard(String pileInstanceId) => _session.drawCard(pileInstanceId);
+  void drawCard(String pileInstanceId, {int count = 1}) =>
+      _session.drawCard(pileInstanceId, count: count);
 
   @override
   void shufflePile(String pileRootInstanceId) =>
@@ -134,8 +135,11 @@ class HostTableController implements TableController {
   }
 
   @override
-  void drawFromZone(String zoneId) =>
-      _session.drawFromZone(zoneId, zoneOwnerId: _zoneOwnerId(zoneId));
+  void drawFromZone(String zoneId, {int count = 1}) => _session.drawFromZone(
+    zoneId,
+    zoneOwnerId: _zoneOwnerId(zoneId),
+    count: count,
+  );
 
   @override
   void returnToZone(
@@ -340,11 +344,11 @@ class ClientTableController implements TableController {
   }
 
   @override
-  void drawCard(String pileInstanceId) {
+  void drawCard(String pileInstanceId, {int count = 1}) {
     _client.send(
       NetMessage(
         type: NetMessageType.requestDraw,
-        payload: {'pileInstanceId': pileInstanceId},
+        payload: {'pileInstanceId': pileInstanceId, 'count': count},
       ),
     );
   }
@@ -360,11 +364,11 @@ class ClientTableController implements TableController {
   }
 
   @override
-  void drawFromZone(String zoneId) {
+  void drawFromZone(String zoneId, {int count = 1}) {
     _client.send(
       NetMessage(
         type: NetMessageType.requestDrawFromZone,
-        payload: {'zoneId': zoneId},
+        payload: {'zoneId': zoneId, 'count': count},
       ),
     );
   }

@@ -1014,6 +1014,50 @@ void main() {
         expect(next.cards.single.rotationTurns, 0);
       },
     );
+
+    test('count draws that many cards, top-first, in a single revision bump -- including the anchor once it is last', () {
+      final state = _threeCardPile();
+      final next = _actions.drawCard(
+        state,
+        pileInstanceId: 'root',
+        ownerId: 'p1',
+        count: 3,
+      );
+      expect(next.revision, state.revision + 1);
+      for (final id in ['root', 'a', 'b']) {
+        expect(next.cards.firstWhere((c) => c.instanceId == id).zone, CardZone.hand);
+      }
+      // Drawn top-first: 'b' (zIndex 2) first, then 'a', then the anchor
+      // 'root' last -- each gets its own new zIndex in that order.
+      final b = next.cards.firstWhere((c) => c.instanceId == 'b').zIndex;
+      final a = next.cards.firstWhere((c) => c.instanceId == 'a').zIndex;
+      final root = next.cards.firstWhere((c) => c.instanceId == 'root').zIndex;
+      expect(b, lessThan(a));
+      expect(a, lessThan(root));
+    });
+
+    test('clamps count to however many cards are actually in the pile', () {
+      final state = _threeCardPile();
+      final next = _actions.drawCard(
+        state,
+        pileInstanceId: 'root',
+        ownerId: 'p1',
+        count: 9,
+      );
+      expect(next.revision, state.revision + 1);
+      expect(next.cards.every((c) => c.zone == CardZone.hand), isTrue);
+    });
+
+    test('count: 0 is a no-op', () {
+      final state = _threeCardPile();
+      final next = _actions.drawCard(
+        state,
+        pileInstanceId: 'root',
+        ownerId: 'p1',
+        count: 0,
+      );
+      expect(next, same(state));
+    });
   });
 
   group('drawFromZone', () {
@@ -1088,6 +1132,50 @@ void main() {
         expect(next.cards.single.rotationTurns, 0);
       },
     );
+
+    test('count draws that many cards, top-first, in a single revision bump', () {
+      final state = _threeCardZone(zoneId: 'draw_deck', ownerId: 'p1');
+      final next = _actions.drawFromZone(
+        state,
+        zoneId: 'draw_deck',
+        zoneOwnerId: 'p1',
+        toOwnerId: 'p1',
+        count: 2,
+      );
+      expect(next.revision, state.revision + 1);
+      // Top-first: 'z3' (zIndex 2) then 'z2' (zIndex 1); 'z1' stays put.
+      expect(next.cards.firstWhere((c) => c.instanceId == 'z3').zone, CardZone.hand);
+      expect(next.cards.firstWhere((c) => c.instanceId == 'z2').zone, CardZone.hand);
+      expect(next.cards.firstWhere((c) => c.instanceId == 'z1').zone, CardZone.zone);
+      final z3 = next.cards.firstWhere((c) => c.instanceId == 'z3').zIndex;
+      final z2 = next.cards.firstWhere((c) => c.instanceId == 'z2').zIndex;
+      expect(z3, lessThan(z2));
+    });
+
+    test('clamps count to however many cards are actually in the zone', () {
+      final state = _threeCardZone(zoneId: 'draw_deck', ownerId: 'p1');
+      final next = _actions.drawFromZone(
+        state,
+        zoneId: 'draw_deck',
+        zoneOwnerId: 'p1',
+        toOwnerId: 'p1',
+        count: 9,
+      );
+      expect(next.revision, state.revision + 1);
+      expect(next.cards.every((c) => c.zone == CardZone.hand), isTrue);
+    });
+
+    test('count: 0 is a no-op', () {
+      final state = _threeCardZone(zoneId: 'draw_deck', ownerId: 'p1');
+      final next = _actions.drawFromZone(
+        state,
+        zoneId: 'draw_deck',
+        zoneOwnerId: 'p1',
+        toOwnerId: 'p1',
+        count: 0,
+      );
+      expect(next, same(state));
+    });
   });
 
   group('returnToZone', () {

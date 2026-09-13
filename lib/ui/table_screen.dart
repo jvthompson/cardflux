@@ -591,6 +591,29 @@ class _TableScreenState extends State<TableScreen>
     LogicalKeyboardKey.keyD,
   };
 
+  /// 1-9 (both the top-row digits and the numpad) while hovering a
+  /// deck/pile draws that many cards -- see [_drawNFromHovered].
+  static final _drawCountKeys = {
+    LogicalKeyboardKey.digit1: 1,
+    LogicalKeyboardKey.digit2: 2,
+    LogicalKeyboardKey.digit3: 3,
+    LogicalKeyboardKey.digit4: 4,
+    LogicalKeyboardKey.digit5: 5,
+    LogicalKeyboardKey.digit6: 6,
+    LogicalKeyboardKey.digit7: 7,
+    LogicalKeyboardKey.digit8: 8,
+    LogicalKeyboardKey.digit9: 9,
+    LogicalKeyboardKey.numpad1: 1,
+    LogicalKeyboardKey.numpad2: 2,
+    LogicalKeyboardKey.numpad3: 3,
+    LogicalKeyboardKey.numpad4: 4,
+    LogicalKeyboardKey.numpad5: 5,
+    LogicalKeyboardKey.numpad6: 6,
+    LogicalKeyboardKey.numpad7: 7,
+    LogicalKeyboardKey.numpad8: 8,
+    LogicalKeyboardKey.numpad9: 9,
+  };
+
   bool _handleKeyEvent(KeyEvent event) {
     if (event.logicalKey == LogicalKeyboardKey.space) {
       final pressed = event is! KeyUpEvent;
@@ -634,6 +657,9 @@ class _TableScreenState extends State<TableScreen>
         setState(() => _colorTintEnabled = !_colorTintEnabled);
       } else if (event.logicalKey == LogicalKeyboardKey.f12) {
         _cyclePlaymat();
+      } else {
+        final drawCount = _drawCountKeys[event.logicalKey];
+        if (drawCount != null) _drawNFromHovered(drawCount);
       }
     }
     return false;
@@ -715,6 +741,50 @@ class _TableScreenState extends State<TableScreen>
       if (!z.shared && z.isDiscardPile) return z.id;
     }
     return null;
+  }
+
+  /// What pressing a 1-9 draw-count key while hovering would draw from, if
+  /// anything -- a free-table pile (own card only, resolved to its stack
+  /// root like [_rotateHovered] does), this zone's own instance of an owned
+  /// zone, or any shared zone (any card count) -- but never a hand card or
+  /// another player's owned zone. Same non-caching, re-scan-by-id idiom as
+  /// [_ownedHoveredTableCard]/[_hoveredFlippableCard].
+  ({String? pileRootId, String? zoneId, String? zoneOwnerId})?
+  _hoveredDrawTarget() {
+    final id = _hoveredInstanceId;
+    if (id == null) return null;
+    final session = context.read<GameSession>();
+    for (final c in session.state.cards) {
+      if (c.instanceId != id) continue;
+      switch (c.zone) {
+        case CardZone.table:
+          if (c.ownerId != session.localPlayerId) return null;
+          final rootId = _stackUtils.rootIdOf(session.state.cards, c);
+          return (pileRootId: rootId, zoneId: null, zoneOwnerId: null);
+        case CardZone.zone:
+          if (c.ownerId != null && c.ownerId != session.localPlayerId) {
+            return null;
+          }
+          return (pileRootId: null, zoneId: c.zoneId, zoneOwnerId: c.ownerId);
+        case CardZone.hand:
+          return null;
+      }
+    }
+    return null;
+  }
+
+  /// Draws [n] cards (see [TableController.drawCard]/[drawFromZone]'s
+  /// clamp-to-available behavior) from whatever [_hoveredDrawTarget]
+  /// resolves to -- a no-op if nothing's hovered.
+  void _drawNFromHovered(int n) {
+    final target = _hoveredDrawTarget();
+    if (target == null) return;
+    final pileRootId = target.pileRootId;
+    if (pileRootId != null) {
+      widget.controller.drawCard(pileRootId, count: n);
+    } else {
+      widget.controller.drawFromZone(target.zoneId!, count: n);
+    }
   }
 
   /// Commits the in-progress TAB-drag preview (see [_arrowDrag]) as a real
@@ -1897,6 +1967,9 @@ class _TableScreenState extends State<TableScreen>
             isBeingSearched: isBeingSearched,
             cardBackImagePath: widget.cardBackImagePath,
             borderColor: borderColor,
+            onHover: top == null
+                ? null
+                : (hovering) => _setHoveredId(hovering ? top.instanceId : null),
           ),
         ),
       ),
@@ -3008,6 +3081,12 @@ class _TableScreenState extends State<TableScreen>
                                                                 .controller
                                                                 .drawFromZone(
                                                                   zone.id,
+                                                                ),
+                                                            onHover: (hovering) =>
+                                                                _setHoveredId(
+                                                                  hovering
+                                                                      ? top.instanceId
+                                                                      : null,
                                                                 ),
                                                             onDragEnd: (offset) =>
                                                                 _handleDragEnd(

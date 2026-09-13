@@ -289,16 +289,17 @@ class GameSession extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Draws the top card of the free-table pile rooted at [pileInstanceId]
-  /// into [ownerId]'s hand, defaulting to this session's own local player --
-  /// the host overrides this to the requesting client's id when applying a
-  /// networked draw request on their behalf. For a zone (draw deck, discard
-  /// pile, etc.) see [drawFromZone] instead.
-  void drawCard(String pileInstanceId, {String? ownerId}) {
+  /// Draws the top [count] cards of the free-table pile rooted at
+  /// [pileInstanceId] into [ownerId]'s hand, defaulting to this session's
+  /// own local player -- the host overrides this to the requesting client's
+  /// id when applying a networked draw request on their behalf. For a zone
+  /// (draw deck, discard pile, etc.) see [drawFromZone] instead.
+  void drawCard(String pileInstanceId, {String? ownerId, int count = 1}) {
     _state = _actions.drawCard(
       _state,
       pileInstanceId: pileInstanceId,
       ownerId: ownerId ?? localPlayerId,
+      count: count,
     );
     notifyListeners();
   }
@@ -311,19 +312,21 @@ class GameSession extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Draws the top card of the zone [zoneId] (owned by [zoneOwnerId], null
-  /// for a shared zone) into [toOwnerId]'s hand, defaulting to this
-  /// session's own local player.
+  /// Draws the top [count] cards of the zone [zoneId] (owned by
+  /// [zoneOwnerId], null for a shared zone) into [toOwnerId]'s hand,
+  /// defaulting to this session's own local player.
   void drawFromZone(
     String zoneId, {
     required String? zoneOwnerId,
     String? toOwnerId,
+    int count = 1,
   }) {
     _state = _actions.drawFromZone(
       _state,
       zoneId: zoneId,
       zoneOwnerId: zoneOwnerId,
       toOwnerId: toOwnerId ?? localPlayerId,
+      count: count,
     );
     notifyListeners();
   }

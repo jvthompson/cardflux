@@ -313,36 +313,58 @@ class TableActions {
     );
   }
 
-  /// Moves the topmost card of the free-table pile rooted at [pileInstanceId]
-  /// into [ownerId]'s hand, face-up, detached from the pile. For a zone
-  /// (draw deck, discard pile, etc.), see [drawFromZone] instead.
+  /// Moves the top [count] cards (default 1, clamped to however many are
+  /// actually there -- fewer, or none, is never an error) of the free-table
+  /// pile rooted at [pileInstanceId] into [ownerId]'s hand, face-up,
+  /// detached from the pile, in one single-revision update regardless of
+  /// [count] (mirrors [moveGroup]'s one-call/one-revision shape rather than
+  /// looping this method [count] times, which would mean [count] separate
+  /// network broadcasts for a client-initiated draw). For a zone (draw
+  /// deck, discard pile, etc.), see [drawFromZone] instead.
   ///
   /// [pileInstanceId] is the stack's root/anchor card — every other card in
   /// the pile identifies the pile via a stackParentId chain leading back to
   /// it. That anchor is only ever drawn once it's the last card left in the
-  /// pile, so the pile's identity survives every draw before it.
+  /// pile (re-checked on every card drawn within the batch, not just once),
+  /// so the pile's identity survives every other draw. Cards are drawn
+  /// top-first and each gets its own new zIndex in that same order (the
+  /// first, previously-topmost card gets the lowest of the batch), exactly
+  /// as [count] sequential single-card draws would have produced.
   TableState drawCard(
     TableState state, {
     required String pileInstanceId,
     required String ownerId,
+    int count = 1,
   }) {
     final stack = _stacks.stackOf(state.cards, pileInstanceId);
-    if (stack.isEmpty) return state;
-    final candidates = stack.length > 1
-        ? stack.where((c) => c.instanceId != pileInstanceId).toList()
-        : stack;
-    final top = _stacks.topOf(candidates);
+    if (stack.isEmpty || count <= 0) return state;
 
-    final nextZ = _nextZIndex(state);
+    final remaining = stack.toList();
+    final drawnIds = <String>[];
+    for (var i = 0; i < count && remaining.isNotEmpty; i++) {
+      final candidates = remaining.length > 1
+          ? remaining.where((c) => c.instanceId != pileInstanceId).toList()
+          : remaining;
+      final top = _stacks.topOf(candidates);
+      drawnIds.add(top.instanceId);
+      remaining.removeWhere((c) => c.instanceId == top.instanceId);
+    }
+    if (drawnIds.isEmpty) return state;
+
+    final baseZ = _nextZIndex(state);
+    final newZIndexById = {
+      for (var i = 0; i < drawnIds.length; i++) drawnIds[i]: baseZ + i,
+    };
     final cards = state.cards.map((c) {
-      if (c.instanceId != top.instanceId) return c;
+      final newZ = newZIndexById[c.instanceId];
+      if (newZ == null) return c;
       return c.copyWith(
         zone: CardZone.hand,
         ownerId: ownerId,
         faceUp: true,
         stackParentId: null,
         rotationTurns: 0,
-        zIndex: nextZ,
+        zIndex: newZ,
       );
     }).toList();
     return state.copyWith(cards: cards, revision: state.revision + 1);
@@ -368,33 +390,52 @@ class TableActions {
         .toList();
   }
 
-  /// Moves the topmost card of the zone [zoneId] (owned by [zoneOwnerId],
-  /// null for a shared zone) into [toOwnerId]'s hand, face-up. A no-op if
-  /// the zone is currently empty.
+  /// Moves the top [count] cards (default 1, clamped to however many are
+  /// actually there -- fewer, or none, is never an error) of the zone
+  /// [zoneId] (owned by [zoneOwnerId], null for a shared zone) into
+  /// [toOwnerId]'s hand, face-up, in one single-revision update regardless
+  /// of [count] -- see [drawCard]'s identical reasoning for why this isn't
+  /// just [count] repeated single-card draws. A no-op if the zone is
+  /// currently empty (or [count] is non-positive). Cards are drawn
+  /// top-first and each gets its own new zIndex in that same order, exactly
+  /// as [count] sequential single-card draws would have produced.
   TableState drawFromZone(
     TableState state, {
     required String zoneId,
     required String? zoneOwnerId,
     required String toOwnerId,
+    int count = 1,
   }) {
     final zoneCards = _zoneCards(
       state,
       zoneId: zoneId,
       zoneOwnerId: zoneOwnerId,
     );
-    if (zoneCards.isEmpty) return state;
-    final top = _stacks.topOf(zoneCards);
+    if (zoneCards.isEmpty || count <= 0) return state;
 
-    final nextZ = _nextZIndex(state);
+    final remaining = zoneCards.toList();
+    final drawnIds = <String>[];
+    for (var i = 0; i < count && remaining.isNotEmpty; i++) {
+      final top = _stacks.topOf(remaining);
+      drawnIds.add(top.instanceId);
+      remaining.removeWhere((c) => c.instanceId == top.instanceId);
+    }
+    if (drawnIds.isEmpty) return state;
+
+    final baseZ = _nextZIndex(state);
+    final newZIndexById = {
+      for (var i = 0; i < drawnIds.length; i++) drawnIds[i]: baseZ + i,
+    };
     final cards = state.cards.map((c) {
-      if (c.instanceId != top.instanceId) return c;
+      final newZ = newZIndexById[c.instanceId];
+      if (newZ == null) return c;
       return c.copyWith(
         zone: CardZone.hand,
         ownerId: toOwnerId,
         faceUp: true,
         zoneId: null,
         rotationTurns: 0,
-        zIndex: nextZ,
+        zIndex: newZ,
       );
     }).toList();
     return state.copyWith(cards: cards, revision: state.revision + 1);

@@ -32,6 +32,7 @@ class ZoneStackWidget extends StatefulWidget {
     this.isBeingSearched = false,
     this.cardBackImagePath,
     this.borderColor,
+    this.onHover,
   });
 
   final String zoneName;
@@ -41,6 +42,12 @@ class ZoneStackWidget extends StatefulWidget {
   final CardDefinition? topDefinition;
   final void Function(Offset globalTopLeft)? onDragEnd;
   final VoidCallback? onShuffle;
+
+  /// Notified when the mouse enters/exits this zone -- same purpose as
+  /// `PileWidget.onHover`/`DraggableCard.onHover` (Space-hold preview, and
+  /// keyboard-shortcut targeting like Q/E/X/F and the 1-9 draw-count keys),
+  /// reported against [topInstanceId] since that's the card actually shown.
+  final ValueChanged<bool>? onHover;
 
   /// See `PileWidget.isBeingSearched`'s identical doc.
   final bool isBeingSearched;
@@ -96,7 +103,11 @@ class _ZoneStackWidgetState extends State<ZoneStackWidget>
 
   @override
   Widget build(BuildContext context) {
-    return Tooltip(message: widget.zoneName, child: _buildContent());
+    return MouseRegion(
+      onEnter: (_) => widget.onHover?.call(true),
+      onExit: (_) => widget.onHover?.call(false),
+      child: Tooltip(message: widget.zoneName, child: _buildContent()),
+    );
   }
 
   Widget _buildContent() {

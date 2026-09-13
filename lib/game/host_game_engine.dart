@@ -148,8 +148,9 @@ class HostGameEngine {
         break;
       case NetMessageType.requestDraw:
         final pileInstanceId = msg.payload['pileInstanceId'] as String;
+        final count = msg.payload['count'] as int? ?? 1;
         if (_isAllowedToDrawOrShuffle(pileInstanceId, clientId)) {
-          session.drawCard(pileInstanceId, ownerId: clientId);
+          session.drawCard(pileInstanceId, ownerId: clientId, count: count);
         }
         break;
       case NetMessageType.requestShuffle:
@@ -160,10 +161,12 @@ class HostGameEngine {
         break;
       case NetMessageType.requestDrawFromZone:
         final zoneId = msg.payload['zoneId'] as String;
+        final count = msg.payload['count'] as int? ?? 1;
         session.drawFromZone(
           zoneId,
           zoneOwnerId: _zoneOwnerId(zoneId, clientId),
           toOwnerId: clientId,
+          count: count,
         );
         break;
       case NetMessageType.requestReturnToZone:
