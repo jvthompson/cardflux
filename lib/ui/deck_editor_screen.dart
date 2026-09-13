@@ -392,6 +392,7 @@ class _DeckEditorScreenState extends State<DeckEditorScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final visibleCards = _visibleCards;
     return Scaffold(
       appBar: AppBar(
         title: Text('Edit Deck -- ${widget.game.name}'),
@@ -423,8 +424,8 @@ class _DeckEditorScreenState extends State<DeckEditorScreen> {
                             crossAxisSpacing: 12,
                             mainAxisSpacing: 12,
                           ),
-                          itemCount: _visibleCards.length,
-                          itemBuilder: (context, index) => _buildPoolCard(_visibleCards[index]),
+                          itemCount: visibleCards.length,
+                          itemBuilder: (context, index) => _buildPoolCard(visibleCards[index]),
                         ),
                       ),
                     ],
