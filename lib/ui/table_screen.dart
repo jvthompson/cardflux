@@ -746,7 +746,7 @@ class _TableScreenState extends State<TableScreen>
     final session = context.read<GameSession>();
     for (final c in session.state.cards) {
       if (c.instanceId != id) continue;
-      if (c.zone != CardZone.table || c.ownerId != session.localPlayerId)
+      if (c.zone != CardZone.table || c.ownerId != session.actingPlayerId)
         return null;
       return c;
     }
@@ -777,7 +777,7 @@ class _TableScreenState extends State<TableScreen>
     final session = context.read<GameSession>();
     for (final c in session.state.cards) {
       if (c.instanceId != id) continue;
-      if (c.ownerId != null && c.ownerId != session.localPlayerId) return null;
+      if (c.ownerId != null && c.ownerId != session.actingPlayerId) return null;
       switch (c.zone) {
         case CardZone.table:
         case CardZone.hand:
@@ -828,11 +828,11 @@ class _TableScreenState extends State<TableScreen>
       if (c.instanceId != id) continue;
       switch (c.zone) {
         case CardZone.table:
-          if (c.ownerId != session.localPlayerId) return null;
+          if (c.ownerId != session.actingPlayerId) return null;
           final rootId = _stackUtils.rootIdOf(session.state.cards, c);
           return (pileRootId: rootId, zoneId: null, zoneOwnerId: null);
         case CardZone.zone:
-          if (c.ownerId != null && c.ownerId != session.localPlayerId) {
+          if (c.ownerId != null && c.ownerId != session.actingPlayerId) {
             return null;
           }
           return (pileRootId: null, zoneId: c.zoneId, zoneOwnerId: c.ownerId);
@@ -906,9 +906,7 @@ class _TableScreenState extends State<TableScreen>
     final fromLocal =
         _toScreenPixel(card.x, card.y) -
         const Offset(cardWidth / 2, cardHeight / 2);
-    final zoneGlobalCenter =
-        zoneBox.localToGlobal(Offset.zero) +
-        Offset(zoneBox.size.width / 2, zoneBox.size.height / 2);
+    final zoneGlobalCenter = _globalPaintBounds(zoneBox).center;
     final toLocal =
         _tableBox.globalToLocal(zoneGlobalCenter) -
         const Offset(cardWidth / 2, cardHeight / 2);
@@ -1087,14 +1085,29 @@ class _TableScreenState extends State<TableScreen>
     }
   }
 
+  /// [box]'s true on-screen rect, accounting for any rotation applied by an
+  /// ancestor -- e.g. a seat 3/4 top-row panel, 180°-rotated in place by
+  /// [_buildPlayerRow]'s `maybeRotate` whenever that seat is the active one
+  /// (see [GameSession.actingPlayerId]). Plain `localToGlobal(Offset.zero) &
+  /// box.size` gets this wrong under a rotation: it anchors the rect at
+  /// wherever the box's local *origin* (its unrotated top-left corner) ends
+  /// up on screen and then extends by `size` in the box's own (now rotated)
+  /// axes, instead of the screen's -- for a 180° rotation that silently
+  /// shifts the "hit" rect a full width+height away from the widget's actual
+  /// visible bounds, so every drop there missed and fell through to the
+  /// table underneath. Transforming all four corners (what
+  /// [MatrixUtils.transformRect] does) and taking their bounding box is
+  /// rotation-safe.
+  Rect _globalPaintBounds(RenderBox box) =>
+      MatrixUtils.transformRect(box.getTransformTo(null), Offset.zero & box.size);
+
   /// True if [globalPoint] falls within the local player's own hand zone --
   /// used so a card dropped back onto that zone goes into the hand instead
   /// of onto the table (regardless of where it started the drag from).
   bool _isOverLocalHandZone(Offset globalPoint) {
     final box = _handZoneKey.currentContext?.findRenderObject() as RenderBox?;
     if (box == null) return false;
-    final rect = box.localToGlobal(Offset.zero) & box.size;
-    return rect.contains(globalPoint);
+    return _globalPaintBounds(box).contains(globalPoint);
   }
 
   /// The id of whichever local owned zone [globalPoint] falls within, if
@@ -1104,8 +1117,7 @@ class _TableScreenState extends State<TableScreen>
     for (final entry in _zoneKeys.entries) {
       final box = entry.value.currentContext?.findRenderObject() as RenderBox?;
       if (box == null) continue;
-      final rect = box.localToGlobal(Offset.zero) & box.size;
-      if (rect.contains(globalPoint)) return entry.key;
+      if (_globalPaintBounds(box).contains(globalPoint)) return entry.key;
     }
     return null;
   }
@@ -1128,7 +1140,7 @@ class _TableScreenState extends State<TableScreen>
                   ?.findRenderObject()
               as RenderBox?;
       if (box == null) continue;
-      final centerX = (box.localToGlobal(Offset.zero) & box.size).center.dx;
+      final centerX = _globalPaintBounds(box).center.dx;
       if (globalPoint.dx < centerX) return i;
     }
     return otherHandCards.length;
@@ -1594,11 +1606,11 @@ class _TableScreenState extends State<TableScreen>
     final session = context.read<GameSession>();
     // An unownable card (see CardInstance.unownable) never has anything
     // ownership-related to offer -- it's always free-for-anyone, by design.
-    final isOwner = !card.unownable && card.ownerId == session.localPlayerId;
+    final isOwner = !card.unownable && card.ownerId == session.actingPlayerId;
     final givablePlayers = !isOwner
         ? const <PlayerInfo>[]
         : session.state.players
-              .where((p) => p.id != session.localPlayerId && p.connected)
+              .where((p) => p.id != session.actingPlayerId && p.connected)
               .toList();
     if (onSearch == null && !isOwner) return;
     final action = await showMenu<String>(
@@ -1945,7 +1957,7 @@ class _TableScreenState extends State<TableScreen>
   ) {
     ActiveSearch? mySearch;
     for (final s in state.searches) {
-      if (s.searcherId == session.localPlayerId) {
+      if (s.searcherId == session.actingPlayerId) {
         mySearch = s;
         break;
       }
@@ -2181,7 +2193,7 @@ class _TableScreenState extends State<TableScreen>
     required Color? Function(String? ownerId) ownerBorderColor,
     required Color Function(String? ownerId) zoneBackgroundColor,
   }) {
-    final isLocal = player.id == session.localPlayerId;
+    final isLocal = player.id == session.actingPlayerId;
     final borderColor = ownerBorderColor(player.id);
     final backgroundColor = zoneBackgroundColor(player.id);
     final handWidget = isLocal
@@ -2262,7 +2274,25 @@ class _TableScreenState extends State<TableScreen>
   /// [TableScreen.avatarBytesByPlayerId]). Dimmed when
   /// [PlayerInfo.connected] is false, matching the zones' own disconnected
   /// styling.
-  Widget _avatarCorner(PlayerInfo player, {required bool isLocal, required Color backgroundColor}) {
+  ///
+  /// In a local practice session ([GameSession.isLocalPractice]), tapping
+  /// the avatar switches which seat is active (see
+  /// [GameSession.setActiveSeat]), only the active seat's avatar shows its
+  /// color border ([isActiveSeat]) -- every avatar always shows its border
+  /// in a normal online game, where there's no active-seat concept -- and
+  /// the real player's own photo ([TableScreen.localPlayerAvatarPath])
+  /// follows whichever seat is active, since it really is the one real
+  /// person playing that seat right now, rather than staying pinned to
+  /// [isLocal] (seat 1) the way it does in a normal online game.
+  Widget _avatarCorner(
+    PlayerInfo player, {
+    required bool isLocal,
+    required bool isActiveSeat,
+    required bool isLocalPractice,
+    required Color backgroundColor,
+    required VoidCallback onTap,
+  }) {
+    final showRealAvatar = isLocalPractice ? isActiveSeat : isLocal;
     return ColoredBox(
       color: backgroundColor,
       child: Padding(
@@ -2276,11 +2306,15 @@ class _TableScreenState extends State<TableScreen>
               mainAxisAlignment: MainAxisAlignment.center,
               mainAxisSize: MainAxisSize.min,
               children: [
-                AvatarWidget(
-                  color: player.color,
-                  imagePath: isLocal ? widget.localPlayerAvatarPath : null,
-                  imageBytes: isLocal ? null : widget.avatarBytesByPlayerId[player.id],
-                  size: cardWidth,
+                GestureDetector(
+                  onTap: isLocalPractice ? onTap : null,
+                  child: AvatarWidget(
+                    color: player.color,
+                    imagePath: showRealAvatar ? widget.localPlayerAvatarPath : null,
+                    imageBytes: showRealAvatar ? null : widget.avatarBytesByPlayerId[player.id],
+                    size: cardWidth,
+                    showBorder: !isLocalPractice || isActiveSeat,
+                  ),
                 ),
                 const SizedBox(height: 4),
                 Text(
@@ -2390,7 +2424,10 @@ class _TableScreenState extends State<TableScreen>
                   final avatarChild = _avatarCorner(
                     player,
                     isLocal: player.id == session.localPlayerId,
+                    isActiveSeat: player.id == session.actingPlayerId,
+                    isLocalPractice: session.isLocalPractice,
                     backgroundColor: zoneBackgroundColor(player.id),
+                    onTap: () => session.setActiveSeat(player.id),
                   );
                   final rowChildren = reversePileOrder
                       ? [avatarChild, ...orderedZoneChildren, handChild]
@@ -2452,7 +2489,7 @@ class _TableScreenState extends State<TableScreen>
                       .where(
                         (c) =>
                             c.zone == CardZone.hand &&
-                            c.ownerId == session.localPlayerId,
+                            c.ownerId == session.actingPlayerId,
                       )
                       .toList()
                     ..sort((a, b) => a.zIndex.compareTo(b.zIndex));
@@ -2473,13 +2510,13 @@ class _TableScreenState extends State<TableScreen>
                         (c) =>
                             c.zone == CardZone.zone &&
                             c.zoneId == z.id &&
-                            c.ownerId == session.localPlayerId,
+                            c.ownerId == session.actingPlayerId,
                       )
                       .toList(),
               };
               final zoneCardsByPlayerIdThenZoneId = {
                 for (final p in state.players)
-                  if (p.id != session.localPlayerId)
+                  if (p.id != session.actingPlayerId)
                     p.id: {
                       for (final z in ownedZones)
                         z.id: state.cards
@@ -2570,7 +2607,7 @@ class _TableScreenState extends State<TableScreen>
               final pickupCandidates = freeTableTops
                   .where(
                     (c) =>
-                        c.ownerId == null || c.ownerId == session.localPlayerId,
+                        c.ownerId == null || c.ownerId == session.actingPlayerId,
                   )
                   .toList();
 
@@ -2768,7 +2805,7 @@ class _TableScreenState extends State<TableScreen>
                                                 final ownedByOpponent =
                                                     top.ownerId != null &&
                                                     top.ownerId !=
-                                                        session.localPlayerId;
+                                                        session.actingPlayerId;
                                                 // _pickupGroup requires dragged to be a member of candidates (see its
                                                 // doc comment), which pickupCandidates deliberately violates for an
                                                 // opponent-owned top card -- skip it here since an opponent pile is
@@ -3136,7 +3173,7 @@ class _TableScreenState extends State<TableScreen>
                                                 final dismissible =
                                                     w.creatorId == null ||
                                                     w.creatorId ==
-                                                        session.localPlayerId;
+                                                        session.actingPlayerId;
                                                 return ArrowWidget(
                                                   from: from,
                                                   to: to,

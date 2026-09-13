@@ -11,7 +11,7 @@ import 'deck_editor_game_select_screen.dart';
 import 'game_definition_editor_entry_screen.dart';
 import 'join_screen.dart';
 import 'player_count_screen.dart';
-import 'practice_screen.dart';
+import 'practice_player_count_screen.dart';
 import 'widgets/avatar_widget.dart';
 import 'widgets/color_swatch_row.dart';
 
@@ -276,7 +276,11 @@ class _HomeScreenState extends State<HomeScreen> {
                 const SizedBox(height: 24),
                 TextButton(
                   onPressed: () => Navigator.of(context).push(MaterialPageRoute(
-                    builder: (_) => const PracticeScreen(),
+                    builder: (_) => PracticePlayerCountScreen(
+                      localPlayerName: _playerName,
+                      localPlayerColor: _playerColor,
+                      localAvatarPath: _avatarPath,
+                    ),
                   )),
                   child: const Text('Practice Offline'),
                 ),

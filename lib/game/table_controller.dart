@@ -65,12 +65,13 @@ class HostTableController implements TableController {
 
   /// Mirrors `HostGameEngine._isAllowedToActOn` for the host's own local
   /// actions, which (unlike a client's) never go through that network guard
-  /// at all -- true for an unowned card or one the host owns, false for one
-  /// owned by the other player.
+  /// at all -- true for an unowned card or one the host (or, in a local
+  /// practice session, whichever seat is currently active -- see
+  /// [GameSession.actingPlayerId]) owns, false for one owned by someone else.
   bool _isOwnedOrUnowned(String instanceId) {
     for (final CardInstance c in _session.state.cards) {
       if (c.instanceId == instanceId)
-        return c.ownerId == null || c.ownerId == _session.localPlayerId;
+        return c.ownerId == null || c.ownerId == _session.actingPlayerId;
     }
     return false;
   }
@@ -122,15 +123,22 @@ class HostTableController implements TableController {
   }
 
   @override
-  void moveToHand(String instanceId) => _session.moveToHand(instanceId);
+  void moveToHand(String instanceId) =>
+      _session.moveToHand(instanceId, ownerId: _session.actingPlayerId);
 
   @override
-  void reorderHand(String instanceId, int targetIndex) =>
-      _session.reorderHand(instanceId, targetIndex);
+  void reorderHand(String instanceId, int targetIndex) => _session.reorderHand(
+    instanceId,
+    targetIndex,
+    ownerId: _session.actingPlayerId,
+  );
 
   @override
-  void drawCard(String pileInstanceId, {int count = 1}) =>
-      _session.drawCard(pileInstanceId, count: count);
+  void drawCard(String pileInstanceId, {int count = 1}) => _session.drawCard(
+    pileInstanceId,
+    ownerId: _session.actingPlayerId,
+    count: count,
+  );
 
   @override
   void shufflePile(String pileRootInstanceId) =>
@@ -139,16 +147,19 @@ class HostTableController implements TableController {
   /// A zone request never carries an owner -- it always means "my own
   /// instance of this zone, or the shared one," resolved here from the
   /// session's own [GameDefinition.zones] exactly like [HostGameEngine]
-  /// resolves it for a networked client's request.
+  /// resolves it for a networked client's request. "My own" means whichever
+  /// seat is currently active in a local practice session -- see
+  /// [GameSession.actingPlayerId].
   String? _zoneOwnerId(String zoneId) {
     final zone = _session.game.zones.firstWhere((z) => z.id == zoneId);
-    return zone.shared ? null : _session.localPlayerId;
+    return zone.shared ? null : _session.actingPlayerId;
   }
 
   @override
   void drawFromZone(String zoneId, {int count = 1}) => _session.drawFromZone(
     zoneId,
     zoneOwnerId: _zoneOwnerId(zoneId),
+    toOwnerId: _session.actingPlayerId,
     count: count,
   );
 
@@ -169,16 +180,19 @@ class HostTableController implements TableController {
       _session.shuffleZone(zoneId, zoneOwnerId: _zoneOwnerId(zoneId));
 
   @override
-  void startSearchZone(String zoneId) =>
-      _session.startSearchZone(zoneId, zoneOwnerId: _zoneOwnerId(zoneId));
+  void startSearchZone(String zoneId) => _session.startSearchZone(
+    zoneId,
+    zoneOwnerId: _zoneOwnerId(zoneId),
+    searcherId: _session.actingPlayerId,
+  );
 
   /// Mirrors `HostGameEngine._isAllowedToDrawOrShuffle` for the host's own
-  /// local actions -- every card in the pile must be unowned or the host's
-  /// own, exactly like Shuffle's guard.
+  /// local actions -- every card in the pile must be unowned or owned by
+  /// whichever seat is currently active, exactly like Shuffle's guard.
   bool _isOwnedOrUnownedStack(String rootInstanceId) {
     final stack = _stacks.stackOf(_session.state.cards, rootInstanceId);
     for (final c in stack) {
-      if (c.ownerId != null && c.ownerId != _session.localPlayerId)
+      if (c.ownerId != null && c.ownerId != _session.actingPlayerId)
         return false;
     }
     return true;
@@ -187,11 +201,11 @@ class HostTableController implements TableController {
   @override
   void startSearchPile(String pileRootInstanceId) {
     if (_isOwnedOrUnownedStack(pileRootInstanceId))
-      _session.startSearchPile(pileRootInstanceId);
+      _session.startSearchPile(pileRootInstanceId, searcherId: _session.actingPlayerId);
   }
 
   @override
-  void stopSearch() => _session.stopSearch();
+  void stopSearch() => _session.stopSearch(searcherId: _session.actingPlayerId);
 
   // Widgets have no ownership concept at all (unlike a card) -- every
   // widget is a shared table utility, so these need no `_isOwnedOrUnowned`
@@ -204,7 +218,8 @@ class HostTableController implements TableController {
     double y,
   ) => _session.createWidget(instanceId, kind, x, y);
 
-  /// The host's own arrow is attributed to its own player id, exactly like
+  /// The host's own arrow is attributed to its own player id (or, in a local
+  /// practice session, whichever seat is currently active), exactly like
   /// `HostGameEngine` attributes a client-originated arrow to the requesting
   /// client's connection identity rather than anything the client itself
   /// could supply -- see [ClientTableController.createArrow].
@@ -221,7 +236,7 @@ class HostTableController implements TableController {
     y,
     x2,
     y2,
-    creatorId: _session.localPlayerId,
+    creatorId: _session.actingPlayerId,
   );
 
   @override

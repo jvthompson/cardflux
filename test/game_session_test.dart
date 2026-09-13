@@ -737,7 +737,9 @@ void main() {
     });
   });
 
-  group('GameSession.localSandbox', () {
+  group('GameSession.localPractice', () {
+    const solo = [PlayerInfo(id: 'p1', name: 'P1', role: PlayerRole.host, color: 0xFFD32F2F)];
+
     test('deals via dealFromZones for a single solo player', () {
       const game = GameDefinition(
         id: 'g1',
@@ -745,7 +747,7 @@ void main() {
         cards: _cards,
         zones: [ZoneDefinition(id: 'deck', name: 'Deck', shared: true)],
       );
-      final session = GameSession.localSandbox(game: game, localPlayerId: 'p1');
+      final session = GameSession.localPractice(game: game, players: solo);
       expect(session.state.cards, hasLength(2));
       expect(session.state.cards.every((c) => c.zoneId == 'deck'), isTrue);
     });
@@ -763,8 +765,38 @@ void main() {
           ),
         ],
       );
-      final session = GameSession.localSandbox(game: game, localPlayerId: 'p1');
+      final session = GameSession.localPractice(game: game, players: solo);
       expect(session.state.cards, hasLength(2));
+    });
+
+    test('acts as the first player and can switch active seat between all of them', () {
+      const game = GameDefinition(
+        id: 'g1',
+        name: 'G',
+        cards: _cards,
+        zones: [ZoneDefinition(id: 'hand', name: 'Hand', dealsBuiltDeck: true)],
+      );
+      const players = [
+        PlayerInfo(id: 'p1', name: 'P1', role: PlayerRole.host, color: 0xFFD32F2F),
+        PlayerInfo(id: 'p2', name: 'P2', role: PlayerRole.host, color: 0xFF1976D2),
+      ];
+      final session = GameSession.localPractice(game: game, players: players);
+      expect(session.isLocalPractice, isTrue);
+      expect(session.localPlayerId, 'p1');
+      expect(session.actingPlayerId, 'p1');
+
+      session.setActiveSeat('p2');
+      expect(session.actingPlayerId, 'p2');
+      // The layout anchor never follows the active seat.
+      expect(session.localPlayerId, 'p1');
+    });
+
+    test('setActiveSeat is a no-op outside a local practice session', () {
+      const game = GameDefinition(id: 'g1', name: 'G', cards: _cards);
+      final session = GameSession.dealFromZones(game: game, players: solo, localPlayerId: 'p1');
+      expect(session.isLocalPractice, isFalse);
+      session.setActiveSeat('someone-else');
+      expect(session.actingPlayerId, 'p1');
     });
   });
 

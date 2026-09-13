@@ -25,6 +25,7 @@ class GameSession extends ChangeNotifier {
     required this.game,
     required this.localPlayerId,
     required TableState initialState,
+    this.isLocalPractice = false,
   }) : _state = initialState;
 
   /// The game this session is playing -- needed by [HostGameEngine] to
@@ -33,29 +34,56 @@ class GameSession extends ChangeNotifier {
   /// [GameDefinition.zones].
   final GameDefinition game;
   final String localPlayerId;
+
+  /// True only for a local multi-seat practice session (see
+  /// [GameSession.localPractice]) -- lets one real person "hot-seat" between
+  /// several simulated players via [setActiveSeat] instead of always acting
+  /// as [localPlayerId]. False (the default) for every host/client session,
+  /// where [actingPlayerId] is simply [localPlayerId] and can't be changed.
+  final bool isLocalPractice;
+  String? _activeSeatId;
+
   final TableActions _actions = const TableActions();
   TableState _state;
 
   TableState get state => _state;
 
-  /// Builds a fresh single-player sandbox session (M2) via [dealFromZones],
-  /// with no per-player deck choice available -- any zone marked
-  /// [ZoneDefinition.dealsBuiltDeck] falls back to one of every card in
-  /// [game] instead of a real Load Deck selection.
-  factory GameSession.localSandbox({
+  /// The player id [HostTableController] acts/deals as right now --
+  /// [localPlayerId] normally, or whichever seat [setActiveSeat] last picked
+  /// in a local practice session. Every ownership/zone/search/arrow check
+  /// should key off this, not [localPlayerId] directly, so hot-seat
+  /// switching actually changes what's interactable; table *layout*
+  /// (rotation, mirroring, avatar photo source) should keep using
+  /// [localPlayerId] instead, since that must stay anchored to one seat
+  /// regardless of which seat is currently active.
+  String get actingPlayerId => _activeSeatId ?? localPlayerId;
+
+  /// Switches which seat this local practice session is currently acting
+  /// as -- a no-op outside a [isLocalPractice] session. See [actingPlayerId].
+  void setActiveSeat(String playerId) {
+    if (!isLocalPractice) return;
+    _activeSeatId = playerId;
+    notifyListeners();
+  }
+
+  /// Builds a fresh local multi-seat practice session via [dealFromZones]:
+  /// [players] (1-4 of them) are all simulated by the one real person at
+  /// this device, who starts out acting as `players.first` and can switch
+  /// via [setActiveSeat] -- see [actingPlayerId]. [deckConfigsByPlayerId]
+  /// works exactly like the networked host path: a zone marked
+  /// [ZoneDefinition.dealsBuiltDeck] with no matching entry falls back to
+  /// one of every card in [game].
+  factory GameSession.localPractice({
     required GameDefinition game,
-    required String localPlayerId,
-    // Matches boardWidgetColorPalette's "red" entry -- a literal rather than
-    // an index into that list, since a const list's `[]` isn't itself a
-    // constant expression.
-    int localPlayerColor = 0xFFD32F2F,
+    required List<PlayerInfo> players,
+    Map<String, Map<String, DeckConfig>>? deckConfigsByPlayerId,
   }) {
     return GameSession.dealFromZones(
       game: game,
-      players: [
-        PlayerInfo(id: localPlayerId, name: 'You', role: PlayerRole.host, color: localPlayerColor),
-      ],
-      localPlayerId: localPlayerId,
+      players: players,
+      localPlayerId: players.first.id,
+      deckConfigsByPlayerId: deckConfigsByPlayerId,
+      isLocalPractice: true,
     );
   }
 
@@ -96,6 +124,7 @@ class GameSession extends ChangeNotifier {
     required String localPlayerId,
     Map<String, Map<String, DeckConfig>>? deckConfigsByPlayerId,
     Map<String, DeckConfig>? sharedDeckConfigsByZoneId,
+    bool isLocalPractice = false,
   }) {
     // Generated here (rather than trusting every caller to have already
     // merged them into `game.cards`, which `GameLoader` does for the real
@@ -213,6 +242,7 @@ class GameSession extends ChangeNotifier {
       game: game,
       localPlayerId: localPlayerId,
       initialState: state,
+      isLocalPractice: isLocalPractice,
     );
   }
 
