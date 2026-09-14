@@ -164,8 +164,16 @@ class _JoinScreenState extends State<JoinScreen> {
                                 child: const Text('Try again'),
                               ),
                             ],
-                          ClientConnectionStatus.disconnected => const [
-                              Text('Disconnected from host.', style: TextStyle(color: Colors.red)),
+                          ClientConnectionStatus.disconnected => [
+                              Text(
+                                switch (_client.disconnectReason) {
+                                  'seatUnavailable' =>
+                                    "This game is already in progress and your seat couldn't be "
+                                        "found. Make sure you're reconnecting to the same host.",
+                                  _ => 'Disconnected from host.',
+                                },
+                                style: const TextStyle(color: Colors.red),
+                              ),
                             ],
                         },
                       );

@@ -64,11 +64,30 @@ class _ClientGameScreenState extends State<ClientGameScreen> {
   void initState() {
     super.initState();
     _sub = widget.gameClient.incoming.listen(_handleMessage);
+    // GameClient's broadcast controllers don't buffer for late subscribers --
+    // welcome/lobbyRosterUpdate/gameData/fullState can all arrive in one
+    // synchronous burst before this screen ever gets a chance to mount and
+    // subscribe (especially for a reconnecting client joining an
+    // already-dealt game), silently dropping whichever of them beat this
+    // listen() call. Replaying GameClient's own cached copies catches this
+    // screen up on anything it missed -- gameData first, since the fullState
+    // branch of _handleMessage needs _game already set.
+    final gameClient = widget.gameClient;
+    for (final cached in [
+      gameClient.lastGameData,
+      gameClient.lastLobbyRosterUpdate,
+      gameClient.lastFullState,
+    ]) {
+      if (cached != null) _handleMessage(cached);
+    }
     _statusSub = widget.gameClient.statusStream.listen((status) {
       if (status != ClientConnectionStatus.disconnected) return;
       _returnHome(switch (widget.gameClient.disconnectReason) {
         'kicked' => 'You were removed from the game by the host.',
         'hostLeft' => 'The host ended the game.',
+        'seatUnavailable' =>
+          "This game is already in progress and your seat couldn't be "
+              'found. Make sure you\'re reconnecting to the same host.',
         _ => 'Disconnected from host.',
       });
     });

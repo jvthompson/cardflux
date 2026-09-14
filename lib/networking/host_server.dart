@@ -75,8 +75,14 @@ class HostServer {
   /// instead of being minted a brand-new id -- see [_handleClient]. Left
   /// null before a game exists (nothing to reclaim yet) or after the
   /// session ends, in which case a rejoin request always falls back to a
-  /// fresh id, exactly like any other new connection. Deliberately typed
-  /// with no `GameSession`/game-model dependency -- this class stays a pure
+  /// fresh id, exactly like any other new connection. Once non-null, a
+  /// `hello` that fails to reclaim a seat is rejected outright (a
+  /// `disconnect` with reason `'seatUnavailable'`, then the socket is
+  /// destroyed) instead of being admitted with a fresh id -- a game already
+  /// in progress has no such thing as "a brand-new player," only seats
+  /// dealt at match start, so a fresh id here could never receive a
+  /// `fullState` and would be a silent dead end. Deliberately typed with no
+  /// `GameSession`/game-model dependency -- this class stays a pure
   /// networking layer.
   bool Function(String candidateId)? reclaimableIdCheck;
 
@@ -157,10 +163,29 @@ class HostServer {
             socket.destroy();
             return;
           }
-          final name = msg.payload['name'] as String? ?? 'Player';
-          final color = _resolveColor(msg.payload['color'] as int?);
           final rejoinId = msg.payload['rejoinPlayerId'] as String?;
           final reclaimed = rejoinId != null && (reclaimableIdCheck?.call(rejoinId) ?? false);
+          if (reclaimableIdCheck != null && !reclaimed) {
+            // A game is already dealt (reclaimableIdCheck only gets set once
+            // true, by HostGameEngine.start) and this hello didn't match a
+            // currently-disconnected seat -- reject outright rather than
+            // minting a new id and admitting a connection that could never
+            // receive a fullState (HostGameEngine._broadcast only ever
+            // iterates the durable, deal-time-fixed session.state.players
+            // list, which this new id would never be part of).
+            socket.write(
+              encodeLine(
+                const NetMessage(
+                  type: NetMessageType.disconnect,
+                  payload: {'reason': 'seatUnavailable'},
+                ),
+              ),
+            );
+            socket.destroy();
+            return;
+          }
+          final name = msg.payload['name'] as String? ?? 'Player';
+          final color = _resolveColor(msg.payload['color'] as int?);
           final newId = reclaimed ? rejoinId : _uuid.v4();
           playerId = newId;
           final avatarB64 = msg.payload['avatar'] as String?;

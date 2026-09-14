@@ -41,12 +41,30 @@ class GameClient {
 
   /// Set from an incoming [NetMessageType.disconnect]'s `'reason'` payload
   /// field, right before the socket actually closes -- `'kicked'` (the host
-  /// removed this player) or `'hostLeft'` (the host ended the whole
-  /// session). Null for any other disconnect (a genuine network drop, a
-  /// heartbeat timeout, the host's process crashing), in which case the
-  /// generic "Disconnected from host." message still applies. See
-  /// `ClientGameScreen._returnHome`.
+  /// removed this player), `'hostLeft'` (the host ended the whole session),
+  /// or `'seatUnavailable'` (the host rejected a failed reconnect attempt
+  /// outright -- see `HostServer.reclaimableIdCheck`'s doc). Null for any
+  /// other disconnect (a genuine network drop, a heartbeat timeout, the
+  /// host's process crashing), in which case the generic "Disconnected from
+  /// host." message still applies. See `ClientGameScreen._returnHome`/
+  /// `JoinScreen`'s own `disconnected`-status branch.
   String? disconnectReason;
+
+  /// The most recent message of each type [_incomingController] has ever
+  /// forwarded, kept regardless of whether anyone was actually subscribed to
+  /// [incoming] at the time -- [_incomingController] is a broadcast
+  /// controller with no buffering for late subscribers, so a message that
+  /// arrives before, say, `ClientGameScreen` has mounted and subscribed
+  /// (very possible right after `welcome`, since navigating there needs at
+  /// least one Flutter frame) would otherwise be lost for good. A late
+  /// subscriber can replay these to catch itself up. `lobbyRosterUpdate` and
+  /// `fullState` are naturally superseded by any later one; `gameData` is
+  /// the important case -- the host only ever sends it once per newly-seen
+  /// id, so losing it with no cached fallback would strand that client on
+  /// the waiting screen permanently.
+  NetMessage? lastLobbyRosterUpdate;
+  NetMessage? lastGameData;
+  NetMessage? lastFullState;
 
   Future<void> connect(
     String host,
@@ -87,6 +105,16 @@ class GameClient {
         if (msg.type == NetMessageType.disconnect) {
           disconnectReason = msg.payload['reason'] as String?;
           return;
+        }
+        switch (msg.type) {
+          case NetMessageType.lobbyRosterUpdate:
+            lastLobbyRosterUpdate = msg;
+          case NetMessageType.gameData:
+            lastGameData = msg;
+          case NetMessageType.fullState:
+            lastFullState = msg;
+          default:
+            break;
         }
         _incomingController.add(msg);
       },
