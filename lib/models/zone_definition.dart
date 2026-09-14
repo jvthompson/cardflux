@@ -1,5 +1,11 @@
 import 'deck_config.dart';
 
+/// Which screen edge a [ZoneDefinition.shared] zone is docked to -- a fixed
+/// panel outside the pannable table, exactly like the per-player hand/zone
+/// rows are docked to the top and bottom. Only meaningful when `shared` is
+/// true; [left] is the default.
+enum SharedZoneSide { left, right }
+
 /// One zone a game defines beyond the always-present, per-player hand
 /// (never declared in JSON -- see `TableScreen`) -- either a personal stack
 /// owned by each player (e.g. a draw deck, a discard pile) or a single
@@ -20,8 +26,7 @@ class ZoneDefinition {
     this.autoShuffle = false,
     this.standardDeck = false,
     this.deckName,
-    this.offsetX = 0,
-    this.offsetY = 0,
+    this.side = SharedZoneSide.left,
   });
 
   /// Stable identity referenced by `CardInstance.zoneId` -- never shown to
@@ -104,13 +109,9 @@ class ZoneDefinition {
   /// -- if no such deck is found, falls back to [entries] like normal.
   final String? deckName;
 
-  /// Only meaningful when [shared] is true: pixel offset from the table's
-  /// center used for this zone's on-table position instead of the automatic
-  /// centered row every other shared zone is arranged into (see
-  /// `GameSession.dealFromZones`). Zero (the default) for both means "use
-  /// the automatic layout."
-  final double offsetX;
-  final double offsetY;
+  /// Only meaningful when [shared] is true: which screen edge this zone is
+  /// docked to. [SharedZoneSide.left] is the default.
+  final SharedZoneSide side;
 
   factory ZoneDefinition.fromJson(Map<String, dynamic> json) {
     return ZoneDefinition(
@@ -132,8 +133,7 @@ class ZoneDefinition {
       autoShuffle: json['autoShuffle'] as bool? ?? false,
       standardDeck: json['standardDeck'] as bool? ?? false,
       deckName: json['deckName'] as String?,
-      offsetX: (json['offsetX'] as num?)?.toDouble() ?? 0,
-      offsetY: (json['offsetY'] as num?)?.toDouble() ?? 0,
+      side: SharedZoneSide.values.byName(json['side'] as String? ?? 'left'),
     );
   }
 
@@ -152,8 +152,7 @@ class ZoneDefinition {
       if (autoShuffle) 'autoShuffle': autoShuffle,
       if (standardDeck) 'standardDeck': standardDeck,
       if (deckName != null) 'deckName': deckName,
-      if (offsetX != 0) 'offsetX': offsetX,
-      if (offsetY != 0) 'offsetY': offsetY,
+      if (side != SharedZoneSide.left) 'side': side.name,
     };
   }
 
@@ -177,8 +176,7 @@ class ZoneDefinition {
     bool? standardDeck,
     String? deckName,
     bool clearDeckName = false,
-    double? offsetX,
-    double? offsetY,
+    SharedZoneSide? side,
   }) {
     return ZoneDefinition(
       id: id ?? this.id,
@@ -193,8 +191,7 @@ class ZoneDefinition {
       autoShuffle: autoShuffle ?? this.autoShuffle,
       standardDeck: standardDeck ?? this.standardDeck,
       deckName: clearDeckName ? null : (deckName ?? this.deckName),
-      offsetX: offsetX ?? this.offsetX,
-      offsetY: offsetY ?? this.offsetY,
+      side: side ?? this.side,
     );
   }
 }

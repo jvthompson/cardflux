@@ -481,20 +481,13 @@ class TableActions {
   /// rather than whichever player happened to drop it there, and showing
   /// its face according to [faceUp] (a zone's own `ZoneDefinition.faceUp` --
   /// false for a face-down deck, true for a discard pile-style zone meant to
-  /// stay visible). Snaps to the `x`/`y` any other card already in that zone
-  /// shares (an owned zone ignores this -- it always renders at a fixed
-  /// screen position, never canonical coordinates -- but a shared zone
-  /// renders on the open table at its topmost card's position, so without
-  /// this a return-to-top would visibly relocate the whole pile to the
-  /// returned card's old spot, same reasoning the old personal-deck
-  /// return-to-top fix needed). If the zone is shared and currently has no
-  /// cards at all, [emptySharedPosition] (the zone's own reserved canonical
-  /// position -- see `sharedZonePositions`) is used instead, so the very
-  /// first card landed there snaps to that zone's slot in the shared-zone
-  /// row/offset layout rather than wherever it happened to be dropped from.
-  /// By default the card becomes the new top (drawn next); [toBottom]
-  /// instead gives it a zIndex below every other card in the zone, so it's
-  /// drawn last.
+  /// stay visible). Every zone -- owned or shared -- now renders at a fixed
+  /// screen position (a docked panel), never canonical coordinates, so `x`/`y`
+  /// is never actually read for display; it's still snapped to any other
+  /// card already in that zone (or left as-is if the zone is empty) purely
+  /// to keep the field non-meaningless. By default the card becomes the new
+  /// top (drawn next); [toBottom] instead gives it a zIndex below every
+  /// other card in the zone, so it's drawn last.
   TableState returnToZone(
     TableState state, {
     required String instanceId,
@@ -502,7 +495,6 @@ class TableActions {
     required String? zoneOwnerId,
     required bool faceUp,
     bool toBottom = false,
-    (double, double)? emptySharedPosition,
   }) {
     final zoneCards = _zoneCards(
       state,
@@ -518,8 +510,8 @@ class TableActions {
     final cards = state.cards.map((c) {
       if (c.instanceId != instanceId) return c;
       return c.copyWith(
-        x: anchor?.x ?? emptySharedPosition?.$1 ?? c.x,
-        y: anchor?.y ?? emptySharedPosition?.$2 ?? c.y,
+        x: anchor?.x ?? c.x,
+        y: anchor?.y ?? c.y,
         zone: CardZone.zone,
         zoneId: zoneId,
         ownerId: zoneOwnerId,

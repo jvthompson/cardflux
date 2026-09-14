@@ -11,7 +11,6 @@ import '../models/player.dart';
 import '../models/standard_deck.dart';
 import '../models/table_state.dart';
 import '../models/zone_definition.dart';
-import 'shared_zone_layout.dart';
 import 'table_actions.dart';
 
 const _uuid = Uuid();
@@ -95,13 +94,11 @@ class GameSession extends ChangeNotifier {
   /// Draw Deck and Location Deck; falls back to one of every card in [game]
   /// if no config was supplied for that zone, e.g. Practice Mode) or its own
   /// static [ZoneDefinition.entries] (typically empty, e.g. a discard pile
-  /// starting empty). Each shared zone is dealt once, unowned, at its own
-  /// canonical position: centered on the table, arranged side by side in a
-  /// row with any other shared zone that also uses the automatic layout,
-  /// unless it sets a nonzero [ZoneDefinition.offsetX]/[ZoneDefinition.offsetY],
-  /// in which case it's placed at that pixel offset from center instead (and
-  /// excluded from the row the remaining zones form) -- see
-  /// [_sharedZonePosition]. Its contents come from
+  /// starting empty). Each shared zone is dealt once, unowned, into a docked
+  /// side panel (see [ZoneDefinition.side]) rather than any canonical table
+  /// position -- [x]/[y] are just the same `0.5, 0.5` placeholder owned-zone
+  /// cards get, since a zone card's coordinates are never read for display.
+  /// Its contents come from
   /// [ZoneDefinition.standardDeck] (one of each generated standard playing
   /// card) if set, else [sharedDeckConfigsByZoneId]'s entry for this zone (a
   /// deck resolved from [ZoneDefinition.deckName] by the caller, since that
@@ -207,7 +204,6 @@ class GameSession extends ChangeNotifier {
     }
 
     final sharedZones = game.zones.where((z) => z.shared).toList();
-    final positionsByZoneId = sharedZonePositions(game.zones);
     for (final zone in sharedZones) {
       final List<DeckEntry> entries;
       if (zone.standardDeck) {
@@ -220,13 +216,12 @@ class GameSession extends ChangeNotifier {
                   ? zone.entries
                   : fullDeckEntries);
       }
-      final (px, py) = positionsByZoneId[zone.id]!;
       deal(
         entries,
         zoneId: zone.id,
         ownerId: null,
-        x: px,
-        y: py,
+        x: 0.5,
+        y: 0.5,
         faceUp: zone.faceUp,
         autoShuffle: zone.autoShuffle,
       );
@@ -379,11 +374,7 @@ class GameSession extends ChangeNotifier {
 
   /// Returns [instanceId] to the zone [zoneId] (owned by [zoneOwnerId], null
   /// for a shared zone), detached from wherever it was, showing its face
-  /// according to that zone's own [ZoneDefinition.faceUp]. If [zoneId] is
-  /// shared, its reserved [sharedZonePositions] slot is passed through as a
-  /// fallback anchor, so landing the first card there (see
-  /// `TableActions.returnToZone`) snaps it into that slot instead of
-  /// wherever it was dropped from.
+  /// according to that zone's own [ZoneDefinition.faceUp].
   void returnToZone(
     String instanceId,
     String zoneId, {
@@ -398,9 +389,6 @@ class GameSession extends ChangeNotifier {
       zoneOwnerId: zoneOwnerId,
       faceUp: zone.faceUp,
       toBottom: toBottom,
-      emptySharedPosition: zone.shared
-          ? sharedZonePositions(game.zones)[zoneId]
-          : null,
     );
     notifyListeners();
   }

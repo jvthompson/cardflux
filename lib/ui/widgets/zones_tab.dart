@@ -84,20 +84,12 @@ class _ZoneEditorCardState extends State<_ZoneEditorCard> {
   late final TextEditingController _deckNameController = TextEditingController(
     text: widget.zone.deckName ?? '',
   );
-  late final TextEditingController _offsetXController = TextEditingController(
-    text: widget.zone.offsetX == 0 ? '' : '${widget.zone.offsetX}',
-  );
-  late final TextEditingController _offsetYController = TextEditingController(
-    text: widget.zone.offsetY == 0 ? '' : '${widget.zone.offsetY}',
-  );
 
   @override
   void dispose() {
     _idController.dispose();
     _nameController.dispose();
     _deckNameController.dispose();
-    _offsetXController.dispose();
-    _offsetYController.dispose();
     super.dispose();
   }
 
@@ -268,42 +260,23 @@ class _ZoneEditorCardState extends State<_ZoneEditorCard> {
                           ),
                         ),
                         const SizedBox(height: 12),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: TextField(
-                                controller: _offsetXController,
-                                keyboardType: const TextInputType.numberWithOptions(
-                                  signed: true,
-                                  decimal: true,
-                                ),
-                                decoration: const InputDecoration(
-                                  labelText: 'Offset X (px from center)',
-                                  border: OutlineInputBorder(),
-                                ),
-                                onChanged: (v) => widget.onChanged(
-                                  zone.copyWith(offsetX: double.tryParse(v) ?? 0),
-                                ),
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: SegmentedButton<SharedZoneSide>(
+                            segments: const [
+                              ButtonSegment(
+                                value: SharedZoneSide.left,
+                                label: Text('Left'),
                               ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: TextField(
-                                controller: _offsetYController,
-                                keyboardType: const TextInputType.numberWithOptions(
-                                  signed: true,
-                                  decimal: true,
-                                ),
-                                decoration: const InputDecoration(
-                                  labelText: 'Offset Y (px from center)',
-                                  border: OutlineInputBorder(),
-                                ),
-                                onChanged: (v) => widget.onChanged(
-                                  zone.copyWith(offsetY: double.tryParse(v) ?? 0),
-                                ),
+                              ButtonSegment(
+                                value: SharedZoneSide.right,
+                                label: Text('Right'),
                               ),
-                            ),
-                          ],
+                            ],
+                            selected: {zone.side},
+                            onSelectionChanged: (s) =>
+                                widget.onChanged(zone.copyWith(side: s.first)),
+                          ),
                         ),
                       ],
                     ),

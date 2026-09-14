@@ -579,7 +579,8 @@
     {
       "id": "deck",
       "name": "Deck",
-      "shared": true
+      "shared": true,
+      "side": "left"
     },
     {
       "id": "96856717-63e1-4752-bcfb-88921c2ba073",
@@ -587,7 +588,8 @@
       "shared": true,
       "faceUp": true,
       "isDiscardPile": true,
-      "shuffleable": false
+      "shuffleable": false,
+      "side": "left"
     }
   ],
   "tagGroups": [
