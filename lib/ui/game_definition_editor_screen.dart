@@ -132,10 +132,13 @@ class _GameDefinitionEditorScreenState extends State<GameDefinitionEditorScreen>
               name: _name,
               cardBackImagePath: _cardBackImagePath,
               tagGroups: _tagGroups,
+              cards: _cards,
+              sets: _sets,
               fileOps: _fileOps,
               onNameChanged: (v) => setState(() => _name = v),
               onCardBackImagePathChanged: (v) => setState(() => _cardBackImagePath = v),
               onTagGroupsChanged: (v) => setState(() => _tagGroups = v),
+              onCardsChanged: (v) => setState(() => _cards = v),
             ),
             ZonesTab(
               zones: _zones,

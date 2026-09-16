@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../data/game_definition_file_ops.dart';
@@ -50,6 +51,25 @@ class _CardViewTabState extends State<CardViewTab> with AutomaticKeepAliveClient
   bool get wantKeepAlive => true;
 
   String? _selectedCardId;
+
+  /// Whether Tab/Shift+Tab should navigate to the previous/next card even
+  /// while focus is inside a [CardDetailPanel] text field (overriding normal
+  /// field-to-field Tab traversal there) -- session-only UI state, off by
+  /// default so the form's fields keep their normal Tab behavior until the
+  /// user opts in. See [_handleKeyEvent].
+  bool _tabNavigatesInsideForm = false;
+
+  /// Receives every key event while focus is anywhere in this tab (pool
+  /// grid, preview, or -- since it wraps the form too -- the detail form),
+  /// via [_handleKeyEvent]. [_PoolTile] explicitly requests focus here on
+  /// tap (its `GestureDetector` isn't otherwise focusable), so Tab works
+  /// immediately after clicking a card.
+  final FocusNode _cardNavFocusNode = FocusNode(debugLabel: 'CardViewTab');
+
+  /// Wraps just the [CardDetailPanel] column so [_handleKeyEvent] can tell,
+  /// via [FocusScopeNode.hasFocus], whether the current focus is inside the
+  /// form -- distinct from being in the pool/preview area.
+  final FocusScopeNode _formFocusScope = FocusScopeNode(debugLabel: 'CardDetailFormScope');
 
   /// Fraction of the available width given to the pool grid column; the
   /// preview column gets [_previewFraction]; the form column gets whatever's
@@ -141,6 +161,60 @@ class _CardViewTabState extends State<CardViewTab> with AutomaticKeepAliveClient
 
   List<CardDefinition> get _visibleCards =>
       widget.cards.where((c) => _isSetVisible(c) && _isTagVisible(c)).toList();
+
+  @override
+  void dispose() {
+    _cardNavFocusNode.dispose();
+    _formFocusScope.dispose();
+    super.dispose();
+  }
+
+  /// Index of [_selectedCardId] within [_visibleCards], or `-1` if nothing's
+  /// selected (or the selected card is filtered out of view).
+  int get _selectedVisibleIndex {
+    if (_selectedCardId == null) return -1;
+    return _visibleCards.indexWhere((c) => c.id == _selectedCardId);
+  }
+
+  bool get _canGoPrevious => _selectedVisibleIndex > 0;
+
+  bool get _canGoNext {
+    final visible = _visibleCards;
+    if (visible.isEmpty) return false;
+    final index = _selectedVisibleIndex;
+    return index == -1 || index < visible.length - 1;
+  }
+
+  void _selectPreviousCard() {
+    final visible = _visibleCards;
+    final index = _selectedVisibleIndex;
+    if (index > 0) setState(() => _selectedCardId = visible[index - 1].id);
+  }
+
+  void _selectNextCard() {
+    final visible = _visibleCards;
+    if (visible.isEmpty) return;
+    final index = _selectedVisibleIndex;
+    final nextIndex = index == -1 ? 0 : index + 1;
+    if (nextIndex < visible.length) setState(() => _selectedCardId = visible[nextIndex].id);
+  }
+
+  /// Handles Tab/Shift+Tab for [_cardNavFocusNode]. Lets every other key
+  /// event, and Tab while focus is inside the form with
+  /// [_tabNavigatesInsideForm] off, fall through to Flutter's normal
+  /// traversal handling -- otherwise selects the previous/next visible card.
+  KeyEventResult _handleKeyEvent(FocusNode node, KeyEvent event) {
+    if (event is! KeyDownEvent || event.logicalKey != LogicalKeyboardKey.tab) {
+      return KeyEventResult.ignored;
+    }
+    if (_formFocusScope.hasFocus && !_tabNavigatesInsideForm) return KeyEventResult.ignored;
+    if (HardwareKeyboard.instance.isShiftPressed) {
+      _selectPreviousCard();
+    } else {
+      _selectNextCard();
+    }
+    return KeyEventResult.handled;
+  }
 
   void _addBlankCard() {
     final setId = _selectedSetIds.length == 1 ? _selectedSetIds.first : null;
@@ -254,7 +328,10 @@ class _CardViewTabState extends State<CardViewTab> with AutomaticKeepAliveClient
       }
     }
 
-    return Column(
+    return Focus(
+      focusNode: _cardNavFocusNode,
+      onKeyEvent: _handleKeyEvent,
+      child: Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _buildFilterBar(),
@@ -301,7 +378,10 @@ class _CardViewTabState extends State<CardViewTab> with AutomaticKeepAliveClient
                                 folderPath: widget.folderPath,
                                 card: card,
                                 selected: card.id == _selectedCardId,
-                                onTap: () => setState(() => _selectedCardId = card.id),
+                                onTap: () {
+                                  _cardNavFocusNode.requestFocus();
+                                  setState(() => _selectedCardId = card.id);
+                                },
                               );
                             },
                           ),
@@ -321,13 +401,50 @@ class _CardViewTabState extends State<CardViewTab> with AutomaticKeepAliveClient
                   ),
                   SizedBox(
                     width: previewWidth,
-                    child: card == null
-                        ? Center(
-                            child: Text(
-                              'Select a card to preview',
-                              style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
-                            ))
-                        : _CardPreviewPane(folderPath: widget.folderPath, card: card),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Expanded(
+                          child: card == null
+                              ? Center(
+                                  child: Text(
+                                    'Select a card to preview',
+                                    style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+                                  ))
+                              : _CardPreviewPane(folderPath: widget.folderPath, card: card),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Expanded(
+                                child: OutlinedButton.icon(
+                                  icon: const Icon(Icons.chevron_left),
+                                  label: const Text('Previous Card'),
+                                  onPressed: _canGoPrevious ? _selectPreviousCard : null,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: OutlinedButton.icon(
+                                  icon: const Icon(Icons.chevron_right),
+                                  label: const Text('Next Card'),
+                                  onPressed: _canGoNext ? _selectNextCard : null,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        SwitchListTile(
+                          dense: true,
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 8),
+                          title: const Text('Tab navigates inside form fields', style: TextStyle(fontSize: 12)),
+                          value: _tabNavigatesInsideForm,
+                          onChanged: (v) => setState(() => _tabNavigatesInsideForm = v),
+                        ),
+                      ],
+                    ),
                   ),
                   _VerticalSplitHandle(
                     onDragDelta: (dx) => setState(() {
@@ -341,30 +458,33 @@ class _CardViewTabState extends State<CardViewTab> with AutomaticKeepAliveClient
                   ),
                   SizedBox(
                     width: formWidth,
-                    child: card == null
-                        ? Center(
-                            child: Text(
-                              'Select a card to edit',
-                              style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
-                            ))
-                        : CardDetailPanel(
-                            key: ValueKey(card.id),
-                            folderPath: widget.folderPath,
-                            card: card,
-                            tagGroups: widget.tagGroups,
-                            allSets: widget.sets,
-                            fileOps: widget.fileOps,
-                            onChanged: _updateCard,
-                            onDelete: () => _deleteCard(card.id),
-                            hiddenTagGroupIds: _hiddenDetailTagGroupIds,
-                            onToggleTagGroupVisibility: (groupId, visible) => setState(() {
-                              if (visible) {
-                                _hiddenDetailTagGroupIds.remove(groupId);
-                              } else {
-                                _hiddenDetailTagGroupIds.add(groupId);
-                              }
-                            }),
-                          ),
+                    child: FocusScope(
+                      node: _formFocusScope,
+                      child: card == null
+                          ? Center(
+                              child: Text(
+                                'Select a card to edit',
+                                style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+                              ))
+                          : CardDetailPanel(
+                              key: ValueKey(card.id),
+                              folderPath: widget.folderPath,
+                              card: card,
+                              tagGroups: widget.tagGroups,
+                              allSets: widget.sets,
+                              fileOps: widget.fileOps,
+                              onChanged: _updateCard,
+                              onDelete: () => _deleteCard(card.id),
+                              hiddenTagGroupIds: _hiddenDetailTagGroupIds,
+                              onToggleTagGroupVisibility: (groupId, visible) => setState(() {
+                                if (visible) {
+                                  _hiddenDetailTagGroupIds.remove(groupId);
+                                } else {
+                                  _hiddenDetailTagGroupIds.add(groupId);
+                                }
+                              }),
+                            ),
+                    ),
                   ),
                 ],
               );
@@ -372,6 +492,7 @@ class _CardViewTabState extends State<CardViewTab> with AutomaticKeepAliveClient
           ),
         ),
       ],
+      ),
     );
   }
 }

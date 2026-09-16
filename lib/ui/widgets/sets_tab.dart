@@ -55,7 +55,11 @@ class _SetsTabState extends State<SetsTab> {
     try {
       final destFolderPath = '${widget.folderPath}${Platform.pathSeparator}$id';
       await widget.fileOps.copySetImages(sourceFolderPath: sourcePath, destFolderPath: destFolderPath);
-      final newCards = await widget.fileOps.buildCardsFromImageFolder(sourceFolderPath: sourcePath, setId: id);
+      final newCards = await widget.fileOps.buildCardsFromImageFolder(
+        sourceFolderPath: sourcePath,
+        setId: id,
+        existingCardIds: widget.cards.map((c) => c.id),
+      );
       if (!mounted) return;
       widget.onSetsChanged([...widget.sets, GameSet(id: id, name: id)]);
       widget.onCardsChanged([...widget.cards, ...newCards]);

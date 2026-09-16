@@ -139,7 +139,11 @@ void main() {
       await File('${sourceDir.path}${Platform.pathSeparator}Alpha.png').writeAsBytes([2]);
       await File('${sourceDir.path}${Platform.pathSeparator}readme.txt').writeAsString('nope');
 
-      final cards = await fileOps.buildCardsFromImageFolder(sourceFolderPath: sourceDir.path, setId: 'core_set');
+      final cards = await fileOps.buildCardsFromImageFolder(
+        sourceFolderPath: sourceDir.path,
+        setId: 'core_set',
+        existingCardIds: const [],
+      );
 
       expect(cards, hasLength(2));
       expect(cards[0].id, 'Alpha');
@@ -148,6 +152,37 @@ void main() {
       expect(cards[0].setId, 'core_set');
       expect(cards[1].id, 'Zeta');
       expect(cards[1].imagePath, 'Zeta.jpg');
+    });
+
+    test('buildCardsFromImageFolder appends _001 when a filename collides with an existing card id', () async {
+      final sourceDir = await tempDir.createTemp('cards_source_');
+      await File('${sourceDir.path}${Platform.pathSeparator}Goblin.png').writeAsBytes([1]);
+
+      final cards = await fileOps.buildCardsFromImageFolder(
+        sourceFolderPath: sourceDir.path,
+        setId: 'core_set',
+        existingCardIds: const ['Goblin'],
+      );
+
+      expect(cards, hasLength(1));
+      expect(cards[0].id, 'Goblin_001');
+      expect(cards[0].cardTitle, 'Goblin');
+    });
+
+    test('buildCardsFromImageFolder dedupes ids colliding within the same import batch', () async {
+      final sourceDir = await tempDir.createTemp('cards_source_');
+      await File('${sourceDir.path}${Platform.pathSeparator}Goblin.jpg').writeAsBytes([1]);
+      await File('${sourceDir.path}${Platform.pathSeparator}Goblin.png').writeAsBytes([2]);
+
+      final cards = await fileOps.buildCardsFromImageFolder(
+        sourceFolderPath: sourceDir.path,
+        setId: 'core_set',
+        existingCardIds: const [],
+      );
+
+      expect(cards, hasLength(2));
+      expect(cards.map((c) => c.id).toSet(), {'Goblin', 'Goblin_001'});
+      expect(cards.every((c) => c.cardTitle == 'Goblin'), isTrue);
     });
 
     test('writeGameDefinition writes gamedef.json with bare filenames, not absolute paths', () async {

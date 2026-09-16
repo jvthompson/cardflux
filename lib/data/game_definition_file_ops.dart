@@ -39,6 +39,19 @@ String stripExtension(String fileName) {
   return lastDot <= 0 ? fileName : fileName.substring(0, lastDot);
 }
 
+/// [baseId] if it isn't already in [takenIds], otherwise [baseId] with
+/// `_001`, `_002`, ... appended until the result is unique.
+String uniqueCardId(String baseId, Set<String> takenIds) {
+  if (!takenIds.contains(baseId)) return baseId;
+  var suffix = 1;
+  late String candidate;
+  do {
+    candidate = '${baseId}_${suffix.toString().padLeft(3, '0')}';
+    suffix++;
+  } while (takenIds.contains(candidate));
+  return candidate;
+}
+
 /// Whether [fileName]'s extension is one this editor treats as card art.
 bool isImageFile(String fileName) {
   final lastDot = fileName.lastIndexOf('.');
@@ -115,13 +128,17 @@ class GameDefinitionFileOps {
   }
 
   /// One [CardDefinition] per image file found directly inside
-  /// [sourceFolderPath], sorted by filename for determinism -- `id` and
-  /// `cardTitle` both default to the filename minus its extension,
-  /// `imagePath` is the bare filename, and every card is tagged with
-  /// [setId].
+  /// [sourceFolderPath], sorted by filename for determinism -- `cardTitle`
+  /// defaults to the filename minus its extension, `imagePath` is the bare
+  /// filename, and every card is tagged with [setId]. `id` also defaults to
+  /// that same stripped filename, unless it collides with [existingCardIds]
+  /// or another card in this same batch, in which case [uniqueCardId]
+  /// appends a `_001`-style suffix to keep every id unique -- `cardTitle` is
+  /// never suffixed, only `id`.
   Future<List<CardDefinition>> buildCardsFromImageFolder({
     required String sourceFolderPath,
     required String setId,
+    required Iterable<String> existingCardIds,
   }) async {
     final dir = Directory(sourceFolderPath);
     if (!await dir.exists()) return const [];
@@ -131,10 +148,15 @@ class GameDefinitionFileOps {
       if (entity is File && isImageFile(fileName)) fileNames.add(fileName);
     }
     fileNames.sort();
-    return [
-      for (final fileName in fileNames)
-        CardDefinition(id: stripExtension(fileName), cardTitle: stripExtension(fileName), imagePath: fileName, setId: setId),
-    ];
+    final takenIds = existingCardIds.toSet();
+    final cards = <CardDefinition>[];
+    for (final fileName in fileNames) {
+      final title = stripExtension(fileName);
+      final id = uniqueCardId(title, takenIds);
+      takenIds.add(id);
+      cards.add(CardDefinition(id: id, cardTitle: title, imagePath: fileName, setId: setId));
+    }
+    return cards;
   }
 
   /// Writes [game] to `<folderPath>/gamedef.json`, creating [folderPath]

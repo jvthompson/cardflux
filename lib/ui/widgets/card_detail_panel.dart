@@ -8,7 +8,7 @@ import '../../data/image_path_resolver.dart';
 import '../../models/card_definition.dart';
 import '../../models/game_set.dart';
 import '../../models/tag_group.dart';
-import 'card_face_widget.dart' show cardHeight, cardWidth, parseHexColor;
+import 'card_face_widget.dart' show cardHeight, cardWidth;
 
 /// Every editable field of one [CardDefinition], for the Game Definition
 /// Editor's Card View tab. A controlled component -- edits are reported via
@@ -49,18 +49,12 @@ class CardDetailPanel extends StatefulWidget {
 class _CardDetailPanelState extends State<CardDetailPanel> {
   late final TextEditingController _idController = TextEditingController(text: widget.card.id);
   late final TextEditingController _titleController = TextEditingController(text: widget.card.cardTitle);
-  late final TextEditingController _colorController = TextEditingController(text: widget.card.colorHex ?? '');
-  late final TextEditingController _suitController = TextEditingController(text: widget.card.suit ?? '');
-  late final TextEditingController _rankController = TextEditingController(text: widget.card.rank ?? '');
   bool _busy = false;
 
   @override
   void dispose() {
     _idController.dispose();
     _titleController.dispose();
-    _colorController.dispose();
-    _suitController.dispose();
-    _rankController.dispose();
     super.dispose();
   }
 
@@ -130,12 +124,6 @@ class _CardDetailPanelState extends State<CardDetailPanel> {
     final card = widget.card;
     final resolvedImage =
         resolvedImagePathForDisplay(widget.folderPath, bareImagePath: card.imagePath, setId: card.setId);
-    Color? swatchColor;
-    try {
-      if (card.colorHex != null) swatchColor = parseHexColor(card.colorHex!);
-    } catch (_) {
-      swatchColor = null;
-    }
 
     return ListView(
       padding: const EdgeInsets.all(16),
@@ -150,49 +138,6 @@ class _CardDetailPanelState extends State<CardDetailPanel> {
           controller: _titleController,
           decoration: const InputDecoration(labelText: 'Card Title', border: OutlineInputBorder(), isDense: true),
           onChanged: (v) => widget.onChanged(card.copyWith(cardTitle: v)),
-        ),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(
-              child: TextField(
-                controller: _colorController,
-                decoration:
-                    const InputDecoration(labelText: 'Color Hex (#RRGGBB)', border: OutlineInputBorder(), isDense: true),
-                onChanged: (v) => widget.onChanged(card.copyWith(colorHex: v.trim().isEmpty ? null : v.trim())),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Container(
-              width: 32,
-              height: 32,
-              decoration: BoxDecoration(
-                color: swatchColor ?? Colors.transparent,
-                border: Border.all(color: Theme.of(context).colorScheme.outline),
-                borderRadius: BorderRadius.circular(4),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(
-              child: TextField(
-                controller: _suitController,
-                decoration: const InputDecoration(labelText: 'Suit', border: OutlineInputBorder(), isDense: true),
-                onChanged: (v) => widget.onChanged(card.copyWith(suit: v.trim().isEmpty ? null : v.trim())),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: TextField(
-                controller: _rankController,
-                decoration: const InputDecoration(labelText: 'Rank', border: OutlineInputBorder(), isDense: true),
-                onChanged: (v) => widget.onChanged(card.copyWith(rank: v.trim().isEmpty ? null : v.trim())),
-              ),
-            ),
-          ],
         ),
         const SizedBox(height: 12),
         DropdownButtonFormField<CardOrientation>(

@@ -6,8 +6,11 @@ import 'package:uuid/uuid.dart';
 
 import '../../data/game_definition_file_ops.dart';
 import '../../data/image_path_resolver.dart';
+import '../../models/card_definition.dart';
+import '../../models/game_set.dart';
 import '../../models/tag_group.dart';
 import 'card_face_widget.dart' show cardHeight, cardWidth;
+import 'duplicate_card_ids_dialog.dart';
 
 const Uuid _uuid = Uuid();
 
@@ -24,20 +27,26 @@ class GameSettingsTab extends StatefulWidget {
     required this.name,
     required this.cardBackImagePath,
     required this.tagGroups,
+    required this.cards,
+    required this.sets,
     required this.fileOps,
     required this.onNameChanged,
     required this.onCardBackImagePathChanged,
     required this.onTagGroupsChanged,
+    required this.onCardsChanged,
   });
 
   final String folderPath;
   final String name;
   final String? cardBackImagePath;
   final List<TagGroup> tagGroups;
+  final List<CardDefinition> cards;
+  final List<GameSet> sets;
   final GameDefinitionFileOps fileOps;
   final ValueChanged<String> onNameChanged;
   final ValueChanged<String?> onCardBackImagePathChanged;
   final ValueChanged<List<TagGroup>> onTagGroupsChanged;
+  final ValueChanged<List<CardDefinition>> onCardsChanged;
 
   @override
   State<GameSettingsTab> createState() => _GameSettingsTabState();
@@ -171,6 +180,24 @@ class _GameSettingsTabState extends State<GameSettingsTab> with AutomaticKeepAli
             const SizedBox(width: 8),
             IconButton(icon: const Icon(Icons.add), tooltip: 'Add Tag Group', onPressed: _addGroup),
           ],
+        ),
+        const SizedBox(height: 24),
+        const Text('Card IDs', style: TextStyle(fontWeight: FontWeight.bold)),
+        Text(
+          'Every card needs a unique ID. New imports are checked automatically, but this '
+          'looks across all cards for any that still collide, so you can fix them by hand.',
+          style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 12),
+        ),
+        const SizedBox(height: 8),
+        OutlinedButton.icon(
+          icon: const Icon(Icons.copy_all_outlined),
+          label: const Text('Check for Duplicate Card IDs...'),
+          onPressed: () => showDuplicateCardIdsDialog(
+            context,
+            cards: widget.cards,
+            sets: widget.sets,
+            onChanged: widget.onCardsChanged,
+          ),
         ),
       ],
     );
