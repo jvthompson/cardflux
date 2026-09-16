@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_deck/models/active_search.dart';
 import 'package:flutter_deck/models/board_widget_instance.dart';
+import 'package:flutter_deck/models/card_back_definition.dart';
 import 'package:flutter_deck/models/card_definition.dart';
 import 'package:flutter_deck/models/card_instance.dart';
 import 'package:flutter_deck/models/deck_config.dart';
@@ -82,6 +83,39 @@ void main() {
       const tagged = CardDefinition(id: 'b', cardTitle: 'B', setId: 'core_set');
       final roundTripped = CardDefinition.fromJson(tagged.toJson());
       expect(roundTripped.setId, 'core_set');
+    });
+
+    test('cardBackId defaults to null, round-trips through JSON, and copyWith clears it explicitly', () {
+      const untagged = CardDefinition(id: 'a', cardTitle: 'A');
+      expect(untagged.cardBackId, isNull);
+      expect(untagged.toJson().containsKey('cardBackId'), isFalse);
+
+      const withBack = CardDefinition(id: 'b', cardTitle: 'B', cardBackId: uniqueCardBackId);
+      final roundTripped = CardDefinition.fromJson(withBack.toJson());
+      expect(roundTripped.cardBackId, uniqueCardBackId);
+
+      final cleared = withBack.copyWith(cardBackId: null);
+      expect(cleared.cardBackId, isNull);
+      final unchanged = withBack.copyWith(cardTitle: 'B2');
+      expect(unchanged.cardBackId, uniqueCardBackId, reason: 'omitting cardBackId should leave it alone');
+    });
+
+    test('uniqueBackOrientation defaults to portrait, round-trips through JSON, and copyWith updates it', () {
+      const plain = CardDefinition(id: 'a', cardTitle: 'A');
+      expect(plain.uniqueBackOrientation, CardOrientation.portrait);
+      expect(plain.toJson().containsKey('uniqueBackOrientation'), isFalse);
+
+      const rotated = CardDefinition(
+        id: 'b',
+        cardTitle: 'B',
+        cardBackId: uniqueCardBackId,
+        uniqueBackOrientation: CardOrientation.right,
+      );
+      final roundTripped = CardDefinition.fromJson(rotated.toJson());
+      expect(roundTripped.uniqueBackOrientation, CardOrientation.right);
+
+      final unchanged = rotated.copyWith(cardTitle: 'B2');
+      expect(unchanged.uniqueBackOrientation, CardOrientation.right, reason: 'omitting it should leave it alone');
     });
 
     test('copyWith with no arguments returns an equal-fielded copy', () {
@@ -653,6 +687,66 @@ void main() {
         'Spades',
       ]);
       expect(roundTripped.cards.first.types, ['Hearts']);
+    });
+
+    test('cardBacks defaults to empty when absent from JSON', () {
+      final json = {
+        'id': 'g1',
+        'name': 'G',
+        'cards': [
+          {'id': 'a', 'cardTitle': 'A', 'colorHex': '#000000'},
+        ],
+      };
+      final game = GameDefinition.fromJson(json);
+      expect(game.cardBacks, isEmpty);
+      expect(game.toJson().containsKey('cardBacks'), isFalse);
+    });
+
+    test('cardBacks round-trips through JSON, first entry as default', () {
+      const game = GameDefinition(
+        id: 'g1',
+        name: 'G',
+        cards: [CardDefinition(id: 'a', cardTitle: 'A')],
+        cardBacks: [
+          CardBackDefinition(id: 'b1', name: 'Default', imagePath: 'default.png'),
+          CardBackDefinition(id: 'b2', name: 'Alt', imagePath: 'alt.png', orientation: CardOrientation.left),
+        ],
+      );
+      final roundTripped = GameDefinition.fromJson(game.toJson());
+      expect(roundTripped.cardBacks, hasLength(2));
+      expect(roundTripped.cardBacks.first.id, 'b1');
+      expect(roundTripped.cardBacks.first.imagePath, 'default.png');
+      expect(roundTripped.cardBacks.first.orientation, CardOrientation.portrait);
+      expect(roundTripped.cardBacks[1].name, 'Alt');
+      expect(roundTripped.cardBacks[1].orientation, CardOrientation.left);
+    });
+
+    test('CardBackDefinition.copyWith updates orientation and leaves it alone when omitted', () {
+      const back = CardBackDefinition(id: 'b1', name: 'Default', imagePath: 'default.png');
+      expect(back.orientation, CardOrientation.portrait);
+
+      final rotated = back.copyWith(orientation: CardOrientation.right);
+      expect(rotated.orientation, CardOrientation.right);
+
+      final renamed = rotated.copyWith(name: 'Renamed');
+      expect(renamed.orientation, CardOrientation.right, reason: 'omitting orientation should leave it alone');
+    });
+
+    test('migrates a legacy cardBackImagePath string into a single default cardBacks entry', () {
+      final json = {
+        'id': 'g1',
+        'name': 'G',
+        'cards': [
+          {'id': 'a', 'cardTitle': 'A'},
+        ],
+        'cardBackImagePath': 'back.jpg',
+      };
+      final game = GameDefinition.fromJson(json);
+      expect(game.cardBacks, hasLength(1));
+      expect(game.cardBacks.single.imagePath, 'back.jpg');
+      // Saving it back out never re-emits the legacy key.
+      expect(game.toJson().containsKey('cardBackImagePath'), isFalse);
+      expect((game.toJson()['cardBacks'] as List).single, {'id': 'default', 'name': 'Default', 'imagePath': 'back.jpg'});
     });
 
     test('round-trips zones through JSON', () {

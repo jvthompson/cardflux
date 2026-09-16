@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter_deck/data/image_path_resolver.dart';
+import 'package:flutter_deck/models/card_back_definition.dart';
 import 'package:flutter_deck/models/card_definition.dart';
 import 'package:flutter_deck/models/game_definition.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -98,20 +99,127 @@ void main() {
     },
   );
 
-  test("mergeLocalImagePaths uses local's cardBackImagePath, not remote's", () {
+  test("mergeLocalImagePaths uses local's cardBacks, not remote's", () {
     final remote = GameDefinition(
       id: 'g1',
       name: 'Game',
       cards: const [],
-      cardBackImagePath: 'C:/host/back.jpg',
+      cardBacks: const [CardBackDefinition(id: 'default', name: 'Default', imagePath: 'C:/host/back.jpg')],
     );
     final local = GameDefinition(
       id: 'g1',
       name: 'Game',
       cards: const [],
-      cardBackImagePath: 'C:/client/back.jpg',
+      cardBacks: const [CardBackDefinition(id: 'default', name: 'Default', imagePath: 'C:/client/back.jpg')],
     );
     final merged = mergeLocalImagePaths(remote: remote, local: local);
-    expect(merged.cardBackImagePath, 'C:/client/back.jpg');
+    expect(merged.cardBacks.single.imagePath, 'C:/client/back.jpg');
+  });
+
+  group('resolveCardBackImagePath', () {
+    test('returns null/not-missing when cardBacks is empty and no unique mode', () {
+      final resolved = resolveCardBackImagePath(cardBacks: const [], card: null);
+      expect(resolved.path, isNull);
+      expect(resolved.missing, isFalse);
+    });
+
+    test('defaults to the first entry when the card has no cardBackId', () {
+      const card = CardDefinition(id: 'c1', cardTitle: 'Card One');
+      const cardBacks = [
+        CardBackDefinition(id: 'b1', name: 'Default', imagePath: 'default.png'),
+        CardBackDefinition(id: 'b2', name: 'Alt', imagePath: 'alt.png'),
+      ];
+      final resolved = resolveCardBackImagePath(cardBacks: cardBacks, card: card);
+      expect(resolved.path, 'default.png');
+      expect(resolved.missing, isFalse);
+    });
+
+    test('resolves a named alternate by id', () {
+      const card = CardDefinition(id: 'c1', cardTitle: 'Card One', cardBackId: 'b2');
+      const cardBacks = [
+        CardBackDefinition(id: 'b1', name: 'Default', imagePath: 'default.png'),
+        CardBackDefinition(id: 'b2', name: 'Alt', imagePath: 'alt.png'),
+      ];
+      final resolved = resolveCardBackImagePath(cardBacks: cardBacks, card: card);
+      expect(resolved.path, 'alt.png');
+      expect(resolved.missing, isFalse);
+    });
+
+    test('resolves a named alternate\'s own orientation, independent of the card\'s front', () {
+      const card = CardDefinition(
+        id: 'c1',
+        cardTitle: 'Card One',
+        orientation: CardOrientation.portrait,
+        cardBackId: 'b2',
+      );
+      const cardBacks = [
+        CardBackDefinition(id: 'b1', name: 'Default', imagePath: 'default.png'),
+        CardBackDefinition(id: 'b2', name: 'Alt', imagePath: 'alt.png', orientation: CardOrientation.left),
+      ];
+      final resolved = resolveCardBackImagePath(cardBacks: cardBacks, card: card);
+      expect(resolved.orientation, CardOrientation.left);
+    });
+
+    test('orientation defaults to portrait when cardBacks is empty', () {
+      final resolved = resolveCardBackImagePath(cardBacks: const [], card: null);
+      expect(resolved.orientation, CardOrientation.portrait);
+    });
+
+    test('falls back to the default when cardBackId no longer exists', () {
+      const card = CardDefinition(id: 'c1', cardTitle: 'Card One', cardBackId: 'deleted');
+      const cardBacks = [CardBackDefinition(id: 'b1', name: 'Default', imagePath: 'default.png')];
+      final resolved = resolveCardBackImagePath(cardBacks: cardBacks, card: card);
+      expect(resolved.path, 'default.png');
+      expect(resolved.missing, isFalse);
+    });
+
+    test('unique mode finds a matching _BACK file next to the card image', () async {
+      final tempDir = await Directory.systemTemp.createTemp('flutter_deck_test_cardback_');
+      addTearDown(() => tempDir.delete(recursive: true));
+      final frontPath = '${tempDir.path}${Platform.pathSeparator}001_Krennic.png';
+      final backPath = '${tempDir.path}${Platform.pathSeparator}001_Krennic_BACK.png';
+      await File(backPath).writeAsBytes([1]);
+      final card = CardDefinition(
+        id: 'c1',
+        cardTitle: 'Krennic',
+        imagePath: frontPath,
+        cardBackId: uniqueCardBackId,
+      );
+      final resolved = resolveCardBackImagePath(cardBacks: const [], card: card);
+      expect(resolved.path, backPath);
+      expect(resolved.missing, isFalse);
+    });
+
+    test('unique mode reports missing when no matching _BACK file exists', () {
+      const card = CardDefinition(
+        id: 'c1',
+        cardTitle: 'Krennic',
+        imagePath: 'C:/game/001_Krennic.png',
+        cardBackId: uniqueCardBackId,
+      );
+      final resolved = resolveCardBackImagePath(cardBacks: const [], card: card);
+      expect(resolved.path, isNull);
+      expect(resolved.missing, isTrue);
+    });
+
+    test('unique mode reports missing when the card has no image of its own', () {
+      const card = CardDefinition(id: 'c1', cardTitle: 'Krennic', cardBackId: uniqueCardBackId);
+      final resolved = resolveCardBackImagePath(cardBacks: const [], card: card);
+      expect(resolved.path, isNull);
+      expect(resolved.missing, isTrue);
+    });
+
+    test('unique mode uses the card\'s own uniqueBackOrientation, even when missing', () {
+      const missingCard = CardDefinition(
+        id: 'c1',
+        cardTitle: 'Krennic',
+        imagePath: 'C:/game/001_Krennic.png',
+        cardBackId: uniqueCardBackId,
+        uniqueBackOrientation: CardOrientation.right,
+      );
+      final resolved = resolveCardBackImagePath(cardBacks: const [], card: missingCard);
+      expect(resolved.missing, isTrue);
+      expect(resolved.orientation, CardOrientation.right);
+    });
   });
 }

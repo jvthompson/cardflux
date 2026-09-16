@@ -134,7 +134,7 @@ class _ClientGameScreenState extends State<ClientGameScreen> {
       // Triggers a rebuild so `build()` can switch from the waiting spinner
       // to LoadDeckScreen now that a GameDefinition is available.
       setState(() => _game = game);
-      // The host's imagePath/cardBackImagePath values are absolute paths
+      // The host's imagePath/cardBacks path values are absolute paths
       // resolved on ITS machine -- they only happen to work here if this
       // client's game library sits at the identical path. Fire-and-forget:
       // swap in this machine's own locally-resolved paths for the same game
@@ -339,7 +339,7 @@ class _ClientGameScreenState extends State<ClientGameScreen> {
         controller: ClientTableController(widget.gameClient),
         isMirrored: _isMirrored,
         zones: _game?.zones ?? const [],
-        cardBackImagePath: _game?.cardBackImagePath,
+        cardBacks: _game?.cardBacks ?? const [],
         gameFolderPath: _game?.folderPath,
         localPlayerAvatarPath: _localAvatarPath,
         avatarBytesByPlayerId: _avatarsByPlayerId,

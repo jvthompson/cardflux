@@ -138,7 +138,7 @@ class _HostGameScreenState extends State<HostGameScreen> {
           session.state.players.length,
         ),
         zones: widget.game.zones,
-        cardBackImagePath: widget.game.cardBackImagePath,
+        cardBacks: widget.game.cardBacks,
         gameFolderPath: widget.game.folderPath,
         localPlayerAvatarPath: _localAvatarPath,
         avatarBytesByPlayerId: widget.hostServer.avatarsByPlayerId,

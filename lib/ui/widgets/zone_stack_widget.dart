@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../../models/card_back_definition.dart';
 import '../../models/card_definition.dart';
 import 'card_back_widget.dart';
 import 'card_face_widget.dart';
@@ -30,7 +31,7 @@ class ZoneStackWidget extends StatefulWidget {
     required this.onDragEnd,
     required this.onShuffle,
     this.isBeingSearched = false,
-    this.cardBackImagePath,
+    this.cardBacks = const [],
     this.borderColor,
     this.onHover,
     this.onDragUpdate,
@@ -52,7 +53,7 @@ class ZoneStackWidget extends StatefulWidget {
 
   /// See `PileWidget.isBeingSearched`'s identical doc.
   final bool isBeingSearched;
-  final String? cardBackImagePath;
+  final List<CardBackDefinition> cardBacks;
 
   /// This zone's owner's chosen color -- painted as a border on the top
   /// card, same as any other owned card (see `TableScreen._ownerBorderColor`).
@@ -95,7 +96,7 @@ class _ZoneStackWidgetState extends State<ZoneStackWidget>
   Widget _topFace() {
     final content = widget.topFaceUp && widget.topDefinition != null
         ? CardFaceWidget(definition: widget.topDefinition!)
-        : CardBackWidget(imagePath: widget.cardBackImagePath);
+        : CardBackWidget(cardBacks: widget.cardBacks, card: widget.topDefinition);
     if (widget.borderColor == null) return content;
     return Container(
       foregroundDecoration: BoxDecoration(

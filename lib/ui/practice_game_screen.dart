@@ -78,7 +78,7 @@ class _PracticeGameScreenState extends State<PracticeGameScreen> {
         // host picking a seat via AssignSeatsScreen.
         isMirrored: false,
         zones: widget.game.zones,
-        cardBackImagePath: widget.game.cardBackImagePath,
+        cardBacks: widget.game.cardBacks,
         gameFolderPath: widget.game.folderPath,
         localPlayerAvatarPath: widget.localAvatarPath,
         onLeaveGame: _leaveGame,

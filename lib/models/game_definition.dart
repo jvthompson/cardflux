@@ -1,3 +1,4 @@
+import 'card_back_definition.dart';
 import 'card_definition.dart';
 import 'game_set.dart';
 import 'tag_group.dart';
@@ -11,7 +12,7 @@ class GameDefinition {
     required this.id,
     required this.name,
     required this.cards,
-    this.cardBackImagePath,
+    this.cardBacks = const [],
     this.zones = const [],
     this.tagGroups = const [],
     this.sets = const [],
@@ -26,8 +27,8 @@ class GameDefinition {
   /// `game_library/lorcana`), set by `GameLoader` when loading from a games
   /// directory -- null for the bundled standard-52 asset (which lives in the
   /// app bundle, not a real folder a player could drop extra content into).
-  /// Purely local, like `CardDefinition.imagePath`/[cardBackImagePath]
-  /// themselves: never round-tripped through [fromJson]/[toJson], since a
+  /// Purely local, like `CardDefinition.imagePath`/each [CardBackDefinition]'s
+  /// own `imagePath`: never round-tripped through [fromJson]/[toJson], since a
   /// path on the host's disk means nothing on a client's -- see
   /// `mergeLocalImagePaths`, which re-populates it from the client's own
   /// local copy of the game instead of trusting whatever the host sent.
@@ -48,10 +49,12 @@ class GameDefinition {
   /// is null.
   final List<GameSet> sets;
 
-  /// Optional real art for this game's card back, shared by every card in
-  /// it (unlike [CardDefinition.imagePath], which is per-card front art).
-  /// Falls back to a code-drawn back (see `CardBackWidget`) when null.
-  final String? cardBackImagePath;
+  /// This game's declared card backs -- see [CardBackDefinition]. The first
+  /// entry is the default, used by any card whose [CardDefinition.cardBackId]
+  /// is null; the rest are named alternates a card can opt into by id. Empty
+  /// means no real art is configured at all -- see `CardBackWidget`, which
+  /// falls back to a code-drawn back in that case.
+  final List<CardBackDefinition> cardBacks;
 
   /// This game's non-hand zones (draw deck, discard pile, a shared deck,
   /// etc.) -- see [ZoneDefinition]. The hand zone is automatic and never
@@ -87,12 +90,23 @@ class GameDefinition {
           .map((e) => CardDefinition.fromJson((e as Map).cast<String, dynamic>()))
           .toList();
     }
+    // Migrates a pre-multiple-card-backs file: no `cardBacks` key, just the
+    // old single `cardBackImagePath` string -- becomes that one default
+    // entry, so an existing gamedef.json keeps working unchanged until it's
+    // next saved from the Editor (which always writes the new `cardBacks`
+    // shape and never this legacy key again).
+    final rawCardBacks = json['cardBacks'] as List?;
+    final legacyCardBackImagePath = json['cardBackImagePath'] as String?;
     return GameDefinition(
       id: json['id'] as String,
       name: json['name'] as String,
       cards: cards,
       sets: sets,
-      cardBackImagePath: json['cardBackImagePath'] as String?,
+      cardBacks: rawCardBacks != null
+          ? rawCardBacks.map((e) => CardBackDefinition.fromJson((e as Map).cast<String, dynamic>())).toList()
+          : (legacyCardBackImagePath == null
+              ? const []
+              : [CardBackDefinition(id: 'default', name: 'Default', imagePath: legacyCardBackImagePath)]),
       zones: (json['zones'] as List?)
               ?.map((e) => ZoneDefinition.fromJson((e as Map).cast<String, dynamic>()))
               .toList() ??
@@ -107,21 +121,7 @@ class GameDefinition {
   /// Reconstructs [card] with [setId] stamped on -- used while parsing the
   /// nested `sets` schema, where a card's set membership comes from its
   /// position in the JSON rather than an inline field.
-  static CardDefinition _cardWithSetId(CardDefinition card, String setId) {
-    return CardDefinition(
-      id: card.id,
-      cardTitle: card.cardTitle,
-      colorHex: card.colorHex,
-      suit: card.suit,
-      rank: card.rank,
-      imagePath: card.imagePath,
-      extraFields: card.extraFields,
-      types: card.types,
-      orientation: card.orientation,
-      setId: setId,
-      unownable: card.unownable,
-    );
-  }
+  static CardDefinition _cardWithSetId(CardDefinition card, String setId) => card.copyWith(setId: setId);
 
   Map<String, dynamic> toJson() {
     return {
@@ -141,7 +141,7 @@ class GameDefinition {
         ]
       else
         'cards': cards.map((c) => c.toJson()).toList(),
-      if (cardBackImagePath != null) 'cardBackImagePath': cardBackImagePath,
+      if (cardBacks.isNotEmpty) 'cardBacks': cardBacks.map((b) => b.toJson()).toList(),
       if (zones.isNotEmpty) 'zones': zones.map((z) => z.toJson()).toList(),
       if (tagGroups.isNotEmpty) 'tagGroups': tagGroups.map((g) => g.toJson()).toList(),
     };

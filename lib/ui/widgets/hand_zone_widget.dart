@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../models/card_back_definition.dart';
 import '../../models/card_definition.dart';
 import '../../models/card_instance.dart';
 import 'card_face_widget.dart';
@@ -32,7 +33,7 @@ class HandZoneWidget extends StatelessWidget {
     required this.definitionsById,
     required this.onDragEnd,
     this.onHoverCard,
-    this.cardBackImagePath,
+    this.cardBacks = const [],
     this.cardKeyFor,
     this.borderColor,
     this.backgroundColor = const Color(0x26000000),
@@ -48,7 +49,7 @@ class HandZoneWidget extends StatelessWidget {
   /// current global position on every drag update -- see
   /// `DraggableCard.onDragUpdate`'s own copy of this concept.
   final void Function(String instanceId, Offset globalPosition)? onDragUpdate;
-  final String? cardBackImagePath;
+  final List<CardBackDefinition> cardBacks;
 
   /// This hand's owner's chosen color -- painted as a border on every card
   /// in it, same as any other owned card (see `TableScreen._ownerBorderColor`).
@@ -81,7 +82,7 @@ class HandZoneWidget extends StatelessWidget {
       onHover: onHoverCard == null
           ? null
           : (hovering) => onHoverCard!(hovering ? card.instanceId : null),
-      cardBackImagePath: cardBackImagePath,
+      cardBacks: cardBacks,
       opponentBorderColor: borderColor,
     );
   }

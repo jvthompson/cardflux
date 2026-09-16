@@ -8,6 +8,7 @@ import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
 
 import '../app_theme.dart';
+import '../data/image_path_resolver.dart';
 import '../game/drag_preview.dart';
 import '../game/game_session.dart';
 import '../game/geometry_utils.dart';
@@ -16,6 +17,7 @@ import '../game/stack_utils.dart';
 import '../game/table_controller.dart';
 import '../models/active_search.dart';
 import '../models/board_widget_instance.dart';
+import '../models/card_back_definition.dart';
 import '../models/card_definition.dart';
 import '../models/card_instance.dart';
 import '../models/player.dart';
@@ -88,7 +90,7 @@ class TableScreen extends StatefulWidget {
     required this.onLeaveGame,
     required this.leaveButtonLabel,
     required this.leaveConfirmationMessage,
-    this.cardBackImagePath,
+    this.cardBacks = const [],
     this.localPlayerAvatarPath,
     this.avatarBytesByPlayerId = const {},
     this.gameFolderPath,
@@ -104,7 +106,7 @@ class TableScreen extends StatefulWidget {
   /// table like any other pile.
   final List<ZoneDefinition> zones;
 
-  final String? cardBackImagePath;
+  final List<CardBackDefinition> cardBacks;
 
   /// This machine's own local folder for the game being played (see
   /// `GameDefinition.folderPath`) -- null for the bundled standard-52 deck,
@@ -1068,7 +1070,7 @@ class _TableScreenState extends State<TableScreen>
           child: IgnorePointer(
             child: flight.faceUp && flight.definition != null
                 ? CardFaceWidget(definition: flight.definition!)
-                : CardBackWidget(imagePath: widget.cardBackImagePath),
+                : CardBackWidget(cardBacks: widget.cardBacks, card: flight.definition),
           ),
         );
       },
@@ -1135,7 +1137,7 @@ class _TableScreenState extends State<TableScreen>
     final definition = widget.definitionsById[c.definitionId];
     final content = c.faceUp && definition != null
         ? CardFaceWidget(definition: definition)
-        : CardBackWidget(imagePath: widget.cardBackImagePath);
+        : CardBackWidget(cardBacks: widget.cardBacks, card: definition);
     return IgnorePointer(
       child: isMirrored ? RotatedBox(quarterTurns: 2, child: content) : content,
     );
@@ -2245,10 +2247,16 @@ class _TableScreenState extends State<TableScreen>
     // Only a table card's own orientation is honored here (matching
     // DraggableCard/PileWidget's applyOrientation) -- a hand/zone card is
     // never actually rendered rotated on screen, so its preview shouldn't be
-    // either.
-    final orientation = instance.zone == CardZone.table
-        ? (definition?.orientation ?? CardOrientation.portrait)
-        : CardOrientation.portrait;
+    // either. Whichever side is actually showing gets its own orientation --
+    // a back can be scanned/oriented differently than its front (see
+    // `resolveCardBackImagePath`), so this must match `content`'s own
+    // face-vs-back choice below exactly, not just default to the front's.
+    final showingBack = !((instance.faceUp || forceFaceUp) && definition != null);
+    final orientation = instance.zone != CardZone.table
+        ? CardOrientation.portrait
+        : showingBack
+            ? resolveCardBackImagePath(cardBacks: widget.cardBacks, card: definition).orientation
+            : definition.orientation;
     final rotated = orientation != CardOrientation.portrait;
     final boxWidth = rotated ? cardHeight : cardWidth;
     final boxHeight = rotated ? cardWidth : cardHeight;
@@ -2274,9 +2282,9 @@ class _TableScreenState extends State<TableScreen>
       screenSize.height - previewHeight,
     );
 
-    final content = (instance.faceUp || forceFaceUp) && definition != null
-        ? CardFaceWidget(definition: definition)
-        : CardBackWidget(imagePath: widget.cardBackImagePath);
+    final content = showingBack
+        ? CardBackWidget(cardBacks: widget.cardBacks, card: definition)
+        : CardFaceWidget(definition: definition);
 
     return Positioned(
       left: left,
@@ -2350,7 +2358,7 @@ class _TableScreenState extends State<TableScreen>
                 ? null
                 : () => widget.controller.shuffleZone(zone.id),
             isBeingSearched: isBeingSearched,
-            cardBackImagePath: widget.cardBackImagePath,
+            cardBacks: widget.cardBacks,
             borderColor: borderColor,
             onHover: top == null
                 ? null
@@ -2385,7 +2393,7 @@ class _TableScreenState extends State<TableScreen>
               ? null
               : widget.definitionsById[top.definitionId],
           isBeingSearched: isBeingSearched,
-          cardBackImagePath: widget.cardBackImagePath,
+          cardBacks: widget.cardBacks,
           borderColor: borderColor,
         ),
       ),
@@ -2526,7 +2534,7 @@ class _TableScreenState extends State<TableScreen>
                 ? null
                 : () => widget.controller.shuffleZone(zone.id),
             isBeingSearched: isBeingSearched,
-            cardBackImagePath: widget.cardBackImagePath,
+            cardBacks: widget.cardBacks,
             onHover: top == null
                 ? null
                 : (hovering) => _setHoveredId(hovering ? top.instanceId : null),
@@ -2654,14 +2662,14 @@ class _TableScreenState extends State<TableScreen>
               globalPos,
             ),
             onHoverCard: _setHoveredId,
-            cardBackImagePath: widget.cardBackImagePath,
+            cardBacks: widget.cardBacks,
             cardKeyFor: _handCardKey,
             borderColor: borderColor,
             backgroundColor: backgroundColor,
           )
         : OpponentHandZoneWidget(
             count: handCountByPlayerId[player.id] ?? 0,
-            cardBackImagePath: widget.cardBackImagePath,
+            cardBacks: widget.cardBacks,
             borderColor: borderColor,
             backgroundColor: backgroundColor,
           );
@@ -3486,8 +3494,8 @@ class _TableScreenState extends State<TableScreen>
                                                                     ? top.instanceId
                                                                     : null,
                                                               ),
-                                                          cardBackImagePath: widget
-                                                              .cardBackImagePath,
+                                                          cardBacks: widget
+                                                              .cardBacks,
                                                           isBeingSearched:
                                                               isPileSearched(
                                                                 group.key,
@@ -3590,8 +3598,8 @@ class _TableScreenState extends State<TableScreen>
                                                                   ? top.instanceId
                                                                   : null,
                                                             ),
-                                                        cardBackImagePath: widget
-                                                            .cardBackImagePath,
+                                                        cardBacks: widget
+                                                            .cardBacks,
                                                       ),
                                                     ),
                                                   ),

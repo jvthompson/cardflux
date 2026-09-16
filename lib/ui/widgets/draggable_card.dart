@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../data/image_path_resolver.dart';
+import '../../models/card_back_definition.dart';
 import '../../models/card_definition.dart';
 import '../../models/card_instance.dart';
 import 'card_back_widget.dart';
@@ -49,7 +51,7 @@ class DraggableCard extends StatelessWidget {
     this.applyOrientation = false,
     this.opponentBorderColor,
     this.onHover,
-    this.cardBackImagePath,
+    this.cardBacks = const [],
     this.feedbackOverride,
     this.onDragStarted,
     this.onDragUpdate,
@@ -86,12 +88,13 @@ class DraggableCard extends StatelessWidget {
   /// flip, instead of staying axis-aligned.
   final Color? opponentBorderColor;
   final ValueChanged<bool>? onHover;
-  final String? cardBackImagePath;
+  final List<CardBackDefinition> cardBacks;
 
   Widget _face() {
-    final content = instance.faceUp && definition != null
-        ? CardFaceWidget(definition: definition!)
-        : CardBackWidget(imagePath: cardBackImagePath);
+    final showingBack = !(instance.faceUp && definition != null);
+    final content = showingBack
+        ? CardBackWidget(cardBacks: cardBacks, card: definition)
+        : CardFaceWidget(definition: definition!);
     final bordered = opponentBorderColor == null
         ? content
         : Container(
@@ -101,9 +104,11 @@ class DraggableCard extends StatelessWidget {
             ),
             child: content,
           );
-    final orientation = applyOrientation
-        ? (definition?.orientation ?? CardOrientation.portrait)
-        : CardOrientation.portrait;
+    final orientation = !applyOrientation
+        ? CardOrientation.portrait
+        : showingBack
+            ? resolveCardBackImagePath(cardBacks: cardBacks, card: definition).orientation
+            : (definition?.orientation ?? CardOrientation.portrait);
     final turns =
         (isMirrored ? 0.5 : 0.0) +
         orientationTurns(orientation) +

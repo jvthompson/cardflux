@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../models/card_back_definition.dart';
 import '../../models/card_definition.dart';
 import 'card_back_widget.dart';
 import 'card_face_widget.dart';
@@ -23,7 +24,7 @@ class OpponentZoneStackWidget extends StatelessWidget {
     this.topFaceUp = false,
     this.topDefinition,
     this.isBeingSearched = false,
-    this.cardBackImagePath,
+    this.cardBacks = const [],
     this.borderColor,
   });
 
@@ -34,7 +35,7 @@ class OpponentZoneStackWidget extends StatelessWidget {
 
   /// See `PileWidget.isBeingSearched`'s identical doc.
   final bool isBeingSearched;
-  final String? cardBackImagePath;
+  final List<CardBackDefinition> cardBacks;
 
   /// This zone's owner's chosen color -- painted as a border on the top
   /// card, same as any other owned card (see `TableScreen._ownerBorderColor`).
@@ -72,7 +73,7 @@ class OpponentZoneStackWidget extends StatelessWidget {
     }
     final rawContent = topFaceUp && topDefinition != null
         ? CardFaceWidget(definition: topDefinition!)
-        : CardBackWidget(imagePath: cardBackImagePath);
+        : CardBackWidget(cardBacks: cardBacks, card: topDefinition);
     final content = borderColor == null
         ? rawContent
         : Container(

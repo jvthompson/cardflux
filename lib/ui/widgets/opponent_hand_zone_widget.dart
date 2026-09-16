@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../models/card_back_definition.dart';
 import 'card_back_widget.dart';
 import 'card_face_widget.dart';
 import 'hand_zone_widget.dart' show handBandPadding;
@@ -13,13 +14,13 @@ class OpponentHandZoneWidget extends StatelessWidget {
   const OpponentHandZoneWidget({
     super.key,
     required this.count,
-    this.cardBackImagePath,
+    this.cardBacks = const [],
     this.borderColor,
     this.backgroundColor = const Color(0x26000000),
   });
 
   final int count;
-  final String? cardBackImagePath;
+  final List<CardBackDefinition> cardBacks;
 
   /// This hand's owner's chosen color -- painted as a border on every back,
   /// same as any other owned card (see `TableScreen._ownerBorderColor`).
@@ -33,7 +34,7 @@ class OpponentHandZoneWidget extends StatelessWidget {
   final Color backgroundColor;
 
   Widget _back() {
-    final content = CardBackWidget(imagePath: cardBackImagePath);
+    final content = CardBackWidget(cardBacks: cardBacks);
     if (borderColor == null) return content;
     return Container(
       foregroundDecoration: BoxDecoration(

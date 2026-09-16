@@ -2,7 +2,9 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:file_selector/file_selector.dart';
+import 'package:image/image.dart' as img;
 
+import '../models/card_back_definition.dart';
 import '../models/card_definition.dart';
 import '../models/game_definition.dart';
 
@@ -67,6 +69,29 @@ bool isSamePath(String a, String b) {
   return File(a).absolute.path.toLowerCase() == File(b).absolute.path.toLowerCase();
 }
 
+/// Rotates the image file at [path] 90 degrees if it's landscape (wider than
+/// tall) -- every card image is assumed portrait, with any physical
+/// sideways printing corrected in software via `CardDefinition.orientation`
+/// (see its doc), so a source scan/photo that's already sideways needs its
+/// actual pixels rotated back to portrait first, or that software-side
+/// correction would apply on top of an already-sideways image. Best-effort:
+/// leaves the file untouched if it can't be decoded or re-encoded (e.g. an
+/// unsupported format, or a too-small/malformed file -- `image`'s
+/// format-sniffing can throw on those rather than just returning null).
+Future<void> _rotateLandscapeImage(String path) async {
+  try {
+    final bytes = await File(path).readAsBytes();
+    final decoded = img.decodeImage(bytes);
+    if (decoded == null || decoded.width <= decoded.height) return;
+    final rotated = img.copyRotate(decoded, angle: 90);
+    final encoded = img.encodeNamedImage(path, rotated);
+    if (encoded == null) return;
+    await File(path).writeAsBytes(encoded);
+  } catch (_) {
+    // Best-effort -- leave the file exactly as copied.
+  }
+}
+
 /// All the `dart:io` folder-creation/file-copy logic the Game Definition
 /// Editor needs -- kept as its own small data-layer class, in the same
 /// spirit as [GameLoader]/`GamesDirectorySettings`, rather than inlined into
@@ -87,31 +112,49 @@ class GameDefinitionFileOps {
 
   /// Copies the file at [sourcePath] to `<destFolderPath>/<fileName>`,
   /// creating [destFolderPath] first if needed. A no-op if [sourcePath]
-  /// already *is* that destination file.
+  /// already *is* that destination file. [correctCardOrientation] runs
+  /// [_rotateLandscapeImage] on the copy afterward -- only set for actual
+  /// card art (front or unique-back scans), never a generic card-back
+  /// design, which has no "physically sideways" concept to correct.
   Future<void> copyIntoFolder({
     required String sourcePath,
     required String destFolderPath,
     required String fileName,
+    bool correctCardOrientation = false,
   }) async {
     final destPath = '$destFolderPath${Platform.pathSeparator}$fileName';
     if (isSamePath(sourcePath, destPath)) return;
     await Directory(destFolderPath).create(recursive: true);
     await File(sourcePath).copy(destPath);
+    if (correctCardOrientation) await _rotateLandscapeImage(destPath);
   }
 
   /// Copies a single picked image ([sourcePath]) into [destFolderPath],
   /// keeping its original filename, and returns that bare filename -- what
   /// the caller should store in `CardDefinition.imagePath`/
-  /// `GameDefinition.cardBackImagePath`.
-  Future<String> copyPickedImage({required String sourcePath, required String destFolderPath}) async {
+  /// `CardBackDefinition.imagePath`. See [copyIntoFolder]'s doc for
+  /// [correctCardOrientation].
+  Future<String> copyPickedImage({
+    required String sourcePath,
+    required String destFolderPath,
+    bool correctCardOrientation = false,
+  }) async {
     final fileName = basenameOf(sourcePath);
-    await copyIntoFolder(sourcePath: sourcePath, destFolderPath: destFolderPath, fileName: fileName);
+    await copyIntoFolder(
+      sourcePath: sourcePath,
+      destFolderPath: destFolderPath,
+      fileName: fileName,
+      correctCardOrientation: correctCardOrientation,
+    );
     return fileName;
   }
 
   /// Copies every image file directly inside [sourceFolderPath] into
-  /// [destFolderPath] (creating it if needed). A no-op entirely if the two
-  /// folders are already the same one on disk.
+  /// [destFolderPath] (creating it if needed), correcting the orientation of
+  /// any landscape one (see [copyIntoFolder]'s doc) -- every image here is
+  /// card art (a front, or a unique back scan; see
+  /// `buildCardsFromImageFolder`), never a generic card-back design. A no-op
+  /// entirely if the two folders are already the same one on disk.
   Future<void> copySetImages({required String sourceFolderPath, required String destFolderPath}) async {
     if (isSamePath(sourceFolderPath, destFolderPath)) return;
     final dir = Directory(sourceFolderPath);
@@ -122,6 +165,7 @@ class GameDefinitionFileOps {
           sourcePath: entity.path,
           destFolderPath: destFolderPath,
           fileName: entity.uri.pathSegments.last,
+          correctCardOrientation: true,
         );
       }
     }
@@ -134,7 +178,11 @@ class GameDefinitionFileOps {
   /// that same stripped filename, unless it collides with [existingCardIds]
   /// or another card in this same batch, in which case [uniqueCardId]
   /// appends a `_001`-style suffix to keep every id unique -- `cardTitle` is
-  /// never suffixed, only `id`.
+  /// never suffixed, only `id`. Skips any image whose name (minus extension)
+  /// ends in [cardBackFileSuffix] -- that's a card's own "Unique" back art
+  /// (see `resolveCardBackImagePath`), not a front to turn into its own
+  /// card. Such files are still copied to disk by [copySetImages]; they're
+  /// just never given a [CardDefinition] here.
   Future<List<CardDefinition>> buildCardsFromImageFolder({
     required String sourceFolderPath,
     required String setId,
@@ -145,7 +193,9 @@ class GameDefinitionFileOps {
     final fileNames = <String>[];
     await for (final entity in dir.list()) {
       final fileName = entity.uri.pathSegments.last;
-      if (entity is File && isImageFile(fileName)) fileNames.add(fileName);
+      if (entity is File && isImageFile(fileName) && !stripExtension(fileName).endsWith(cardBackFileSuffix)) {
+        fileNames.add(fileName);
+      }
     }
     fileNames.sort();
     final takenIds = existingCardIds.toSet();

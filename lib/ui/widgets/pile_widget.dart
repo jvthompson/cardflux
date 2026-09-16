@@ -2,6 +2,8 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../../data/image_path_resolver.dart';
+import '../../models/card_back_definition.dart';
 import '../../models/card_definition.dart';
 import 'card_back_widget.dart';
 import 'card_face_widget.dart';
@@ -47,7 +49,7 @@ class PileWidget extends StatefulWidget {
     this.topRotationTurns = 0,
     this.topBorderColor,
     this.onHover,
-    this.cardBackImagePath,
+    this.cardBacks = const [],
     this.feedbackOverride,
     this.onDragStarted,
     this.onDragUpdate,
@@ -91,7 +93,7 @@ class PileWidget extends StatefulWidget {
   /// `DraggableCard.onHover` (Space-hold preview, and D/Q/E targeting),
   /// reported against [topInstanceId] since that's the card actually shown.
   final ValueChanged<bool>? onHover;
-  final String? cardBackImagePath;
+  final List<CardBackDefinition> cardBacks;
 
   /// Replaces the default single-card drag feedback -- see
   /// `DraggableCard.feedbackOverride`'s own copy of this concept.
@@ -142,9 +144,10 @@ class _PileWidgetState extends State<PileWidget>
   }
 
   Widget _topFace() {
-    final content = widget.topFaceUp && widget.topDefinition != null
-        ? CardFaceWidget(definition: widget.topDefinition!)
-        : CardBackWidget(imagePath: widget.cardBackImagePath);
+    final showingBack = !(widget.topFaceUp && widget.topDefinition != null);
+    final content = showingBack
+        ? CardBackWidget(cardBacks: widget.cardBacks, card: widget.topDefinition)
+        : CardFaceWidget(definition: widget.topDefinition!);
     final bordered = widget.topBorderColor == null
         ? content
         : Container(
@@ -154,9 +157,11 @@ class _PileWidgetState extends State<PileWidget>
             ),
             child: content,
           );
-    final orientation = widget.applyOrientation
-        ? (widget.topDefinition?.orientation ?? CardOrientation.portrait)
-        : CardOrientation.portrait;
+    final orientation = !widget.applyOrientation
+        ? CardOrientation.portrait
+        : showingBack
+            ? resolveCardBackImagePath(cardBacks: widget.cardBacks, card: widget.topDefinition).orientation
+            : (widget.topDefinition?.orientation ?? CardOrientation.portrait);
     final turns =
         (widget.isMirrored ? 0.5 : 0.0) +
         orientationTurns(orientation) +

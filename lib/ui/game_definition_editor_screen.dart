@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../data/game_definition_file_ops.dart';
+import '../models/card_back_definition.dart';
 import '../models/card_definition.dart';
 import '../models/game_definition.dart';
 import '../models/game_set.dart';
@@ -40,7 +41,7 @@ class _GameDefinitionEditorScreenState extends State<GameDefinitionEditorScreen>
   late String _folderPath = widget.folderPath;
   late String _id = widget.initialGame.id;
   late String _name = widget.initialGame.name;
-  late String? _cardBackImagePath = widget.initialGame.cardBackImagePath;
+  late List<CardBackDefinition> _cardBacks = widget.initialGame.cardBacks.toList();
   late List<TagGroup> _tagGroups = widget.initialGame.tagGroups.toList();
   late List<ZoneDefinition> _zones = widget.initialGame.zones.toList();
   late List<GameSet> _sets = widget.initialGame.sets.toList();
@@ -53,7 +54,7 @@ class _GameDefinitionEditorScreenState extends State<GameDefinitionEditorScreen>
         cards: _cards,
         tagGroups: _tagGroups,
         sets: _sets,
-        cardBackImagePath: _cardBackImagePath,
+        cardBacks: _cardBacks,
         zones: _zones,
       );
 
@@ -90,7 +91,7 @@ class _GameDefinitionEditorScreenState extends State<GameDefinitionEditorScreen>
       _folderPath = result.folderPath;
       _id = result.game.id;
       _name = result.game.name;
-      _cardBackImagePath = result.game.cardBackImagePath;
+      _cardBacks = result.game.cardBacks.toList();
       _tagGroups = result.game.tagGroups.toList();
       _zones = result.game.zones.toList();
       _sets = result.game.sets.toList();
@@ -130,13 +131,13 @@ class _GameDefinitionEditorScreenState extends State<GameDefinitionEditorScreen>
             GameSettingsTab(
               folderPath: _folderPath,
               name: _name,
-              cardBackImagePath: _cardBackImagePath,
+              cardBacks: _cardBacks,
               tagGroups: _tagGroups,
               cards: _cards,
               sets: _sets,
               fileOps: _fileOps,
               onNameChanged: (v) => setState(() => _name = v),
-              onCardBackImagePathChanged: (v) => setState(() => _cardBackImagePath = v),
+              onCardBacksChanged: (v) => setState(() => _cardBacks = v),
               onTagGroupsChanged: (v) => setState(() => _tagGroups = v),
               onCardsChanged: (v) => setState(() => _cards = v),
             ),
@@ -158,6 +159,7 @@ class _GameDefinitionEditorScreenState extends State<GameDefinitionEditorScreen>
               cards: _cards,
               sets: _sets,
               tagGroups: _tagGroups,
+              cardBacks: _cardBacks,
               fileOps: _fileOps,
               onCardsChanged: (v) => setState(() => _cards = v),
             ),

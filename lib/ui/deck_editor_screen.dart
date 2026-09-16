@@ -8,10 +8,12 @@ import 'package:flutter/material.dart';
 import '../data/deck_library_loader.dart';
 import '../data/decks_directory_settings.dart';
 import '../data/directory_picker.dart';
+import '../data/image_path_resolver.dart';
 import '../models/card_definition.dart';
 import '../models/deck_config.dart';
 import '../models/game_definition.dart';
 import '../models/tag_group.dart';
+import 'widgets/card_back_widget.dart';
 import 'widgets/card_face_widget.dart';
 import 'widgets/move_library_prompt.dart';
 import 'widgets/multi_select_filter_menu.dart';
@@ -77,6 +79,10 @@ Future<String?> _promptForDeckName(
               '$libraryRoot${Platform.pathSeparator}$gameId${Platform.pathSeparator}$name.json',
             ).exists();
             if (exists) {
+              // Same reasoning as below -- this swaps the dialog's content
+              // from the name TextField to the plain overwrite-confirmation
+              // text, tearing the (still-focused) field down mid-route.
+              if (context.mounted) FocusScope.of(context).unfocus();
               setState(() {
                 checking = false;
                 confirmingOverwrite = true;
@@ -84,7 +90,14 @@ Future<String?> _promptForDeckName(
               });
               return;
             }
-            if (context.mounted) Navigator.of(context).pop(name);
+            if (!context.mounted) return;
+            // Drop focus before popping -- the name field is `autofocus`, and
+            // popping this route while it (or the framework's own focus
+            // machinery) still has it focused can tear down the Focus/
+            // FocusScope InheritedElement while something still depends on
+            // it, tripping a `_dependents.isEmpty` assertion in debug builds.
+            FocusScope.of(context).unfocus();
+            Navigator.of(context).pop(name);
           }
 
           if (confirmingOverwrite) {
@@ -588,6 +601,40 @@ class _DeckEditorScreenState extends State<DeckEditorScreen> {
     );
   }
 
+  Widget _frontPreview(CardDefinition card) {
+    return FittedBox(
+      fit: BoxFit.contain,
+      child: RotatedBox(
+        quarterTurns: orientationQuarterTurns(card.orientation),
+        child: SizedBox(width: cardWidth, height: cardHeight, child: CardFaceWidget(definition: card)),
+      ),
+    );
+  }
+
+  Widget _backPreview(CardDefinition card) {
+    // `widget.game` is loaded via `GameLoader`/`GamePicker`, so `imagePath` is
+    // already absolute here -- unlike the Game Definition Editor's Card View
+    // tab, no display-only resolved copy is needed for the "Unique" lookup.
+    final orientation = resolveCardBackImagePath(cardBacks: widget.game.cardBacks, card: card).orientation;
+    return FittedBox(
+      fit: BoxFit.contain,
+      child: RotatedBox(
+        quarterTurns: orientationQuarterTurns(orientation),
+        child: SizedBox(width: cardWidth, height: cardHeight, child: CardBackWidget(cardBacks: widget.game.cardBacks, card: card)),
+      ),
+    );
+  }
+
+  Widget _labeledPreview(String label, Widget pane) {
+    return Column(
+      children: [
+        Expanded(child: pane),
+        const SizedBox(height: 8),
+        Text(label, style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 12)),
+      ],
+    );
+  }
+
   Widget _buildPreviewPanel() {
     final hovered = _hoveredDefinitionId == null ? null : _definitionsById[_hoveredDefinitionId];
     return Container(
@@ -600,13 +647,15 @@ class _DeckEditorScreenState extends State<DeckEditorScreen> {
               child: Column(
                 children: [
                   Expanded(
-                    child: FittedBox(
-                      fit: BoxFit.contain,
-                      child: RotatedBox(
-                        quarterTurns: orientationQuarterTurns(hovered.orientation),
-                        child: SizedBox(width: cardWidth, height: cardHeight, child: CardFaceWidget(definition: hovered)),
-                      ),
-                    ),
+                    child: hovered.cardBackId == null
+                        ? _frontPreview(hovered)
+                        : Row(
+                            children: [
+                              Expanded(child: _labeledPreview('Front', _frontPreview(hovered))),
+                              const SizedBox(width: 12),
+                              Expanded(child: _labeledPreview('Back', _backPreview(hovered))),
+                            ],
+                          ),
                   ),
                   const SizedBox(height: 16),
                   Text(hovered.cardTitle, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18), textAlign: TextAlign.center),

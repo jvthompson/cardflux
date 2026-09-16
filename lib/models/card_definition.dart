@@ -27,6 +27,8 @@ class CardDefinition {
     this.orientation = CardOrientation.portrait,
     this.setId,
     this.unownable = false,
+    this.cardBackId,
+    this.uniqueBackOrientation = CardOrientation.portrait,
   });
 
   final String id;
@@ -65,6 +67,20 @@ class CardDefinition {
   /// instance it is.
   final bool unownable;
 
+  /// Which of `GameDefinition.cardBacks` this card shows face-down: `null`
+  /// means that list's first entry (the default); [uniqueCardBackId] means
+  /// this card derives its own back from its own [imagePath] (see
+  /// `resolveCardBackImagePath`); any other value is a specific
+  /// `CardBackDefinition.id`, falling back to the default if that id no
+  /// longer exists (e.g. the alternate was deleted).
+  final String? cardBackId;
+
+  /// This card's own "Unique" back's table rotation -- only meaningful when
+  /// [cardBackId] is [uniqueCardBackId]; a named (default or alternate) back
+  /// uses its own `CardBackDefinition.orientation` instead, since that art is
+  /// shared across cards rather than scanned per-card.
+  final CardOrientation uniqueBackOrientation;
+
   factory CardDefinition.fromJson(Map<String, dynamic> json) {
     return CardDefinition(
       id: json['id'] as String,
@@ -78,6 +94,9 @@ class CardDefinition {
       orientation: CardOrientation.values.byName(json['orientation'] as String? ?? 'portrait'),
       setId: json['setId'] as String?,
       unownable: json['unownable'] as bool? ?? false,
+      cardBackId: json['cardBackId'] as String?,
+      uniqueBackOrientation:
+          CardOrientation.values.byName(json['uniqueBackOrientation'] as String? ?? 'portrait'),
     );
   }
 
@@ -94,12 +113,16 @@ class CardDefinition {
       if (orientation != CardOrientation.portrait) 'orientation': orientation.name,
       if (setId != null) 'setId': setId,
       if (unownable) 'unownable': unownable,
+      if (cardBackId != null) 'cardBackId': cardBackId,
+      if (uniqueBackOrientation != CardOrientation.portrait)
+        'uniqueBackOrientation': uniqueBackOrientation.name,
     };
   }
 
   /// Returns a copy with the given fields replaced. For the nullable fields
-  /// ([colorHex], [suit], [rank], [imagePath], [setId]), omitting a
-  /// parameter keeps the current value; passing `null` explicitly clears it.
+  /// ([colorHex], [suit], [rank], [imagePath], [setId], [cardBackId]),
+  /// omitting a parameter keeps the current value; passing `null` explicitly
+  /// clears it.
   CardDefinition copyWith({
     String? id,
     String? cardTitle,
@@ -112,6 +135,8 @@ class CardDefinition {
     CardOrientation? orientation,
     Object? setId = _unset,
     bool? unownable,
+    Object? cardBackId = _unset,
+    CardOrientation? uniqueBackOrientation,
   }) {
     return CardDefinition(
       id: id ?? this.id,
@@ -123,8 +148,10 @@ class CardDefinition {
       extraFields: extraFields ?? this.extraFields,
       types: types ?? this.types,
       orientation: orientation ?? this.orientation,
+      uniqueBackOrientation: uniqueBackOrientation ?? this.uniqueBackOrientation,
       setId: identical(setId, _unset) ? this.setId : setId as String?,
       unownable: unownable ?? this.unownable,
+      cardBackId: identical(cardBackId, _unset) ? this.cardBackId : cardBackId as String?,
     );
   }
 }

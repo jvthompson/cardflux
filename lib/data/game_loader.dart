@@ -3,7 +3,6 @@ import 'dart:io';
 
 import 'package:flutter/services.dart' show rootBundle;
 
-import '../models/card_definition.dart';
 import '../models/game_definition.dart';
 import '../models/standard_deck.dart';
 import 'image_path_resolver.dart';
@@ -40,14 +39,13 @@ class GameLoader {
   /// Scans [folderPath] for a file named exactly `gamedef.json`
   /// (case-insensitive), parsing it as one [GameDefinition]. Any other file
   /// in the folder (a stray deck save, notes, etc.) is ignored. Each card's
-  /// [CardDefinition.imagePath] and the game's own
-  /// [GameDefinition.cardBackImagePath] (both authored as bare filenames
-  /// alongside the game's JSON) are rewritten to an absolute path so
-  /// renderers can load them directly without needing to know which folder a
-  /// game came from -- a card belonging to a set (see [GameSet]) has its
-  /// image resolved inside that set's own subfolder (named after
-  /// [CardDefinition.setId]), since set art is kept one folder deeper than
-  /// the game's own JSON.
+  /// [CardDefinition.imagePath] and every declared [GameDefinition.cardBacks]
+  /// entry's own `imagePath` (both authored as bare filenames alongside the
+  /// game's JSON) are rewritten to an absolute path so renderers can load
+  /// them directly without needing to know which folder a game came from --
+  /// a card belonging to a set (see [GameSet]) has its image resolved inside
+  /// that set's own subfolder (named after [CardDefinition.setId]), since
+  /// set art is kept one folder deeper than the game's own JSON.
   Future<List<GameDefinition>> loadFromFolder(String folderPath) async {
     final dir = Directory(folderPath);
     if (!await dir.exists()) return const [];
@@ -81,7 +79,7 @@ class GameLoader {
       name: game.name,
       cards: [...game.cards, ...newCards],
       sets: game.sets,
-      cardBackImagePath: game.cardBackImagePath,
+      cardBacks: game.cardBacks,
       zones: game.zones,
       tagGroups: game.tagGroups,
       folderPath: game.folderPath,
@@ -92,29 +90,26 @@ class GameLoader {
     final cards = game.cards.map((c) {
       final imagePath = c.imagePath;
       if (imagePath == null) return c;
-      return CardDefinition(
-        id: c.id,
-        cardTitle: c.cardTitle,
-        colorHex: c.colorHex,
-        suit: c.suit,
-        rank: c.rank,
+      return c.copyWith(
         imagePath: resolveBareImagePath(folderPath: folderPath, bareImagePath: imagePath, setId: c.setId),
-        extraFields: c.extraFields,
-        types: c.types,
-        orientation: c.orientation,
-        setId: c.setId,
-        unownable: c.unownable,
       );
     }).toList();
-    final cardBackImagePath = game.cardBackImagePath;
+    // Card backs are game-wide, never per-set -- resolved with no `setId`,
+    // same as the single `cardBackImagePath` was before.
+    final cardBacks = [
+      for (final back in game.cardBacks)
+        back.copyWith(
+          imagePath: back.imagePath == null
+              ? null
+              : resolveBareImagePath(folderPath: folderPath, bareImagePath: back.imagePath!),
+        ),
+    ];
     return GameDefinition(
       id: game.id,
       name: game.name,
       cards: cards,
       sets: game.sets,
-      cardBackImagePath: cardBackImagePath == null
-          ? null
-          : resolveBareImagePath(folderPath: folderPath, bareImagePath: cardBackImagePath),
+      cardBacks: cardBacks,
       zones: game.zones,
       tagGroups: game.tagGroups,
       folderPath: folderPath,

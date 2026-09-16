@@ -189,7 +189,7 @@ class _DeckLibraryScreenState extends State<DeckLibraryScreen> {
         SizedBox(
           width: cardWidth,
           height: cardHeight,
-          child: CardBackWidget(imagePath: widget.game.cardBackImagePath),
+          child: CardBackWidget(cardBacks: widget.game.cardBacks),
         ),
         const SizedBox(height: 4),
         SizedBox(
@@ -277,7 +277,7 @@ class _DeckLibraryScreenState extends State<DeckLibraryScreen> {
               borderRadius: BorderRadius.circular(6),
               border: Border.all(color: Colors.white24, width: 1.5),
             ),
-            child: hasLoaded ? CardBackWidget(imagePath: widget.game.cardBackImagePath) : null,
+            child: hasLoaded ? CardBackWidget(cardBacks: widget.game.cardBacks) : null,
           ),
           const SizedBox(height: 8),
           if (loadedEntry != null)

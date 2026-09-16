@@ -94,7 +94,13 @@ Future<String?> _promptForGameId(BuildContext context, String libraryRoot) async
               });
               return;
             }
-            if (context.mounted) Navigator.of(context).pop(id);
+            if (!context.mounted) return;
+            // See deck_editor_screen.dart's `_promptForDeckName` for why --
+            // this field is `autofocus`, and popping the route while it's
+            // still focused can trip a debug-only `_dependents.isEmpty`
+            // assertion when its Focus/FocusScope element tears down.
+            FocusScope.of(context).unfocus();
+            Navigator.of(context).pop(id);
           }
 
           return AlertDialog(

@@ -6,6 +6,7 @@ import 'package:uuid/uuid.dart';
 
 import '../../data/game_definition_file_ops.dart';
 import '../../data/image_path_resolver.dart';
+import '../../models/card_back_definition.dart';
 import '../../models/card_definition.dart';
 import '../../models/game_set.dart';
 import '../../models/tag_group.dart';
@@ -25,26 +26,26 @@ class GameSettingsTab extends StatefulWidget {
     super.key,
     required this.folderPath,
     required this.name,
-    required this.cardBackImagePath,
+    required this.cardBacks,
     required this.tagGroups,
     required this.cards,
     required this.sets,
     required this.fileOps,
     required this.onNameChanged,
-    required this.onCardBackImagePathChanged,
+    required this.onCardBacksChanged,
     required this.onTagGroupsChanged,
     required this.onCardsChanged,
   });
 
   final String folderPath;
   final String name;
-  final String? cardBackImagePath;
+  final List<CardBackDefinition> cardBacks;
   final List<TagGroup> tagGroups;
   final List<CardDefinition> cards;
   final List<GameSet> sets;
   final GameDefinitionFileOps fileOps;
   final ValueChanged<String> onNameChanged;
-  final ValueChanged<String?> onCardBackImagePathChanged;
+  final ValueChanged<List<CardBackDefinition>> onCardBacksChanged;
   final ValueChanged<List<TagGroup>> onTagGroupsChanged;
   final ValueChanged<List<CardDefinition>> onCardsChanged;
 
@@ -67,16 +68,44 @@ class _GameSettingsTabState extends State<GameSettingsTab> with AutomaticKeepAli
     super.dispose();
   }
 
-  Future<void> _chooseCardBackImage() async {
+  /// Picks a new card-back image and appends it as a brand-new
+  /// [CardBackDefinition] -- the first one ever added becomes this game's
+  /// default (see [GameDefinition.cardBacks]'s doc), with no separate step
+  /// needed. Its name defaults to the picked file's own name, editable right
+  /// after in its row -- same "pick first, refine after" flow `SetsTab`'s
+  /// "Add Set..." uses.
+  Future<void> _addCardBack() async {
     final file = await openFile(acceptedTypeGroups: imageFileTypes);
     if (file == null || !mounted) return;
     setState(() => _busy = true);
     try {
       final fileName = await widget.fileOps.copyPickedImage(sourcePath: file.path, destFolderPath: widget.folderPath);
-      widget.onCardBackImagePathChanged(fileName);
+      final newBack = CardBackDefinition(id: _uuid.v4(), name: stripExtension(fileName), imagePath: fileName);
+      widget.onCardBacksChanged([...widget.cardBacks, newBack]);
     } finally {
       if (mounted) setState(() => _busy = false);
     }
+  }
+
+  void _updateCardBack(int index, CardBackDefinition updated) {
+    widget.onCardBacksChanged([
+      for (var i = 0; i < widget.cardBacks.length; i++) if (i == index) updated else widget.cardBacks[i],
+    ]);
+  }
+
+  void _deleteCardBack(int index) {
+    widget.onCardBacksChanged([
+      for (var i = 0; i < widget.cardBacks.length; i++) if (i != index) widget.cardBacks[i],
+    ]);
+  }
+
+  /// See [_reorderGroups]'s identical doc -- reordering this list also
+  /// changes which entry is the default (always index 0).
+  void _reorderCardBacks(int oldIndex, int newIndex) {
+    final backs = [...widget.cardBacks];
+    final back = backs.removeAt(oldIndex);
+    backs.insert(newIndex, back);
+    widget.onCardBacksChanged(backs);
   }
 
   void _addGroup() {
@@ -110,7 +139,6 @@ class _GameSettingsTabState extends State<GameSettingsTab> with AutomaticKeepAli
   @override
   Widget build(BuildContext context) {
     super.build(context); // required by AutomaticKeepAliveClientMixin
-    final resolvedCardBack = resolvedImagePathForDisplay(widget.folderPath, bareImagePath: widget.cardBackImagePath);
     return ListView(
       padding: const EdgeInsets.all(24),
       children: [
@@ -120,26 +148,39 @@ class _GameSettingsTabState extends State<GameSettingsTab> with AutomaticKeepAli
           onChanged: widget.onNameChanged,
         ),
         const SizedBox(height: 24),
-        const Text('Card Back Image', style: TextStyle(fontWeight: FontWeight.bold)),
+        const Text('Card Backs', style: TextStyle(fontWeight: FontWeight.bold)),
+        Text(
+          'The first one is this game\'s default -- drag to reorder and change which one that '
+          'is. Each card can then pick a specific back (or "Unique") on the Card View tab.',
+          style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 12),
+        ),
         const SizedBox(height: 8),
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _ImagePreviewBox(resolvedPath: resolvedCardBack),
-            const SizedBox(width: 16),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                OutlinedButton(onPressed: _busy ? null : _chooseCardBackImage, child: const Text('Choose Image...')),
-                if (widget.cardBackImagePath != null)
-                  TextButton(
-                    onPressed: _busy ? null : () => widget.onCardBackImagePathChanged(null),
-                    child: const Text('Clear'),
+        if (widget.cardBacks.isNotEmpty)
+          ReorderableListView(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            onReorderItem: _reorderCardBacks,
+            children: [
+              for (var i = 0; i < widget.cardBacks.length; i++)
+                Padding(
+                  key: ValueKey(widget.cardBacks[i].id),
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: _CardBackEditorRow(
+                    folderPath: widget.folderPath,
+                    fileOps: widget.fileOps,
+                    cardBack: widget.cardBacks[i],
+                    isDefault: i == 0,
+                    onChanged: (updated) => _updateCardBack(i, updated),
+                    onDelete: () => _deleteCardBack(i),
                   ),
-              ],
-            ),
-          ],
+                ),
+            ],
+          ),
+        const SizedBox(height: 8),
+        OutlinedButton.icon(
+          icon: const Icon(Icons.add),
+          label: const Text('Add Card Back...'),
+          onPressed: _busy ? null : _addCardBack,
         ),
         const SizedBox(height: 24),
         const Text('Tag Groups', style: TextStyle(fontWeight: FontWeight.bold)),
@@ -336,6 +377,116 @@ class _TagGroupEditorState extends State<_TagGroupEditor> {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// One [CardBackDefinition]'s editor row: a thumbnail, an editable name, its
+/// own "Choose Image.../Clear" pair (same `copyPickedImage` plumbing every
+/// other image picker in this editor uses), and a delete button. Every
+/// mutation is reported as a whole replacement [CardBackDefinition] via
+/// [onChanged] -- this widget holds no state of its own beyond its name
+/// controller and a local busy flag for the image picker.
+class _CardBackEditorRow extends StatefulWidget {
+  const _CardBackEditorRow({
+    required this.folderPath,
+    required this.fileOps,
+    required this.cardBack,
+    required this.isDefault,
+    required this.onChanged,
+    required this.onDelete,
+  });
+
+  final String folderPath;
+  final GameDefinitionFileOps fileOps;
+  final CardBackDefinition cardBack;
+
+  /// Whether this is `GameDefinition.cardBacks`' first entry -- purely a
+  /// display label here, derived from list position by the parent rather
+  /// than stored on the model itself.
+  final bool isDefault;
+  final ValueChanged<CardBackDefinition> onChanged;
+  final VoidCallback onDelete;
+
+  @override
+  State<_CardBackEditorRow> createState() => _CardBackEditorRowState();
+}
+
+class _CardBackEditorRowState extends State<_CardBackEditorRow> {
+  late final TextEditingController _nameController = TextEditingController(text: widget.cardBack.name);
+  bool _busy = false;
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _chooseImage() async {
+    final file = await openFile(acceptedTypeGroups: imageFileTypes);
+    if (file == null || !mounted) return;
+    setState(() => _busy = true);
+    try {
+      final fileName = await widget.fileOps.copyPickedImage(sourcePath: file.path, destFolderPath: widget.folderPath);
+      widget.onChanged(widget.cardBack.copyWith(imagePath: fileName));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final resolved = resolvedImagePathForDisplay(widget.folderPath, bareImagePath: widget.cardBack.imagePath);
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _ImagePreviewBox(resolvedPath: resolved),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: _nameController,
+                    decoration: InputDecoration(
+                      labelText: widget.isDefault ? 'Name (Default)' : 'Name',
+                      border: const OutlineInputBorder(),
+                      isDense: true,
+                    ),
+                    onChanged: (v) => widget.onChanged(widget.cardBack.copyWith(name: v)),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      OutlinedButton(onPressed: _busy ? null : _chooseImage, child: const Text('Choose Image...')),
+                      if (widget.cardBack.imagePath != null)
+                        TextButton(
+                          onPressed: _busy ? null : () => widget.onChanged(widget.cardBack.copyWith(imagePath: null)),
+                          child: const Text('Clear'),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  DropdownButtonFormField<CardOrientation>(
+                    initialValue: widget.cardBack.orientation,
+                    decoration:
+                        const InputDecoration(labelText: 'Orientation', border: OutlineInputBorder(), isDense: true),
+                    items: [for (final o in CardOrientation.values) DropdownMenuItem(value: o, child: Text(o.name))],
+                    onChanged: (v) {
+                      if (v != null) widget.onChanged(widget.cardBack.copyWith(orientation: v));
+                    },
+                  ),
+                ],
+              ),
+            ),
+            IconButton(icon: const Icon(Icons.delete_outline), tooltip: 'Remove Card Back', onPressed: widget.onDelete),
+          ],
+        ),
       ),
     );
   }

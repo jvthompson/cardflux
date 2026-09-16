@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 
 import '../../data/game_definition_file_ops.dart';
 import '../../data/image_path_resolver.dart';
+import '../../models/card_back_definition.dart';
 import '../../models/card_definition.dart';
 import '../../models/game_set.dart';
 import '../../models/tag_group.dart';
@@ -20,6 +21,7 @@ class CardDetailPanel extends StatefulWidget {
     required this.card,
     required this.tagGroups,
     required this.allSets,
+    required this.allCardBacks,
     required this.fileOps,
     required this.onChanged,
     required this.onDelete,
@@ -31,6 +33,7 @@ class CardDetailPanel extends StatefulWidget {
   final CardDefinition card;
   final List<TagGroup> tagGroups;
   final List<GameSet> allSets;
+  final List<CardBackDefinition> allCardBacks;
   final GameDefinitionFileOps fileOps;
   final ValueChanged<CardDefinition> onChanged;
   final VoidCallback onDelete;
@@ -70,7 +73,11 @@ class _CardDetailPanelState extends State<CardDetailPanel> {
     if (file == null || !mounted) return;
     setState(() => _busy = true);
     try {
-      final fileName = await widget.fileOps.copyPickedImage(sourcePath: file.path, destFolderPath: _imageDestFolder);
+      final fileName = await widget.fileOps.copyPickedImage(
+        sourcePath: file.path,
+        destFolderPath: _imageDestFolder,
+        correctCardOrientation: true,
+      );
       widget.onChanged(widget.card.copyWith(imagePath: fileName));
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -207,6 +214,29 @@ class _CardDetailPanelState extends State<CardDetailPanel> {
             ),
           ],
         ),
+        const SizedBox(height: 12),
+        DropdownButtonFormField<String?>(
+          initialValue: card.cardBackId,
+          decoration: const InputDecoration(labelText: 'Card Back', border: OutlineInputBorder(), isDense: true),
+          items: [
+            const DropdownMenuItem<String?>(value: null, child: Text('(Default)')),
+            for (final back in widget.allCardBacks) DropdownMenuItem<String?>(value: back.id, child: Text(back.name)),
+            const DropdownMenuItem<String?>(value: uniqueCardBackId, child: Text('Unique')),
+          ],
+          onChanged: (v) => widget.onChanged(card.copyWith(cardBackId: v)),
+        ),
+        if (card.cardBackId == uniqueCardBackId) ...[
+          const SizedBox(height: 12),
+          DropdownButtonFormField<CardOrientation>(
+            initialValue: card.uniqueBackOrientation,
+            decoration:
+                const InputDecoration(labelText: 'Back Orientation', border: OutlineInputBorder(), isDense: true),
+            items: [for (final o in CardOrientation.values) DropdownMenuItem(value: o, child: Text(o.name))],
+            onChanged: (v) {
+              if (v != null) widget.onChanged(card.copyWith(uniqueBackOrientation: v));
+            },
+          ),
+        ],
         for (final group in widget.tagGroups)
           if (group.tags.isNotEmpty) ...[
             const SizedBox(height: 16),

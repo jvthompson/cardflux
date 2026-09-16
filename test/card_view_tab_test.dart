@@ -26,6 +26,7 @@ void main() {
             cards: const [adrazar, untagged],
             sets: const [],
             tagGroups: const [cardTypeGroup, raceGroup],
+            cardBacks: const [],
             fileOps: GameDefinitionFileOps(),
             onCardsChanged: (_) {},
           ),
@@ -79,6 +80,7 @@ void main() {
             cards: const [adrazar, untagged],
             sets: const [],
             tagGroups: const [cardTypeGroup, raceGroup],
+            cardBacks: const [],
             fileOps: GameDefinitionFileOps(),
             onCardsChanged: (_) {},
           ),
@@ -122,6 +124,7 @@ void main() {
           cards: const [adrazar, boromir],
           sets: const [],
           tagGroups: const [cardTypeGroup],
+          cardBacks: const [],
           fileOps: GameDefinitionFileOps(),
           onCardsChanged: (_) {},
         );

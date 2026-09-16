@@ -6,9 +6,11 @@ import 'package:uuid/uuid.dart';
 
 import '../../data/game_definition_file_ops.dart';
 import '../../data/image_path_resolver.dart';
+import '../../models/card_back_definition.dart';
 import '../../models/card_definition.dart';
 import '../../models/game_set.dart';
 import '../../models/tag_group.dart';
+import 'card_back_widget.dart';
 import 'card_detail_panel.dart';
 import 'card_face_widget.dart' show CardFaceWidget, cardHeight, cardWidth, orientationQuarterTurns;
 import 'multi_select_filter_menu.dart';
@@ -28,6 +30,7 @@ class CardViewTab extends StatefulWidget {
     required this.cards,
     required this.sets,
     required this.tagGroups,
+    required this.cardBacks,
     required this.fileOps,
     required this.onCardsChanged,
   });
@@ -36,6 +39,7 @@ class CardViewTab extends StatefulWidget {
   final List<CardDefinition> cards;
   final List<GameSet> sets;
   final List<TagGroup> tagGroups;
+  final List<CardBackDefinition> cardBacks;
   final GameDefinitionFileOps fileOps;
   final ValueChanged<List<CardDefinition>> onCardsChanged;
 
@@ -411,7 +415,7 @@ class _CardViewTabState extends State<CardViewTab> with AutomaticKeepAliveClient
                                     'Select a card to preview',
                                     style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
                                   ))
-                              : _CardPreviewPane(folderPath: widget.folderPath, card: card),
+                              : _CardPreviewPane(folderPath: widget.folderPath, card: card, cardBacks: widget.cardBacks),
                         ),
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
@@ -472,6 +476,7 @@ class _CardViewTabState extends State<CardViewTab> with AutomaticKeepAliveClient
                               card: card,
                               tagGroups: widget.tagGroups,
                               allSets: widget.sets,
+                              allCardBacks: widget.cardBacks,
                               fileOps: widget.fileOps,
                               onChanged: _updateCard,
                               onDelete: () => _deleteCard(card.id),
@@ -570,20 +575,35 @@ class _PoolTile extends StatelessWidget {
 
 /// A large, live preview of the card currently being edited -- fills the
 /// middle column so image/color/suit/rank/orientation changes made in the
-/// [CardDetailPanel] form column are visually confirmed immediately.
+/// [CardDetailPanel] form column are visually confirmed immediately. Shows
+/// just the front when [card] uses this game's plain default back
+/// (`cardBackId == null`), or front and back side by side (each
+/// independently rotated by its own orientation -- see
+/// `resolveCardBackImagePath`) whenever it doesn't, so a custom back is
+/// always visible while authoring it.
 ///
 /// Unlike [CardFaceWidget] (used for grid tiles, which forces every card
 /// into a uniform 70x100 box via `BoxFit.cover`, cropping mismatched
 /// aspect ratios), this shows the actual image uncropped at its own aspect
 /// ratio, scaled up to fill as much of the preview area as possible.
 class _CardPreviewPane extends StatelessWidget {
-  const _CardPreviewPane({required this.folderPath, required this.card});
+  const _CardPreviewPane({required this.folderPath, required this.card, required this.cardBacks});
 
   final String folderPath;
   final CardDefinition card;
+  final List<CardBackDefinition> cardBacks;
 
-  @override
-  Widget build(BuildContext context) {
+  Widget _labeled(BuildContext context, String label, Widget pane) {
+    return Column(
+      children: [
+        Expanded(child: pane),
+        const SizedBox(height: 8),
+        Text(label, style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 12)),
+      ],
+    );
+  }
+
+  Widget _frontPane() {
     final resolved = resolvedImagePathForDisplay(folderPath, bareImagePath: card.imagePath, setId: card.setId);
     return Container(
       color: Colors.black.withValues(alpha: 0.05),
@@ -605,6 +625,43 @@ class _CardPreviewPane extends StatelessWidget {
                 ),
               ),
       ),
+    );
+  }
+
+  Widget _backPane() {
+    // The "Unique" lookup needs an absolute path to check disk existence,
+    // but `card.imagePath` is still bare here (pre-load, editor-only) --
+    // build a display-only resolved copy, never persisted, just for this.
+    final resolvedFront = resolvedImagePathForDisplay(folderPath, bareImagePath: card.imagePath, setId: card.setId);
+    final displayCard = resolvedFront == null ? card : card.copyWith(imagePath: resolvedFront);
+    final orientation = resolveCardBackImagePath(cardBacks: cardBacks, card: displayCard).orientation;
+    return Container(
+      color: Colors.black.withValues(alpha: 0.05),
+      alignment: Alignment.center,
+      padding: const EdgeInsets.all(20),
+      child: RotatedBox(
+        quarterTurns: orientationQuarterTurns(orientation),
+        child: FittedBox(
+          fit: BoxFit.contain,
+          child: SizedBox(
+            width: cardWidth,
+            height: cardHeight,
+            child: CardBackWidget(cardBacks: cardBacks, card: displayCard),
+          ),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (card.cardBackId == null) return _frontPane();
+    return Row(
+      children: [
+        Expanded(child: _labeled(context, 'Front', _frontPane())),
+        const SizedBox(width: 12),
+        Expanded(child: _labeled(context, 'Back', _backPane())),
+      ],
     );
   }
 }
