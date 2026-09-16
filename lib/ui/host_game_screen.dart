@@ -128,7 +128,7 @@ class _HostGameScreenState extends State<HostGameScreen> {
       value: session,
       child: TableScreen(
         definitionsById: _definitionsById,
-        controller: HostTableController(session),
+        controller: HostTableController(session, previewSink: _engine),
         // The host can be assigned to any seat via AssignSeatsScreen, not
         // just seat 0 -- look up where they actually landed rather than
         // assuming near/seat-0, which was only ever true before hosts could

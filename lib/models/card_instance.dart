@@ -61,11 +61,15 @@ class CardInstance {
   /// this card belongs to.
   final String? zoneId;
 
-  /// Quarter-turns (0-3, i.e. 0/90/180/270°) applied on top of the
-  /// ownership-driven 180° mirror flip -- see `DraggableCard`/`PileWidget`'s
-  /// `AnimatedRotation`. A table-only concept: every transition off the
-  /// table (`moveToHand`, `drawCard`, `drawFromZone`, `returnToZone`) resets
-  /// this to 0 so a card never shows up sideways in a hand or a deck.
+  /// Quarter-turns applied on top of the ownership-driven 180° mirror flip
+  /// -- see `DraggableCard`/`PileWidget`'s `AnimatedRotation`. Deliberately
+  /// left unbounded rather than wrapped into 0-3 (see `rotateStack`): the
+  /// resulting angle is equivalent mod 4, but AnimatedRotation needs the
+  /// raw running count to keep spinning the same direction on every Q/E
+  /// press instead of snapping back through zero. A table-only concept:
+  /// every transition off the table (`moveToHand`, `drawCard`,
+  /// `drawFromZone`, `returnToZone`) resets this to 0 so a card never shows
+  /// up sideways in a hand or a deck.
   final int rotationTurns;
 
   /// Copied once from `CardDefinition.unownable` at deal time (see

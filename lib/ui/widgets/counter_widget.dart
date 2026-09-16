@@ -18,14 +18,15 @@ class CounterWidget extends StatelessWidget {
   const CounterWidget({
     super.key,
     required this.instance,
-    required this.onDragEnd,
     required this.onSecondaryTapUp,
     required this.onDoubleTapSide,
+    this.onDragEnd,
     this.interactable = true,
+    this.draggable = true,
   });
 
   final BoardWidgetInstance instance;
-  final void Function(Offset globalPosition) onDragEnd;
+  final void Function(Offset globalPosition)? onDragEnd;
   final void Function(Offset globalPosition) onSecondaryTapUp;
 
   /// Double-tapping/double-clicking the face: `isRightSide` is true for a
@@ -34,8 +35,19 @@ class CounterWidget extends StatelessWidget {
 
   /// False while TAB is held table-wide (see `TableScreen`), so a
   /// click-drag over this widget draws an arrow instead of moving it --
-  /// mirrors `DraggableCard.interactable`.
+  /// mirrors `DraggableCard.interactable`. Also false for a fully read-only
+  /// render (an opponent's zone-docked counter) -- suppresses every gesture,
+  /// not just dragging.
   final bool interactable;
+
+  /// False for a counter permanently docked in a `ZoneDefinition.kind ==
+  /// ZoneKind.widget` player-panel slot (see `TableScreen`'s
+  /// `_buildLocalWidgetZoneWidget`) -- it stays fully interactable
+  /// ([onSecondaryTapUp]/[onDoubleTapSide] still work) but is never wrapped
+  /// in a [Draggable], so it can never be dragged out of its slot. True (the
+  /// default) preserves today's free-table behavior for every existing call
+  /// site. [onDragEnd] is meaningless (and may be omitted) when false.
+  final bool draggable;
 
   Widget _face() {
     return Container(
@@ -65,13 +77,18 @@ class CounterWidget extends StatelessWidget {
       onSecondaryTapUp: (details) => onSecondaryTapUp(details.globalPosition),
       onDoubleTapDown: (details) =>
           onDoubleTapSide(details.localPosition.dx >= counterWidgetWidth / 2),
-      child: Draggable<String>(
-        data: instance.instanceId,
-        feedback: Material(type: MaterialType.transparency, child: _face()),
-        childWhenDragging: Opacity(opacity: 0.3, child: _face()),
-        onDragEnd: (details) => onDragEnd(details.offset),
-        child: _face(),
-      ),
+      child: draggable
+          ? Draggable<String>(
+              data: instance.instanceId,
+              feedback: Material(
+                type: MaterialType.transparency,
+                child: _face(),
+              ),
+              childWhenDragging: Opacity(opacity: 0.3, child: _face()),
+              onDragEnd: (details) => onDragEnd?.call(details.offset),
+              child: _face(),
+            )
+          : _face(),
     );
   }
 }

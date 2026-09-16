@@ -33,6 +33,7 @@ class ZoneStackWidget extends StatefulWidget {
     this.cardBackImagePath,
     this.borderColor,
     this.onHover,
+    this.onDragUpdate,
   });
 
   final String zoneName;
@@ -56,6 +57,10 @@ class ZoneStackWidget extends StatefulWidget {
   /// This zone's owner's chosen color -- painted as a border on the top
   /// card, same as any other owned card (see `TableScreen._ownerBorderColor`).
   final Color? borderColor;
+
+  /// Notified with the pointer's current global position on every drag
+  /// update -- see `DraggableCard.onDragUpdate`'s own copy of this concept.
+  final void Function(Offset globalPosition)? onDragUpdate;
 
   @override
   State<ZoneStackWidget> createState() => _ZoneStackWidgetState();
@@ -136,6 +141,9 @@ class _ZoneStackWidgetState extends State<ZoneStackWidget>
                 child: _topFace(),
               ),
               childWhenDragging: Opacity(opacity: 0.3, child: _topFace()),
+              onDragUpdate: widget.onDragUpdate == null
+                  ? null
+                  : (details) => widget.onDragUpdate!(details.globalPosition),
               onDragEnd: (details) => widget.onDragEnd?.call(details.offset),
               child: AnimatedBuilder(
                 animation: _shuffleController,

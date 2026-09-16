@@ -28,6 +28,7 @@ enum NetMessageType {
   requestMoveStack,
   requestMoveGroup,
   requestRotateStack,
+  requestBringToFront,
   requestFlip,
   requestGiveCard,
   requestStack,
@@ -49,6 +50,18 @@ enum NetMessageType {
   requestSetWidgetColors,
   requestDuplicateWidget,
   requestAttachWidgetToCard,
+
+  /// The four types below are a third message category, distinct from both
+  /// a persisted `requestX` action and a `fullState`/lobby broadcast: a
+  /// cosmetic, un-persisted peer-to-peer relay of an in-progress drag/arrow
+  /// that never touches `TableState`/`GameSession.revision`. The same type
+  /// is reused for both the client->host report and the host->other-clients
+  /// rebroadcast of the same event (see `HostGameEngine`/`GameSession`'s
+  /// `cardDragPreviews`/`arrowDragPreviews` doc comments).
+  cardDragPreview,
+  cardDragPreviewEnd,
+  arrowDragPreview,
+  arrowDragPreviewEnd,
   ping,
   pong,
   disconnect;

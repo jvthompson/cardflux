@@ -9,6 +9,7 @@ import '../data/game_loader.dart';
 import '../data/games_directory_settings.dart';
 import '../data/image_path_resolver.dart';
 import '../data/player_profile_settings.dart';
+import '../game/drag_preview.dart';
 import '../game/game_session.dart';
 import '../game/seat_utils.dart';
 import '../game/table_controller.dart';
@@ -141,6 +142,43 @@ class _ClientGameScreenState extends State<ClientGameScreen> {
       unawaited(_resolveLocalImagePaths(game));
       return;
     }
+    if (msg.type == NetMessageType.cardDragPreview) {
+      final playerId = msg.payload['playerId'] as String;
+      final preview = CardDragPreview(
+        playerId: playerId,
+        instanceIds: (msg.payload['instanceIds'] as List).cast<String>(),
+        fx: (msg.payload['fx'] as num).toDouble(),
+        fy: (msg.payload['fy'] as num).toDouble(),
+      );
+      final previews = _session?.cardDragPreviews;
+      if (previews != null) previews.value = {...previews.value, playerId: preview};
+      return;
+    }
+    if (msg.type == NetMessageType.cardDragPreviewEnd) {
+      final playerId = msg.payload['playerId'] as String;
+      final previews = _session?.cardDragPreviews;
+      if (previews != null) previews.value = {...previews.value}..remove(playerId);
+      return;
+    }
+    if (msg.type == NetMessageType.arrowDragPreview) {
+      final playerId = msg.payload['playerId'] as String;
+      final preview = ArrowDragPreview(
+        playerId: playerId,
+        fx: (msg.payload['fx'] as num).toDouble(),
+        fy: (msg.payload['fy'] as num).toDouble(),
+        fx2: (msg.payload['fx2'] as num).toDouble(),
+        fy2: (msg.payload['fy2'] as num).toDouble(),
+      );
+      final previews = _session?.arrowDragPreviews;
+      if (previews != null) previews.value = {...previews.value, playerId: preview};
+      return;
+    }
+    if (msg.type == NetMessageType.arrowDragPreviewEnd) {
+      final playerId = msg.payload['playerId'] as String;
+      final previews = _session?.arrowDragPreviews;
+      if (previews != null) previews.value = {...previews.value}..remove(playerId);
+      return;
+    }
     if (msg.type != NetMessageType.fullState) return;
     final remoteState = TableState.fromJson(msg.payload);
 
@@ -173,7 +211,6 @@ class _ClientGameScreenState extends State<ClientGameScreen> {
     GameDefinition resolved;
     try {
       final root = await GamesDirectorySettings().getPath();
-      if (root == null) return;
       final localGames = await GameLoader().loadGamesFromDirectory(root);
       GameDefinition? localMatch;
       for (final g in localGames) {

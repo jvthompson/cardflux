@@ -4,6 +4,7 @@ import '../../data/directory_picker.dart';
 import '../../data/game_loader.dart';
 import '../../data/games_directory_settings.dart';
 import '../../models/game_definition.dart';
+import 'move_library_prompt.dart';
 
 /// Lets the user pick a game: the bundled Standard 52-Card Deck (always
 /// available, no setup needed -- the same guaranteed default Practice Mode
@@ -47,7 +48,7 @@ class _GamePickerState extends State<GamePicker> {
       _standardDeck = standardDeck;
       _directoryPath = path;
     });
-    if (path != null) await _refresh(path);
+    await _refresh(path);
   }
 
   Future<void> _refresh(String path) async {
@@ -80,6 +81,11 @@ class _GamePickerState extends State<GamePicker> {
   Future<void> _chooseDirectory() async {
     final path = await pickDirectoryPath();
     if (path == null || !mounted) return;
+    final oldPath = _directoryPath;
+    if (oldPath != null) {
+      await maybeMoveLibraryFolder(context, oldRoot: oldPath, newRoot: path, whatLabel: 'game');
+      if (!mounted) return;
+    }
     await _settings.setPath(path);
     if (!mounted) return;
     setState(() => _directoryPath = path);
@@ -120,18 +126,9 @@ class _GamePickerState extends State<GamePicker> {
               ),
             const SizedBox(height: 16),
             if (_directoryPath == null) ...[
-              Text(
-                'Choose a folder to find more games -- one subfolder per game '
-                '(each with its own game JSON).',
-                style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
-              ),
-              const SizedBox(height: 16),
-              OutlinedButton(
-                onPressed: _chooseDirectory,
-                child: const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 12),
-                  child: Text('Choose Games Folder...'),
-                ),
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 12),
+                child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
               ),
             ] else ...[
               Row(

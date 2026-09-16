@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'card_back_widget.dart';
 import 'card_face_widget.dart';
+import 'hand_zone_widget.dart' show handBandPadding;
 import 'pile_widget.dart' show pileWidgetExtra;
 
 /// The opponent's hand, shown only as a count of face-down backs -- the
@@ -46,38 +47,45 @@ class OpponentHandZoneWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      // Matches HandZoneWidget's own height exactly (cardHeight +
-      // pileWidgetExtra, not a separately hardcoded +16) -- this was a
-      // pre-existing mismatch invisible in the original 2-player layout
-      // (local hand and opponent hand were always on opposite screen
-      // edges), but surfaces as a visible height difference now that they
-      // can sit side-by-side in a split row (3-4 players).
-      height: cardHeight + pileWidgetExtra,
+      // Matches HandZoneWidget's own total band height exactly (see
+      // handBandPadding's doc for why the +handBandPadding.vertical is
+      // needed on top of cardHeight + pileWidgetExtra) -- both hand widgets
+      // must stay in lockstep with each other, and both with every zone
+      // panel's own band height, or the row they all sit in looks uneven.
+      height: cardHeight + pileWidgetExtra + handBandPadding.vertical,
       color: backgroundColor,
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+      padding: handBandPadding,
       child: count == 0
           ? const Center(child: Text("Opponent's hand is empty", style: TextStyle(color: Colors.white70)))
           : LayoutBuilder(
               builder: (context, constraints) {
                 final naturalWidth = count * cardWidth + (count - 1) * handCardSpacing;
+                final Widget row;
                 if (naturalWidth <= constraints.maxWidth) {
-                  return ListView.separated(
+                  row = ListView.separated(
                     scrollDirection: Axis.horizontal,
                     itemCount: count,
                     separatorBuilder: (_, _) => const SizedBox(width: handCardSpacing),
                     itemBuilder: (context, index) => _back(),
                   );
+                } else {
+                  // Overflow -- fan the backs out the same way HandZoneWidget
+                  // does: last card flush with the right edge, rest evenly
+                  // spaced between, rightmost painted on top via Stack order.
+                  final step = count == 1 ? 0.0 : ((constraints.maxWidth - cardWidth) / (count - 1)).clamp(0.0, double.infinity);
+                  row = Stack(
+                    children: [
+                      for (var index = 0; index < count; index++)
+                        Positioned(left: index * step, top: 0, child: _back()),
+                    ],
+                  );
                 }
-                // Overflow -- fan the backs out the same way HandZoneWidget
-                // does: last card flush with the right edge, rest evenly
-                // spaced between, rightmost painted on top via Stack order.
-                final step = count == 1 ? 0.0 : ((constraints.maxWidth - cardWidth) / (count - 1)).clamp(0.0, double.infinity);
-                return Stack(
-                  children: [
-                    for (var index = 0; index < count; index++)
-                      Positioned(left: index * step, top: 0, child: _back()),
-                  ],
-                );
+                // See HandZoneWidget's identical fix for why `row` must be
+                // pinned to exactly cardHeight here -- otherwise the bare
+                // ListView branch's tight cross-axis constraint stretches
+                // every back taller than its real size once this Container
+                // grew to match a zone panel's total height.
+                return Center(child: SizedBox(height: cardHeight, child: row));
               },
             ),
     );

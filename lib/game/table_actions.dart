@@ -145,9 +145,35 @@ class TableActions {
         return c;
       final zIndex = c.instanceId == currentTopId ? nextZ : c.zIndex;
       return c.copyWith(
-        rotationTurns: ((c.rotationTurns + delta) % 4 + 4) % 4,
+        // Deliberately unwrapped (not reduced mod 4): AnimatedRotation
+        // animates straight from the old turns value to the new one, so
+        // wrapping 3->0 or 0->-1 here would make it spin the short way
+        // back through zero instead of continuing in the pressed
+        // direction. Orientation math elsewhere only ever uses this via
+        // /4, which is correct unbounded.
+        rotationTurns: c.rotationTurns + delta,
         zIndex: zIndex,
       );
+    }).toList();
+    return state.copyWith(cards: cards, revision: state.revision + 1);
+  }
+
+  /// Bumps the stack rooted at [rootInstanceId] to the table's new
+  /// running-max zIndex -- purely a z-order change, no position/rotation
+  /// touched. A lone table card is already "a stack of one" under
+  /// [StackUtils.stackOf], so this handles both a single card and a whole
+  /// pile with the same call. See [moveStack]'s doc for why bumping just the
+  /// stack's current top card is enough to bring the whole pile to the front
+  /// of every other free-table pile/card, without disturbing the internal
+  /// draw order this stack's own members keep among themselves.
+  TableState bringToFront(TableState state, {required String rootInstanceId}) {
+    final stack = _stacks.stackOf(state.cards, rootInstanceId);
+    if (stack.isEmpty) return state;
+    final currentTopId = _stacks.topOf(stack).instanceId;
+    final nextZ = _nextZIndex(state);
+    final cards = state.cards.map((c) {
+      if (c.instanceId != currentTopId) return c;
+      return c.copyWith(zIndex: nextZ);
     }).toList();
     return state.copyWith(cards: cards, revision: state.revision + 1);
   }

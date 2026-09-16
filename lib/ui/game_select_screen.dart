@@ -32,7 +32,6 @@ class GameSelectScreen extends StatelessWidget {
     final zonesWithDeckName = game.zones.where((z) => z.shared && !z.standardDeck && z.deckName != null).toList();
     if (zonesWithDeckName.isEmpty) return const {};
     final rootPath = await DecksDirectorySettings().getPath();
-    if (rootPath == null) return const {};
     final available = await DeckLibraryLoader().loadDecksForGame(rootPath, game);
     final byDisplayName = {for (final entry in available) entry.displayName: entry.deck};
     return {

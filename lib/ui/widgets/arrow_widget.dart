@@ -2,8 +2,11 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
-/// Fixed visual style for every arrow -- a single color/weight for v1, no
-/// per-arrow customization (no right-click menu, unlike Counter/Token).
+/// Fallback color for an arrow whose creator can't be resolved to a player
+/// (shouldn't normally happen -- `HostGameEngine` always stamps a real
+/// `creatorId` -- kept only as a safe default). Every real arrow is instead
+/// colored after the player who drew it (see `TableScreen`'s
+/// `arrowColorFor`).
 const Color arrowColor = Colors.redAccent;
 const double arrowStrokeWidth = 3;
 const double arrowHeadLength = 14;
@@ -20,45 +23,37 @@ const double arrowHeadAngle = math.pi / 7; // ~25.7 degrees each side
 /// change for a real drag.
 const double arrowMinLength = 2;
 
-/// A line + triangular arrowhead from [from] to [to] (both already in the
-/// table Stack's own local pixel space -- see `TableScreen._toScreenPixel`/
-/// `_globalToTableLocal`), drawn by holding TAB and dragging on the table.
-/// When [onDoubleTap] is non-null, a bounding-box region around the line is
-/// double-tappable to dismiss it -- null for the live drag preview (see
-/// `TableScreen`) and for a committed arrow the local player didn't create,
-/// since only its creator may dismiss it.
+/// A line + triangular arrowhead from [from] to [to] (both must already be in
+/// the table Stack's own local *screen* pixel space -- i.e. run through
+/// `TableScreen._toScreenPixel`, not the raw, offset-free world-pixel space
+/// `_globalToTableLocal` returns), drawn by holding TAB and dragging on the
+/// table, colored after whichever player drew it (see `arrowColorFor`).
 ///
-/// Hit-testing uses the line's straight bounding rectangle rather than
-/// precise distance-to-segment math -- adequate for a short annotation
-/// arrow, not meant to be pixel-perfect.
+/// Purely decorative and never interactive -- an arrow auto-expires on its
+/// own (see `GameSession.createArrow`'s doc comment) rather than being
+/// dismissed by a click, so this never claims any pointer event; it's always
+/// wrapped in an [IgnorePointer] and never blocks a click/drag meant for
+/// whatever's underneath it.
 ///
-/// Always returns exactly one [Positioned] as its build result, with
-/// everything else (including [ignorePointer]'s `IgnorePointer`) nested
-/// *inside* it -- `Positioned` only applies when it's a direct child of a
-/// `Stack`, so every caller must use this widget directly as a `Stack` child
-/// with nothing wrapped around the *outside* of it (no `IgnorePointer`, no
-/// other render-object widget), or the position silently stops applying and
-/// -- because it also introduces a non-`Positioned` child into a `Stack`
-/// that otherwise has none -- corrupts that `Stack`'s own size calculation
-/// for every other child in it too. [ignorePointer] exists precisely so
-/// callers never need to wrap this widget from the outside for that.
+/// Always returns exactly one [Positioned] as its build result, with the
+/// [IgnorePointer] nested *inside* it -- `Positioned` only applies when it's
+/// a direct child of a `Stack`, so every caller must use this widget
+/// directly as a `Stack` child with nothing wrapped around the *outside* of
+/// it, or the position silently stops applying and -- because it also
+/// introduces a non-`Positioned` child into a `Stack` that otherwise has
+/// none -- corrupts that `Stack`'s own size calculation for every other
+/// child in it too.
 class ArrowWidget extends StatelessWidget {
   const ArrowWidget({
     super.key,
     required this.from,
     required this.to,
-    this.onDoubleTap,
-    this.ignorePointer = false,
+    this.color = arrowColor,
   });
 
   final Offset from;
   final Offset to;
-  final VoidCallback? onDoubleTap;
-
-  /// True for the local live-drag preview (see `TableScreen`), so it never
-  /// intercepts the in-progress pan gesture or a committed arrow's hit
-  /// region underneath it.
-  final bool ignorePointer;
+  final Color color;
 
   @override
   Widget build(BuildContext context) {
@@ -68,44 +63,36 @@ class ArrowWidget extends StatelessWidget {
       (from.dx - to.dx).abs() + arrowHeadLength * 2,
       (from.dy - to.dy).abs() + arrowHeadLength * 2,
     );
-    Widget content = GestureDetector(
-      // Translucent, not opaque -- this widget's hit region is its whole
-      // straight bounding box (see the class doc), which commonly overlaps
-      // cards nowhere near the actual line. Translucent still lets a
-      // double-tap on this box dismiss the arrow, but lets a single
-      // click/drag pass through to whatever's underneath instead of being
-      // swallowed here.
-      behavior: HitTestBehavior.translucent,
-      onDoubleTap: onDoubleTap,
-      child: CustomPaint(
-        painter: _ArrowPainter(
-          from: from - Offset(left, top),
-          to: to - Offset(left, top),
-        ),
-      ),
-    );
-    if (ignorePointer) content = IgnorePointer(child: content);
     return Positioned(
       left: left,
       top: top,
       width: size.width,
       height: size.height,
-      child: content,
+      child: IgnorePointer(
+        child: CustomPaint(
+          painter: _ArrowPainter(
+            from: from - Offset(left, top),
+            to: to - Offset(left, top),
+            color: color,
+          ),
+        ),
+      ),
     );
   }
 }
 
 class _ArrowPainter extends CustomPainter {
-  _ArrowPainter({required this.from, required this.to});
+  _ArrowPainter({required this.from, required this.to, required this.color});
 
   final Offset from;
   final Offset to;
+  final Color color;
 
   @override
   void paint(Canvas canvas, Size size) {
     if ((to - from).distance < arrowMinLength) return;
     final linePaint = Paint()
-      ..color = arrowColor
+      ..color = color
       ..strokeWidth = arrowStrokeWidth
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round;
@@ -127,7 +114,7 @@ class _ArrowPainter extends CustomPainter {
             ) *
             arrowHeadLength;
     final headPaint = Paint()
-      ..color = arrowColor
+      ..color = color
       ..style = PaintingStyle.fill;
     canvas.drawPath(
       Path()
@@ -141,5 +128,7 @@ class _ArrowPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_ArrowPainter oldDelegate) =>
-      oldDelegate.from != from || oldDelegate.to != to;
+      oldDelegate.from != from ||
+      oldDelegate.to != to ||
+      oldDelegate.color != color;
 }

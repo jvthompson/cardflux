@@ -153,69 +153,85 @@ class _CardViewTabState extends State<CardViewTab> with AutomaticKeepAliveClient
     widget.onCardsChanged([for (final c in widget.cards) if (c.id == updated.id) updated else c]);
   }
 
-  /// The set-filter dropdown shown above the pool grid -- empty (no widget)
-  /// for a game that declares no [CardViewTab.sets], mirroring the Deck
-  /// Editor's `_buildSetFilterBar`.
-  Widget _buildSetFilterBar() {
-    if (widget.sets.isEmpty) return const SizedBox.shrink();
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
-      child: Align(
-        alignment: Alignment.centerLeft,
-        child: MultiSelectFilterMenu(
-          label: 'Set',
-          options: [for (final set in widget.sets) (id: set.id, name: set.name)],
-          selectedIds: _selectedSetIds,
-          onToggle: (id, selected) => setState(() {
-            if (selected) {
-              _selectedSetIds.add(id);
-            } else {
-              _selectedSetIds.remove(id);
-            }
-          }),
-        ),
-      ),
-    );
+  /// Resets every Set/Type filter to fully permissive -- every option
+  /// selected, nothing excluded -- i.e. "no filtering in effect." An empty
+  /// selection would instead hide every card that has tags (see
+  /// [_isTagVisible]), so "off" means select-all, not select-none.
+  void _clearFilters() {
+    setState(() {
+      _selectedSetIds
+        ..clear()
+        ..addAll(widget.sets.map((s) => s.id));
+      for (final group in widget.tagGroups) {
+        _selectedTagsByGroup[group.id] = group.tags.toSet();
+        _excludedTagsByGroup[group.id]!.clear();
+      }
+    });
   }
 
-  /// One filter button per non-empty tag group, wrapped so any number of
-  /// groups flows onto further lines -- empty (no widget) for a game that
-  /// declares no [CardViewTab.tagGroups], mirroring the Deck Editor's
-  /// `_buildTagGroupFilterBars`.
-  Widget _buildTagGroupFilterBars() {
+  /// The Set filter (always first) plus one filter button per non-empty tag
+  /// group, combined into a single wrapped row with a "Clear Filters" action
+  /// above it -- empty (no widget) for a game with neither [CardViewTab.sets]
+  /// nor [CardViewTab.tagGroups] declared. Mirrors the Deck Editor's
+  /// `_buildFilterBar`.
+  Widget _buildFilterBar() {
     final nonEmptyGroups = widget.tagGroups.where((g) => g.tags.isNotEmpty).toList();
-    if (nonEmptyGroups.isEmpty) return const SizedBox.shrink();
+    if (widget.sets.isEmpty && nonEmptyGroups.isEmpty) return const SizedBox.shrink();
     return Padding(
       padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
-      child: Wrap(
-        spacing: 8,
-        runSpacing: 8,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          for (final group in nonEmptyGroups)
-            MultiSelectFilterMenu(
-              label: group.name,
-              options: [for (final tag in group.tags) (id: tag, name: tag)],
-              selectedIds: _selectedTagsByGroup[group.id]!,
-              excludedIds: _excludedTagsByGroup[group.id]!,
-              onToggle: (id, selected) => setState(() {
-                final included = _selectedTagsByGroup[group.id]!;
-                if (selected) {
-                  included.add(id);
-                  _excludedTagsByGroup[group.id]!.remove(id);
-                } else {
-                  included.remove(id);
-                }
-              }),
-              onToggleExclude: (id, excluded) => setState(() {
-                final excludedSet = _excludedTagsByGroup[group.id]!;
-                if (excluded) {
-                  excludedSet.add(id);
-                  _selectedTagsByGroup[group.id]!.remove(id);
-                } else {
-                  excludedSet.remove(id);
-                }
-              }),
-            ),
+          TextButton.icon(
+            onPressed: _clearFilters,
+            icon: const Icon(Icons.filter_alt_off, size: 18),
+            label: const Text('Clear Filters'),
+          ),
+          const SizedBox(height: 4),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              if (widget.sets.isNotEmpty)
+                MultiSelectFilterMenu(
+                  label: 'Set',
+                  options: [for (final set in widget.sets) (id: set.id, name: set.name)],
+                  selectedIds: _selectedSetIds,
+                  onToggle: (id, selected) => setState(() {
+                    if (selected) {
+                      _selectedSetIds.add(id);
+                    } else {
+                      _selectedSetIds.remove(id);
+                    }
+                  }),
+                ),
+              for (final group in nonEmptyGroups)
+                MultiSelectFilterMenu(
+                  label: group.name,
+                  options: [for (final tag in group.tags) (id: tag, name: tag)],
+                  selectedIds: _selectedTagsByGroup[group.id]!,
+                  excludedIds: _excludedTagsByGroup[group.id]!,
+                  onToggle: (id, selected) => setState(() {
+                    final included = _selectedTagsByGroup[group.id]!;
+                    if (selected) {
+                      included.add(id);
+                      _excludedTagsByGroup[group.id]!.remove(id);
+                    } else {
+                      included.remove(id);
+                    }
+                  }),
+                  onToggleExclude: (id, excluded) => setState(() {
+                    final excludedSet = _excludedTagsByGroup[group.id]!;
+                    if (excluded) {
+                      excludedSet.add(id);
+                      _selectedTagsByGroup[group.id]!.remove(id);
+                    } else {
+                      excludedSet.remove(id);
+                    }
+                  }),
+                ),
+            ],
+          ),
         ],
       ),
     );
@@ -241,8 +257,7 @@ class _CardViewTabState extends State<CardViewTab> with AutomaticKeepAliveClient
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _buildSetFilterBar(),
-        _buildTagGroupFilterBars(),
+        _buildFilterBar(),
         Expanded(
           child: LayoutBuilder(
             builder: (context, constraints) {

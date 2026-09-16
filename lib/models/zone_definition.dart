@@ -1,3 +1,4 @@
+import 'board_widget_instance.dart';
 import 'deck_config.dart';
 
 /// Which screen edge a [ZoneDefinition.shared] zone is docked to -- a fixed
@@ -5,6 +6,21 @@ import 'deck_config.dart';
 /// rows are docked to the top and bottom. Only meaningful when `shared` is
 /// true; [left] is the default.
 enum SharedZoneSide { left, right }
+
+/// Whether a [ZoneDefinition] holds cards (today's only option, and every
+/// zone with no `kind` in its JSON) or a single board widget instead -- see
+/// [ZoneDefinition.widgetKind]. Every card-related field on [ZoneDefinition]
+/// (`shared`, `dealsBuiltDeck`, `entries`, `faceUp`, `shuffleable`,
+/// `visibleToAll`, `isDiscardPile`, `autoShuffle`, `standardDeck`,
+/// `deckName`, `side`) is meaningless for a [widget] zone.
+enum ZoneKind { card, widget }
+
+/// Which board widget a [ZoneKind.widget] zone docks -- deliberately a
+/// separate, smaller catalog than `BoardWidgetKind` (which also has `token`/
+/// `arrow`, neither sensible permanently docked in a player's panel), so the
+/// Zone Editor's own "Widget Type" list only ever offers options that make
+/// sense here, and can grow independently later.
+enum ZoneWidgetKind { counter }
 
 /// One zone a game defines beyond the always-present, per-player hand
 /// (never declared in JSON -- see `TableScreen`) -- either a personal stack
@@ -27,6 +43,11 @@ class ZoneDefinition {
     this.standardDeck = false,
     this.deckName,
     this.side = SharedZoneSide.left,
+    this.kind = ZoneKind.card,
+    this.widgetKind = ZoneWidgetKind.counter,
+    this.counterStartingValue = 0,
+    this.counterStartingColor = defaultBoardWidgetBackgroundColor,
+    this.counterStartingTextColor = defaultBoardWidgetTextColor,
   });
 
   /// Stable identity referenced by `CardInstance.zoneId` -- never shown to
@@ -113,6 +134,25 @@ class ZoneDefinition {
   /// docked to. [SharedZoneSide.left] is the default.
   final SharedZoneSide side;
 
+  /// Whether this zone holds cards (the default) or a single docked board
+  /// widget -- see [ZoneKind]'s doc for which other fields this makes
+  /// meaningless.
+  final ZoneKind kind;
+
+  /// Only meaningful when [kind] is [ZoneKind.widget]: which widget this
+  /// zone docks. [ZoneWidgetKind.counter] is the only value today, and the
+  /// default.
+  final ZoneWidgetKind widgetKind;
+
+  /// Only meaningful when [kind] is [ZoneKind.widget] and [widgetKind] is
+  /// [ZoneWidgetKind.counter]: this counter's value/colors at deal time, one
+  /// independent instance per player (a widget zone is never [shared]). See
+  /// `BoardWidgetInstance.value`/`backgroundColor`/`textColor` for the
+  /// runtime fields these seed.
+  final int counterStartingValue;
+  final int counterStartingColor;
+  final int counterStartingTextColor;
+
   factory ZoneDefinition.fromJson(Map<String, dynamic> json) {
     return ZoneDefinition(
       id: json['id'] as String,
@@ -134,6 +174,17 @@ class ZoneDefinition {
       standardDeck: json['standardDeck'] as bool? ?? false,
       deckName: json['deckName'] as String?,
       side: SharedZoneSide.values.byName(json['side'] as String? ?? 'left'),
+      kind: ZoneKind.values.byName(json['kind'] as String? ?? 'card'),
+      widgetKind: ZoneWidgetKind.values.byName(
+        json['widgetKind'] as String? ?? 'counter',
+      ),
+      counterStartingValue: json['counterStartingValue'] as int? ?? 0,
+      counterStartingColor:
+          json['counterStartingColor'] as int? ??
+          defaultBoardWidgetBackgroundColor,
+      counterStartingTextColor:
+          json['counterStartingTextColor'] as int? ??
+          defaultBoardWidgetTextColor,
     );
   }
 
@@ -153,6 +204,14 @@ class ZoneDefinition {
       if (standardDeck) 'standardDeck': standardDeck,
       if (deckName != null) 'deckName': deckName,
       if (side != SharedZoneSide.left) 'side': side.name,
+      if (kind != ZoneKind.card) 'kind': kind.name,
+      if (widgetKind != ZoneWidgetKind.counter) 'widgetKind': widgetKind.name,
+      if (counterStartingValue != 0)
+        'counterStartingValue': counterStartingValue,
+      if (counterStartingColor != defaultBoardWidgetBackgroundColor)
+        'counterStartingColor': counterStartingColor,
+      if (counterStartingTextColor != defaultBoardWidgetTextColor)
+        'counterStartingTextColor': counterStartingTextColor,
     };
   }
 
@@ -177,6 +236,11 @@ class ZoneDefinition {
     String? deckName,
     bool clearDeckName = false,
     SharedZoneSide? side,
+    ZoneKind? kind,
+    ZoneWidgetKind? widgetKind,
+    int? counterStartingValue,
+    int? counterStartingColor,
+    int? counterStartingTextColor,
   }) {
     return ZoneDefinition(
       id: id ?? this.id,
@@ -192,6 +256,12 @@ class ZoneDefinition {
       standardDeck: standardDeck ?? this.standardDeck,
       deckName: clearDeckName ? null : (deckName ?? this.deckName),
       side: side ?? this.side,
+      kind: kind ?? this.kind,
+      widgetKind: widgetKind ?? this.widgetKind,
+      counterStartingValue: counterStartingValue ?? this.counterStartingValue,
+      counterStartingColor: counterStartingColor ?? this.counterStartingColor,
+      counterStartingTextColor:
+          counterStartingTextColor ?? this.counterStartingTextColor,
     );
   }
 }

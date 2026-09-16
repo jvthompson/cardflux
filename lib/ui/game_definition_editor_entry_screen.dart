@@ -9,6 +9,7 @@ import '../data/game_definition_file_ops.dart';
 import '../data/games_directory_settings.dart';
 import '../models/game_definition.dart';
 import 'game_definition_editor_screen.dart';
+import 'widgets/move_library_prompt.dart';
 
 const List<XTypeGroup> _gameDefFileTypes = [
   XTypeGroup(label: 'Game Definition', extensions: ['json']),
@@ -56,24 +57,11 @@ String? _validateGameId(String id) {
   return null;
 }
 
-/// Prompts via the raw OS folder picker and persists the choice. Always
-/// prompts, regardless of any existing saved value -- used by "Change
-/// Folder...".
-Future<String?> _pickAndSaveLibraryRoot() async {
-  final chosen = await pickDirectoryPath();
-  if (chosen == null) return null;
-  await GamesDirectorySettings().setPath(chosen);
-  return chosen;
-}
-
-/// Returns the persisted games-library root (see [GamesDirectorySettings],
-/// the same folder `GamePicker` scans elsewhere), prompting via
-/// [_pickAndSaveLibraryRoot] only if none is set yet.
-Future<String?> _resolveLibraryRoot() async {
-  final saved = await GamesDirectorySettings().getPath();
-  if (saved != null) return saved;
-  return _pickAndSaveLibraryRoot();
-}
+/// Returns the games-library root to create/open definitions under (see
+/// [GamesDirectorySettings], the same folder `GamePicker` scans elsewhere) --
+/// always resolvable, since an unset preference falls back to a default
+/// folder alongside the app itself, so no prompt is ever needed here.
+Future<String> _resolveLibraryRoot() => GamesDirectorySettings().getPath();
 
 /// Modal id prompt for creating a new game folder under [libraryRoot].
 /// Validates synchronously via [_validateGameId] on every submit attempt,
@@ -165,7 +153,7 @@ Future<List<LibraryGameEntry>> _scanGameLibrary(String root) async {
 /// own toolbar, so both entry points share this one creation flow.
 Future<NewOrOpenGameResult?> pickNewGameDefinitionFolder(BuildContext context) async {
   final root = await _resolveLibraryRoot();
-  if (root == null || !context.mounted) return null;
+  if (!context.mounted) return null;
 
   final id = await _promptForGameId(context, root);
   if (id == null || !context.mounted) return null;
@@ -222,7 +210,7 @@ class _GameDefinitionEditorEntryScreenState extends State<GameDefinitionEditorEn
     final root = await GamesDirectorySettings().getPath();
     if (!mounted) return;
     setState(() => _libraryRoot = root);
-    if (root != null) await _refreshLibrary();
+    await _refreshLibrary();
   }
 
   Future<void> _refreshLibrary() async {
@@ -249,8 +237,15 @@ class _GameDefinitionEditorEntryScreenState extends State<GameDefinitionEditorEn
   }
 
   Future<void> _changeLibraryRoot() async {
-    final chosen = await _pickAndSaveLibraryRoot();
+    final chosen = await pickDirectoryPath();
     if (chosen == null || !mounted) return;
+    final oldRoot = _libraryRoot;
+    if (oldRoot != null) {
+      await maybeMoveLibraryFolder(context, oldRoot: oldRoot, newRoot: chosen, whatLabel: 'game');
+      if (!mounted) return;
+    }
+    await GamesDirectorySettings().setPath(chosen);
+    if (!mounted) return;
     setState(() => _libraryRoot = chosen);
     await _refreshLibrary();
   }
@@ -299,10 +294,9 @@ class _GameDefinitionEditorEntryScreenState extends State<GameDefinitionEditorEn
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   if (_libraryRoot == null)
-                    OutlinedButton.icon(
-                      onPressed: _changeLibraryRoot,
-                      icon: const Icon(Icons.folder_open),
-                      label: const Text('Choose Games Folder...'),
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 16),
+                      child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
                     )
                   else
                     Row(

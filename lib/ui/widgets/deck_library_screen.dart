@@ -11,6 +11,7 @@ import '../../models/game_definition.dart';
 import '../../models/zone_definition.dart';
 import 'card_back_widget.dart';
 import 'card_face_widget.dart' show cardWidth, cardHeight;
+import 'move_library_prompt.dart';
 
 const List<XTypeGroup> _deckFileTypes = [
   XTypeGroup(label: 'Deck', extensions: ['json']),
@@ -65,7 +66,7 @@ class _DeckLibraryScreenState extends State<DeckLibraryScreen> {
     final path = await _settings.getPath();
     if (!mounted) return;
     setState(() => _directoryPath = path);
-    if (path != null) await _refresh(path);
+    await _refresh(path);
   }
 
   Future<void> _refresh(String path) async {
@@ -95,6 +96,11 @@ class _DeckLibraryScreenState extends State<DeckLibraryScreen> {
   Future<void> _chooseDirectory() async {
     final path = await pickDirectoryPath();
     if (path == null || !mounted) return;
+    final oldPath = _directoryPath;
+    if (oldPath != null) {
+      await maybeMoveLibraryFolder(context, oldRoot: oldPath, newRoot: path, whatLabel: 'deck');
+      if (!mounted) return;
+    }
     await _settings.setPath(path);
     if (!mounted) return;
     setState(() => _directoryPath = path);

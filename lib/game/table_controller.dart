@@ -2,6 +2,7 @@ import '../models/board_widget_instance.dart';
 import '../models/card_instance.dart';
 import '../networking/game_client.dart';
 import '../networking/net_message.dart';
+import 'drag_preview.dart';
 import 'game_session.dart';
 import 'stack_utils.dart';
 
@@ -18,6 +19,11 @@ abstract class TableController {
   );
   void moveStack(String rootInstanceId, double x, double y);
   void rotateStack(String rootInstanceId, {required bool clockwise});
+
+  /// Bumps the stack rooted at [rootInstanceId] to the table's new
+  /// running-max zIndex -- a pure z-order change, no position/rotation
+  /// touched. See `TableActions.bringToFront`.
+  void bringToFront(String rootInstanceId);
   void flipCard(String instanceId);
 
   /// Reassigns [instanceId]'s ownership to [newOwnerId] -- null releases it
@@ -52,14 +58,51 @@ abstract class TableController {
     double y,
   );
   void attachWidgetToCard(String instanceId, String cardId, double x, double y);
+
+  /// Reports that [primaryInstanceId] (plus any [passengerRootInstanceIds]
+  /// riding along, see `TableScreen._buildGroupFeedback`) is currently being
+  /// dragged toward canonical position ([fx],[fy]) -- purely cosmetic, never
+  /// mutates `TableState`/`revision`, so other players can see the drag
+  /// in-progress before it commits (see `GameSession.cardDragPreviews`).
+  /// Callers should throttle this, not send it on every pointer-move frame.
+  void previewCardDrag(
+    String primaryInstanceId,
+    List<String> passengerRootInstanceIds,
+    double fx,
+    double fy,
+  );
+
+  /// Clears whatever card-drag preview this player was showing -- must be
+  /// called unconditionally at the end of every drag (drop, cancel, or
+  /// out-of-bounds release), since a no-op drop may never change
+  /// `TableState`/`revision` and so would otherwise leave the ghost stuck on
+  /// other players' screens.
+  void endCardDragPreview();
+
+  /// Reports an in-progress TAB-drawn arrow from ([fx],[fy]) to
+  /// ([fx2],[fy2]), canonical fractions -- same cosmetic/throttled contract
+  /// as [previewCardDrag].
+  void previewArrowDrag(double fx, double fy, double fx2, double fy2);
+
+  /// Mirrors [endCardDragPreview] for an in-progress arrow -- call
+  /// unconditionally whenever the TAB-drag ends or is abandoned (TAB
+  /// released mid-drag, menu opened, etc.), not just on a successful commit.
+  void endArrowDragPreview();
 }
 
 /// The host applies actions directly to its own authoritative [GameSession]
 /// -- HostGameEngine picks up the resulting change and broadcasts it.
 class HostTableController implements TableController {
-  HostTableController(this._session);
+  HostTableController(this._session, {this.previewSink});
 
   final GameSession _session;
+
+  /// Where the host's own drag/arrow previews are published to reach other
+  /// clients -- the host has no socket to itself, so it can't just send a
+  /// `NetMessage` like [ClientTableController] does. Null for a local
+  /// practice session (see `practice_game_screen.dart`), which has no other
+  /// viewers to preview anything to.
+  final DragPreviewSink? previewSink;
 
   static const StackUtils _stacks = StackUtils();
 
@@ -102,6 +145,11 @@ class HostTableController implements TableController {
   void rotateStack(String rootInstanceId, {required bool clockwise}) {
     if (_isOwnedOrUnowned(rootInstanceId))
       _session.rotateStack(rootInstanceId, clockwise: clockwise);
+  }
+
+  @override
+  void bringToFront(String rootInstanceId) {
+    if (_isOwnedOrUnowned(rootInstanceId)) _session.bringToFront(rootInstanceId);
   }
 
   @override
@@ -269,6 +317,40 @@ class HostTableController implements TableController {
     double x,
     double y,
   ) => _session.attachWidgetToCard(instanceId, cardId, x, y);
+
+  @override
+  void previewCardDrag(
+    String primaryInstanceId,
+    List<String> passengerRootInstanceIds,
+    double fx,
+    double fy,
+  ) {
+    previewSink?.publishCardDragPreview(
+      playerId: _session.actingPlayerId,
+      instanceIds: [primaryInstanceId, ...passengerRootInstanceIds],
+      fx: fx,
+      fy: fy,
+    );
+  }
+
+  @override
+  void endCardDragPreview() =>
+      previewSink?.clearCardDragPreview(_session.actingPlayerId);
+
+  @override
+  void previewArrowDrag(double fx, double fy, double fx2, double fy2) {
+    previewSink?.publishArrowDragPreview(
+      playerId: _session.actingPlayerId,
+      fx: fx,
+      fy: fy,
+      fx2: fx2,
+      fy2: fy2,
+    );
+  }
+
+  @override
+  void endArrowDragPreview() =>
+      previewSink?.clearArrowDragPreview(_session.actingPlayerId);
 }
 
 /// A client never mutates its local [GameSession] directly from a gesture
@@ -325,6 +407,16 @@ class ClientTableController implements TableController {
       NetMessage(
         type: NetMessageType.requestRotateStack,
         payload: {'rootInstanceId': rootInstanceId, 'clockwise': clockwise},
+      ),
+    );
+  }
+
+  @override
+  void bringToFront(String rootInstanceId) {
+    _client.send(
+      NetMessage(
+        type: NetMessageType.requestBringToFront,
+        payload: {'rootInstanceId': rootInstanceId},
       ),
     );
   }
@@ -569,5 +661,48 @@ class ClientTableController implements TableController {
         payload: {'instanceId': instanceId, 'cardId': cardId, 'x': x, 'y': y},
       ),
     );
+  }
+
+  /// No id in the payload -- the host stamps the dragging player's id from
+  /// the connection itself, same as [createArrow]'s `creatorId`. Sent
+  /// fire-and-forget, unlike every `requestX` above: this never expects a
+  /// `fullState` reply.
+  @override
+  void previewCardDrag(
+    String primaryInstanceId,
+    List<String> passengerRootInstanceIds,
+    double fx,
+    double fy,
+  ) {
+    _client.send(
+      NetMessage(
+        type: NetMessageType.cardDragPreview,
+        payload: {
+          'instanceIds': [primaryInstanceId, ...passengerRootInstanceIds],
+          'fx': fx,
+          'fy': fy,
+        },
+      ),
+    );
+  }
+
+  @override
+  void endCardDragPreview() {
+    _client.send(const NetMessage(type: NetMessageType.cardDragPreviewEnd));
+  }
+
+  @override
+  void previewArrowDrag(double fx, double fy, double fx2, double fy2) {
+    _client.send(
+      NetMessage(
+        type: NetMessageType.arrowDragPreview,
+        payload: {'fx': fx, 'fy': fy, 'fx2': fx2, 'fy2': fy2},
+      ),
+    );
+  }
+
+  @override
+  void endArrowDragPreview() {
+    _client.send(const NetMessage(type: NetMessageType.arrowDragPreviewEnd));
   }
 }

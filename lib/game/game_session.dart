@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
 
@@ -11,6 +13,7 @@ import '../models/player.dart';
 import '../models/standard_deck.dart';
 import '../models/table_state.dart';
 import '../models/zone_definition.dart';
+import 'drag_preview.dart';
 import 'table_actions.dart';
 
 const _uuid = Uuid();
@@ -46,6 +49,22 @@ class GameSession extends ChangeNotifier {
   TableState _state;
 
   TableState get state => _state;
+
+  /// Other players' in-progress, uncommitted card drags / TAB-drawn arrows,
+  /// keyed by the dragging player's id -- deliberately **not** part of
+  /// [TableState], never bumps [revision], never touches [notifyListeners]
+  /// or [applyRemoteState]. `TableScreen` reacts to these via narrow
+  /// `ValueListenableBuilder`s (the same pattern its own local `_arrowDrag`
+  /// preview already uses) so ~20Hz preview traffic never triggers a
+  /// `Consumer<GameSession>` rebuild of the entire table. `HostGameEngine`
+  /// writes here for both a relayed client preview and the host's own drag;
+  /// `ClientGameScreen` writes here for whatever the host relays to it --
+  /// same shape either way, so `TableScreen`'s rendering code is written
+  /// once for both roles.
+  final ValueNotifier<Map<String, CardDragPreview>> cardDragPreviews =
+      ValueNotifier({});
+  final ValueNotifier<Map<String, ArrowDragPreview>> arrowDragPreviews =
+      ValueNotifier({});
 
   /// The player id [HostTableController] acts/deals as right now --
   /// [localPlayerId] normally, or whichever seat [setActiveSeat] last picked
@@ -186,7 +205,9 @@ class GameSession extends ChangeNotifier {
     }
 
     for (final player in players) {
-      for (final zone in game.zones.where((z) => !z.shared)) {
+      for (final zone in game.zones.where(
+        (z) => !z.shared && z.kind == ZoneKind.card,
+      )) {
         final entries = zone.dealsBuiltDeck
             ? (deckConfigsByPlayerId?[player.id]?[zone.id]?.entries ??
                   fullDeckEntries)
@@ -200,6 +221,37 @@ class GameSession extends ChangeNotifier {
           faceUp: zone.faceUp,
           autoShuffle: zone.autoShuffle,
         );
+      }
+    }
+
+    // One BoardWidgetInstance per (player, widget zone) -- e.g. one Simple
+    // Counter per player for a "Life Total"-style zone -- seeded from the
+    // zone's own starting value/colors. Never shared (see ZoneKind's doc),
+    // so this only ever needs the owned-zone list, unlike the card dealing
+    // above which also handles a separate shared-zone loop below.
+    final widgets = <BoardWidgetInstance>[];
+    var widgetZIndex = 0;
+    for (final player in players) {
+      for (final zone in game.zones.where(
+        (z) => !z.shared && z.kind == ZoneKind.widget,
+      )) {
+        widgets.add(
+          BoardWidgetInstance(
+            instanceId: _uuid.v4(),
+            kind: switch (zone.widgetKind) {
+              ZoneWidgetKind.counter => BoardWidgetKind.simpleCounter,
+            },
+            x: 0.5,
+            y: 0.5,
+            zIndex: widgetZIndex,
+            value: zone.counterStartingValue,
+            backgroundColor: zone.counterStartingColor,
+            textColor: zone.counterStartingTextColor,
+            ownerId: player.id,
+            zoneId: zone.id,
+          ),
+        );
+        widgetZIndex++;
       }
     }
 
@@ -231,6 +283,7 @@ class GameSession extends ChangeNotifier {
       gameId: game.id,
       players: players,
       cards: cards,
+      widgets: widgets,
       revision: 0,
     );
     return GameSession(
@@ -278,6 +331,11 @@ class GameSession extends ChangeNotifier {
       rootInstanceId: rootInstanceId,
       clockwise: clockwise,
     );
+    notifyListeners();
+  }
+
+  void bringToFront(String rootInstanceId) {
+    _state = _actions.bringToFront(_state, rootInstanceId: rootInstanceId);
     notifyListeners();
   }
 
@@ -472,6 +530,22 @@ class GameSession extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// How long a drawn arrow stays on the table before removing itself --
+  /// arrows have no manual dismiss (no right-click menu, no click-to-delete
+  /// -- see `ArrowWidget`'s own doc), so this is the only way one ever goes
+  /// away.
+  static const Duration arrowLifetime = Duration(seconds: 5);
+
+  /// This method (called from both `HostTableController.createArrow` for the
+  /// host's own arrow and `HostGameEngine`'s `requestCreateArrow` handler for
+  /// a client's) only ever runs on the host's own authoritative session --
+  /// a client's `GameSession` never calls it directly (see
+  /// `ClientTableController.createArrow`, which only sends a request and
+  /// waits for the resulting `fullState`). So scheduling the expiry [Timer]
+  /// here, rather than from the UI, naturally runs it exactly once per
+  /// arrow, on the one session that can actually delete it -- every client
+  /// (and the host's own table) just sees the widget disappear on the next
+  /// `fullState` like any other host-driven change.
   void createArrow(
     String instanceId,
     double x,
@@ -490,6 +564,11 @@ class GameSession extends ChangeNotifier {
       creatorId: creatorId,
     );
     notifyListeners();
+    Timer(arrowLifetime, () {
+      if (_state.widgets.any((w) => w.instanceId == instanceId)) {
+        deleteWidget(instanceId);
+      }
+    });
   }
 
   void moveWidget(String instanceId, double x, double y) {

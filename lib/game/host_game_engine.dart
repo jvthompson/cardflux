@@ -6,6 +6,7 @@ import '../models/player.dart';
 import '../networking/host_server.dart';
 import '../networking/net_message.dart';
 import '../networking/state_filter.dart';
+import 'drag_preview.dart';
 import 'game_session.dart';
 import 'stack_utils.dart';
 
@@ -13,7 +14,15 @@ import 'stack_utils.dart';
 /// incoming client requests to it (structural validation only -- no rules
 /// engine), and re-broadcasts a per-recipient filtered snapshot after every
 /// change, including the host's own local actions.
-class HostGameEngine {
+///
+/// Also implements [DragPreviewSink]: the cosmetic drag/arrow-preview
+/// channel (see `GameSession.cardDragPreviews`/`arrowDragPreviews`) is kept
+/// entirely separate from that request/mutate/broadcast cycle -- it never
+/// touches `TableState`/`revision`, so a client's preview is relayed
+/// straight through to every *other* client, and the host's own preview
+/// (published via `HostTableController`, which has no socket to itself)
+/// reaches every client the same way.
+class HostGameEngine implements DragPreviewSink {
   HostGameEngine({
     required this.session,
     required this.hostServer,
@@ -65,6 +74,15 @@ class HostGameEngine {
           id,
           NetMessage(type: NetMessageType.gameData, payload: session.game.toJson()),
         );
+      }
+      // A disconnecting player (clean leave, heartbeat timeout, or a kick)
+      // may have left a drag/arrow preview stuck in-flight -- clear it here
+      // rather than relying on that player to ever send a *PreviewEnd
+      // themselves, and rebroadcast so remaining clients drop the stale
+      // ghost too.
+      for (final id in _previouslyConnectedIds.difference(connectedIds)) {
+        clearCardDragPreview(id);
+        clearArrowDragPreview(id);
       }
       _previouslyConnectedIds = connectedIds;
       session.syncConnectedPlayerIds(connectedIds);
@@ -151,6 +169,12 @@ class HostGameEngine {
             rootInstanceId,
             clockwise: msg.payload['clockwise'] as bool,
           );
+        }
+        break;
+      case NetMessageType.requestBringToFront:
+        final rootInstanceId = msg.payload['rootInstanceId'] as String;
+        if (_isAllowedToActOn(rootInstanceId, clientId)) {
+          session.bringToFront(rootInstanceId);
         }
         break;
       case NetMessageType.requestFlip:
@@ -272,17 +296,20 @@ class HostGameEngine {
         );
         break;
       case NetMessageType.requestMoveWidget:
-        session.moveWidget(
-          msg.payload['instanceId'] as String,
-          (msg.payload['x'] as num).toDouble(),
-          (msg.payload['y'] as num).toDouble(),
-        );
+        final instanceId = msg.payload['instanceId'] as String;
+        if (_isMovableWidget(instanceId)) {
+          session.moveWidget(
+            instanceId,
+            (msg.payload['x'] as num).toDouble(),
+            (msg.payload['y'] as num).toDouble(),
+          );
+        }
         break;
       case NetMessageType.requestSetWidgetValue:
-        session.setWidgetValue(
-          msg.payload['instanceId'] as String,
-          msg.payload['value'] as int,
-        );
+        final instanceId = msg.payload['instanceId'] as String;
+        if (_isAllowedToActOnWidget(instanceId, clientId)) {
+          session.setWidgetValue(instanceId, msg.payload['value'] as int);
+        }
         break;
       case NetMessageType.requestDeleteWidget:
         final instanceId = msg.payload['instanceId'] as String;
@@ -291,27 +318,66 @@ class HostGameEngine {
         }
         break;
       case NetMessageType.requestSetWidgetColors:
-        session.setWidgetColors(
-          msg.payload['instanceId'] as String,
-          msg.payload['backgroundColor'] as int,
-          msg.payload['textColor'] as int,
-        );
+        final instanceId = msg.payload['instanceId'] as String;
+        if (_isAllowedToActOnWidget(instanceId, clientId)) {
+          session.setWidgetColors(
+            instanceId,
+            msg.payload['backgroundColor'] as int,
+            msg.payload['textColor'] as int,
+          );
+        }
         break;
       case NetMessageType.requestDuplicateWidget:
-        session.duplicateWidget(
-          msg.payload['sourceInstanceId'] as String,
-          msg.payload['newInstanceId'] as String,
-          (msg.payload['x'] as num).toDouble(),
-          (msg.payload['y'] as num).toDouble(),
-        );
+        final sourceInstanceId = msg.payload['sourceInstanceId'] as String;
+        if (_isMovableWidget(sourceInstanceId)) {
+          session.duplicateWidget(
+            sourceInstanceId,
+            msg.payload['newInstanceId'] as String,
+            (msg.payload['x'] as num).toDouble(),
+            (msg.payload['y'] as num).toDouble(),
+          );
+        }
         break;
       case NetMessageType.requestAttachWidgetToCard:
-        session.attachWidgetToCard(
-          msg.payload['instanceId'] as String,
-          msg.payload['cardId'] as String,
-          (msg.payload['x'] as num).toDouble(),
-          (msg.payload['y'] as num).toDouble(),
+        final instanceId = msg.payload['instanceId'] as String;
+        if (_isMovableWidget(instanceId)) {
+          session.attachWidgetToCard(
+            instanceId,
+            msg.payload['cardId'] as String,
+            (msg.payload['x'] as num).toDouble(),
+            (msg.payload['y'] as num).toDouble(),
+          );
+        }
+        break;
+      case NetMessageType.cardDragPreview:
+        final rawIds = (msg.payload['instanceIds'] as List).cast<String>();
+        if (rawIds.isNotEmpty && _isAllowedToActOn(rawIds.first, clientId)) {
+          final allowedIds = [
+            rawIds.first,
+            ...rawIds.skip(1).where((id) => _isAllowedToActOn(id, clientId)),
+          ];
+          publishCardDragPreview(
+            playerId: clientId,
+            instanceIds: allowedIds,
+            fx: (msg.payload['fx'] as num).toDouble(),
+            fy: (msg.payload['fy'] as num).toDouble(),
+          );
+        }
+        break;
+      case NetMessageType.cardDragPreviewEnd:
+        clearCardDragPreview(clientId);
+        break;
+      case NetMessageType.arrowDragPreview:
+        publishArrowDragPreview(
+          playerId: clientId,
+          fx: (msg.payload['fx'] as num).toDouble(),
+          fy: (msg.payload['fy'] as num).toDouble(),
+          fx2: (msg.payload['fx2'] as num).toDouble(),
+          fy2: (msg.payload['fy2'] as num).toDouble(),
         );
+        break;
+      case NetMessageType.arrowDragPreviewEnd:
+        clearArrowDragPreview(clientId);
         break;
       case NetMessageType.hello:
       case NetMessageType.welcome:
@@ -360,20 +426,42 @@ class HostGameEngine {
     return card.ownerId == null || card.ownerId == requesterPlayerId;
   }
 
+  BoardWidgetInstance? _findWidget(String instanceId) {
+    for (final w in session.state.widgets) {
+      if (w.instanceId == instanceId) return w;
+    }
+    return null;
+  }
+
+  /// False for a widget dealt from a `ZoneKind.widget` zone (non-null
+  /// `BoardWidgetInstance.zoneId`) -- it's a fixed part of its owner's panel,
+  /// never a movable/attachable/duplicable/deletable table object, for any
+  /// requester (see `TableScreen`'s `draggable: false` client-side mirror of
+  /// this same rule). True for an ordinary free-table widget (`zoneId`
+  /// null) or an unknown id, unchanged from today's unrestricted behavior.
+  bool _isMovableWidget(String instanceId) =>
+      _findWidget(instanceId)?.zoneId == null;
+
+  /// A zone-bound widget's value/colors may only be changed by its own
+  /// owner (mirrors [_isAllowedToActOn]'s card-ownership shape); an ordinary
+  /// free-table widget (`zoneId` null) stays fair game for anyone, exactly
+  /// as before this existed.
+  bool _isAllowedToActOnWidget(String instanceId, String requesterPlayerId) {
+    final w = _findWidget(instanceId);
+    if (w == null) return false;
+    return w.zoneId == null || w.ownerId == requesterPlayerId;
+  }
+
   /// Mirrors [_isAllowedToActOn]'s shape for a widget instead of a card: a
   /// widget with no [BoardWidgetInstance.creatorId] (every kind except an
   /// arrow, today) is always fair game -- widgets stay deliberately
   /// ownerless by default (see `table_controller.dart`'s doc comment) --
-  /// but an arrow may only be deleted by the player who drew it.
+  /// but an arrow may only be deleted by the player who drew it. A
+  /// zone-bound widget (see [_isMovableWidget]) can never be deleted at all,
+  /// regardless of requester.
   bool _isAllowedToDeleteWidget(String instanceId, String requesterPlayerId) {
-    BoardWidgetInstance? w;
-    for (final widget in session.state.widgets) {
-      if (widget.instanceId == instanceId) {
-        w = widget;
-        break;
-      }
-    }
-    if (w == null) return false;
+    final w = _findWidget(instanceId);
+    if (w == null || !_isMovableWidget(instanceId)) return false;
     return w.creatorId == null || w.creatorId == requesterPlayerId;
   }
 
@@ -389,5 +477,89 @@ class HostGameEngine {
       if (c.ownerId != null && c.ownerId != requesterPlayerId) return false;
     }
     return true;
+  }
+
+  /// [playerId] is the *host's own* id only when [HostTableController]
+  /// itself is publishing the host's own drag (it has no socket to itself,
+  /// so it calls straight in here); every other caller is a relayed
+  /// client's preview, which must be excluded from its own echo.
+  @override
+  void publishCardDragPreview({
+    required String playerId,
+    required List<String> instanceIds,
+    required double fx,
+    required double fy,
+  }) {
+    session.cardDragPreviews.value = {
+      ...session.cardDragPreviews.value,
+      playerId: CardDragPreview(
+        playerId: playerId,
+        instanceIds: instanceIds,
+        fx: fx,
+        fy: fy,
+      ),
+    };
+    hostServer.broadcast(
+      NetMessage(
+        type: NetMessageType.cardDragPreview,
+        payload: {'playerId': playerId, 'instanceIds': instanceIds, 'fx': fx, 'fy': fy},
+      ),
+      exceptPlayerId: playerId == hostPlayerId ? null : playerId,
+    );
+  }
+
+  @override
+  void clearCardDragPreview(String playerId) {
+    if (!session.cardDragPreviews.value.containsKey(playerId)) return;
+    session.cardDragPreviews.value = {...session.cardDragPreviews.value}
+      ..remove(playerId);
+    hostServer.broadcast(
+      NetMessage(
+        type: NetMessageType.cardDragPreviewEnd,
+        payload: {'playerId': playerId},
+      ),
+      exceptPlayerId: playerId == hostPlayerId ? null : playerId,
+    );
+  }
+
+  @override
+  void publishArrowDragPreview({
+    required String playerId,
+    required double fx,
+    required double fy,
+    required double fx2,
+    required double fy2,
+  }) {
+    session.arrowDragPreviews.value = {
+      ...session.arrowDragPreviews.value,
+      playerId: ArrowDragPreview(
+        playerId: playerId,
+        fx: fx,
+        fy: fy,
+        fx2: fx2,
+        fy2: fy2,
+      ),
+    };
+    hostServer.broadcast(
+      NetMessage(
+        type: NetMessageType.arrowDragPreview,
+        payload: {'playerId': playerId, 'fx': fx, 'fy': fy, 'fx2': fx2, 'fy2': fy2},
+      ),
+      exceptPlayerId: playerId == hostPlayerId ? null : playerId,
+    );
+  }
+
+  @override
+  void clearArrowDragPreview(String playerId) {
+    if (!session.arrowDragPreviews.value.containsKey(playerId)) return;
+    session.arrowDragPreviews.value = {...session.arrowDragPreviews.value}
+      ..remove(playerId);
+    hostServer.broadcast(
+      NetMessage(
+        type: NetMessageType.arrowDragPreviewEnd,
+        payload: {'playerId': playerId},
+      ),
+      exceptPlayerId: playerId == hostPlayerId ? null : playerId,
+    );
   }
 }

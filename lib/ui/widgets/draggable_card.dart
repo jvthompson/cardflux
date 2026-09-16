@@ -52,6 +52,7 @@ class DraggableCard extends StatelessWidget {
     this.cardBackImagePath,
     this.feedbackOverride,
     this.onDragStarted,
+    this.onDragUpdate,
   });
 
   final CardInstance instance;
@@ -72,6 +73,12 @@ class DraggableCard extends StatelessWidget {
   /// as passengers, so they can be ghosted in place for the duration of the
   /// drag, matching this card's own automatic [childWhenDragging] dimming.
   final VoidCallback? onDragStarted;
+
+  /// Notified with the pointer's current global position on every drag
+  /// update -- used to broadcast a throttled live-drag preview to other
+  /// players (see `TableScreen`'s `_handleCardDragPreviewUpdate`). Null is
+  /// the default and wires nothing extra into the underlying [Draggable].
+  final void Function(Offset globalPosition)? onDragUpdate;
 
   /// Non-null when this card is owned by the other player -- painted as a
   /// thin border *inside* the same rotated subtree as the card's face/back
@@ -128,6 +135,9 @@ class DraggableCard extends StatelessWidget {
             Material(type: MaterialType.transparency, child: _face()),
         childWhenDragging: Opacity(opacity: 0.3, child: _face()),
         onDragStarted: onDragStarted,
+        onDragUpdate: onDragUpdate == null
+            ? null
+            : (details) => onDragUpdate!(details.globalPosition),
         onDragEnd: (details) => onDragEnd(details.offset),
         child: _face(),
       ),

@@ -50,6 +50,7 @@ class PileWidget extends StatefulWidget {
     this.cardBackImagePath,
     this.feedbackOverride,
     this.onDragStarted,
+    this.onDragUpdate,
   });
 
   final int count;
@@ -99,6 +100,10 @@ class PileWidget extends StatefulWidget {
   /// Notified when a drag on this pile's top card actually starts -- see
   /// `DraggableCard.onDragStarted`'s own copy of this concept.
   final VoidCallback? onDragStarted;
+
+  /// Notified with the pointer's current global position on every drag
+  /// update -- see `DraggableCard.onDragUpdate`'s own copy of this concept.
+  final void Function(Offset globalPosition)? onDragUpdate;
 
   @override
   State<PileWidget> createState() => _PileWidgetState();
@@ -202,6 +207,9 @@ class _PileWidgetState extends State<PileWidget>
                       ),
                   childWhenDragging: Opacity(opacity: 0.3, child: _topFace()),
                   onDragStarted: widget.onDragStarted,
+                  onDragUpdate: widget.onDragUpdate == null
+                      ? null
+                      : (details) => widget.onDragUpdate!(details.globalPosition),
                   onDragEnd: (details) => widget.onDragEnd(details.offset),
                   child: AnimatedBuilder(
                     animation: _shuffleController,

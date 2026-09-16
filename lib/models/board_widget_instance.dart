@@ -57,6 +57,8 @@ class BoardWidgetInstance {
     this.x2,
     this.y2,
     this.creatorId,
+    this.ownerId,
+    this.zoneId,
   });
 
   final String instanceId;
@@ -109,6 +111,17 @@ class BoardWidgetInstance {
   /// double-tap-dismiss an arrow (see `HostGameEngine`).
   final String? creatorId;
 
+  /// Non-null only for a widget dealt from a [ZoneKind.widget] `ZoneDefinition`
+  /// (see `GameSession.dealFromZones`) -- the owning player's id, and the
+  /// zone it's permanently docked in ([zoneId]). Both null (the only
+  /// possible state before this feature existed) means a free-floating table
+  /// widget, unchanged from today. A non-null [zoneId] widget is never
+  /// rendered on the free table, and can never be moved/attached/duplicated/
+  /// deleted -- see `TableScreen`'s zone-widget panel rendering and
+  /// `HostGameEngine`'s rejection of those requests for such a widget.
+  final String? ownerId;
+  final String? zoneId;
+
   BoardWidgetInstance copyWith({
     double? x,
     double? y,
@@ -122,6 +135,8 @@ class BoardWidgetInstance {
     Object? x2 = _unset,
     Object? y2 = _unset,
     Object? creatorId = _unset,
+    Object? ownerId = _unset,
+    Object? zoneId = _unset,
   }) {
     return BoardWidgetInstance(
       instanceId: instanceId,
@@ -142,6 +157,8 @@ class BoardWidgetInstance {
       creatorId: identical(creatorId, _unset)
           ? this.creatorId
           : creatorId as String?,
+      ownerId: identical(ownerId, _unset) ? this.ownerId : ownerId as String?,
+      zoneId: identical(zoneId, _unset) ? this.zoneId : zoneId as String?,
     );
   }
 
@@ -162,6 +179,8 @@ class BoardWidgetInstance {
       x2: (json['x2'] as num?)?.toDouble(),
       y2: (json['y2'] as num?)?.toDouble(),
       creatorId: json['creatorId'] as String?,
+      ownerId: json['ownerId'] as String?,
+      zoneId: json['zoneId'] as String?,
     );
   }
 
@@ -182,6 +201,8 @@ class BoardWidgetInstance {
       if (x2 != null) 'x2': x2,
       if (y2 != null) 'y2': y2,
       if (creatorId != null) 'creatorId': creatorId,
+      if (ownerId != null) 'ownerId': ownerId,
+      if (zoneId != null) 'zoneId': zoneId,
     };
   }
 }

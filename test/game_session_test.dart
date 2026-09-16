@@ -209,6 +209,82 @@ void main() {
     });
   });
 
+  group('GameSession.dealFromZones -- widget zones', () {
+    test(
+      'a widget zone deals one simpleCounter BoardWidgetInstance per player, seeded from its starting config',
+      () {
+        const game = GameDefinition(
+          id: 'g1',
+          name: 'G',
+          cards: _cards,
+          zones: [
+            ZoneDefinition(
+              id: 'life_total',
+              name: 'Life Total',
+              kind: ZoneKind.widget,
+              widgetKind: ZoneWidgetKind.counter,
+              counterStartingValue: 20,
+              counterStartingColor: 0xFF112233,
+              counterStartingTextColor: 0xFF445566,
+            ),
+          ],
+        );
+        final session = GameSession.dealFromZones(
+          game: game,
+          players: _players,
+          localPlayerId: 'p1',
+        );
+
+        expect(session.state.cards, isEmpty);
+        expect(session.state.widgets, hasLength(2));
+        for (final player in _players) {
+          final instance = session.state.widgets.singleWhere(
+            (w) => w.ownerId == player.id,
+          );
+          expect(instance.kind, BoardWidgetKind.simpleCounter);
+          expect(instance.zoneId, 'life_total');
+          expect(instance.value, 20);
+          expect(instance.backgroundColor, 0xFF112233);
+          expect(instance.textColor, 0xFF445566);
+        }
+        // Distinct instance ids -- each player gets their own counter, not
+        // a shared one.
+        expect(
+          session.state.widgets.map((w) => w.instanceId).toSet(),
+          hasLength(2),
+        );
+      },
+    );
+
+    test('a card zone deals no widgets, and a widget zone deals no cards', () {
+      const game = GameDefinition(
+        id: 'g1',
+        name: 'G',
+        cards: _cards,
+        zones: [
+          ZoneDefinition(id: 'hand_deck', name: 'Deck', entries: [
+            DeckEntry(definitionId: 'a', quantity: 2),
+          ]),
+          ZoneDefinition(
+            id: 'life_total',
+            name: 'Life Total',
+            kind: ZoneKind.widget,
+          ),
+        ],
+      );
+      final session = GameSession.dealFromZones(
+        game: game,
+        players: [_players[0]],
+        localPlayerId: 'p1',
+      );
+
+      expect(session.state.cards, hasLength(2));
+      expect(session.state.cards.every((c) => c.zoneId == 'hand_deck'), isTrue);
+      expect(session.state.widgets, hasLength(1));
+      expect(session.state.widgets.single.zoneId, 'life_total');
+    });
+  });
+
   group('GameSession.dealFromZones -- faceUp', () {
     test('a zone with faceUp: true deals its cards face-up', () {
       const game = GameDefinition(

@@ -531,56 +531,64 @@ void main() {
   });
 
   group('rotateStack', () {
-    test('a lone card (a stack of one) rotates clockwise and wraps 3 -> 0', () {
-      final state = TableState(
-        gameId: 'g',
-        players: const [],
-        cards: [
-          CardInstance(
-            instanceId: 'solo',
-            definitionId: 'd1',
-            x: 0,
-            y: 0,
-            zIndex: 0,
-            faceUp: false,
-            zone: CardZone.table,
-            rotationTurns: 3,
-          ),
-        ],
-        revision: 0,
-      );
-      final next = _actions.rotateStack(
-        state,
-        rootInstanceId: 'solo',
-        clockwise: true,
-      );
-      expect(next.cards.single.rotationTurns, 0);
-    });
+    test(
+      'a lone card (a stack of one) rotates clockwise past 3 without '
+      'wrapping back to 0 (so it keeps spinning the same direction)',
+      () {
+        final state = TableState(
+          gameId: 'g',
+          players: const [],
+          cards: [
+            CardInstance(
+              instanceId: 'solo',
+              definitionId: 'd1',
+              x: 0,
+              y: 0,
+              zIndex: 0,
+              faceUp: false,
+              zone: CardZone.table,
+              rotationTurns: 3,
+            ),
+          ],
+          revision: 0,
+        );
+        final next = _actions.rotateStack(
+          state,
+          rootInstanceId: 'solo',
+          clockwise: true,
+        );
+        expect(next.cards.single.rotationTurns, 4);
+      },
+    );
 
-    test('counter-clockwise wraps 0 -> 3', () {
-      final state = TableState(
-        gameId: 'g',
-        players: const [],
-        cards: [
-          CardInstance(
-            instanceId: 'solo',
-            definitionId: 'd1',
-            x: 0,
-            y: 0,
-            zIndex: 0,
-            faceUp: false,
-            zone: CardZone.table,
-          ),
-        ],
-        revision: 0,
-      );
-      final next = _actions.rotateStack(
-        state,
-        rootInstanceId: 'solo',
-        clockwise: false,
-      );
-      expect(next.cards.single.rotationTurns, 3);
-    });
+    test(
+      'counter-clockwise from 0 goes negative without wrapping to 3 (so it '
+      'keeps spinning the same direction)',
+      () {
+        final state = TableState(
+          gameId: 'g',
+          players: const [],
+          cards: [
+            CardInstance(
+              instanceId: 'solo',
+              definitionId: 'd1',
+              x: 0,
+              y: 0,
+              zIndex: 0,
+              faceUp: false,
+              zone: CardZone.table,
+            ),
+          ],
+          revision: 0,
+        );
+        final next = _actions.rotateStack(
+          state,
+          rootInstanceId: 'solo',
+          clockwise: false,
+        );
+        expect(next.cards.single.rotationTurns, -1);
+      },
+    );
 
     test('rotates every card in a multi-card pile by the same delta', () {
       final state = _threeCardPile();
