@@ -163,7 +163,7 @@ class _DeckLibraryPickerDialog extends StatefulWidget {
 class _DeckLibraryPickerDialogState extends State<_DeckLibraryPickerDialog> {
   final DeckLibraryLoader _loader = DeckLibraryLoader();
   late String _libraryRoot = widget.libraryRoot;
-  List<DeckLibraryEntry>? _entries;
+  DeckLibraryScanResult? _scan;
   String? _error;
 
   @override
@@ -174,13 +174,13 @@ class _DeckLibraryPickerDialogState extends State<_DeckLibraryPickerDialog> {
 
   Future<void> _refresh() async {
     setState(() {
-      _entries = null;
+      _scan = null;
       _error = null;
     });
     try {
-      final entries = await _loader.loadDecksForGame(_libraryRoot, widget.game);
+      final scan = await _loader.loadDecksForGame(_libraryRoot, widget.game);
       if (!mounted) return;
-      setState(() => _entries = entries);
+      setState(() => _scan = scan);
     } catch (e) {
       if (!mounted) return;
       setState(() => _error = 'Could not read that folder: $e');
@@ -205,6 +205,10 @@ class _DeckLibraryPickerDialogState extends State<_DeckLibraryPickerDialog> {
     try {
       final raw = await file.readAsString();
       deckConfig = DeckConfig.fromJson(jsonDecode(raw) as Map<String, dynamic>);
+    } on LegacyDeckFormatException catch (e) {
+      if (!mounted) return;
+      setState(() => _error = '$e');
+      return;
     } catch (_) {
       if (!mounted) return;
       setState(() => _error = 'That file is not a valid deck.');
@@ -250,26 +254,35 @@ class _DeckLibraryPickerDialogState extends State<_DeckLibraryPickerDialog> {
                   ? Center(
                       child: Text(_error!, style: const TextStyle(color: Colors.red), textAlign: TextAlign.center),
                     )
-                  : _entries == null
+                  : _scan == null
                       ? const Center(child: CircularProgressIndicator(strokeWidth: 2))
-                      : _entries!.isEmpty
+                      : (_scan!.entries.isEmpty && _scan!.incompatible.isEmpty)
                           ? Center(
                               child: Text(
                                 'No decks found for ${widget.game.name}.',
                                 style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
                               ),
                             )
-                          : ListView.builder(
-                              itemCount: _entries!.length,
-                              itemBuilder: (context, index) {
-                                final entry = _entries![index];
-                                return ListTile(
-                                  dense: true,
-                                  title: Text(entry.displayName),
-                                  trailing: Text('${entry.cardCount} card(s)'),
-                                  onTap: () => Navigator.of(context).pop(entry.deck),
-                                );
-                              },
+                          : ListView(
+                              children: [
+                                for (final entry in _scan!.entries)
+                                  ListTile(
+                                    dense: true,
+                                    title: Text(entry.displayName),
+                                    trailing: Text('${entry.cardCount} card(s)'),
+                                    onTap: () => Navigator.of(context).pop(entry.deck),
+                                  ),
+                                for (final file in _scan!.incompatible)
+                                  ListTile(
+                                    dense: true,
+                                    enabled: false,
+                                    title: Text(file.displayName),
+                                    subtitle: const Text(
+                                      'Old format -- rebuild in the Deck Editor',
+                                      style: TextStyle(color: Colors.red),
+                                    ),
+                                  ),
+                              ],
                             ),
             ),
           ],
@@ -299,10 +312,49 @@ class DeckEditorScreen extends StatefulWidget {
   State<DeckEditorScreen> createState() => _DeckEditorScreenState();
 }
 
+/// One deck-authoring slot: a named subdeck the player builds independently
+/// of any other slot, labeled by the zone(s) that consume it (see
+/// `ZoneDefinition.deckType`/`deckOptional`). A game with no deck-building
+/// zones gets a single implicit `main_deck` slot so it can still be edited.
+class _DeckSlot {
+  const _DeckSlot({required this.deckType, required this.label, required this.required});
+
+  final String deckType;
+  final String label;
+  final bool required;
+}
+
 class _DeckEditorScreenState extends State<DeckEditorScreen> {
   late final Map<String, CardDefinition> _definitionsById = {for (final c in widget.game.cards) c.id: c};
 
-  final Map<String, int> _quantities = {};
+  /// One slot per distinct [ZoneDefinition.deckType] the game declares (see
+  /// [GameDefinition.deckTypes]), or a single implicit `main_deck` slot for a
+  /// game with no deck-building zones -- a type is [_DeckSlot.required] if
+  /// any zone using it isn't marked `deckOptional`.
+  late final List<_DeckSlot> _slots = _buildSlots();
+
+  List<_DeckSlot> _buildSlots() {
+    final zones = widget.game.deckBuildingZones;
+    if (zones.isEmpty) {
+      return const [_DeckSlot(deckType: 'main_deck', label: 'Deck', required: true)];
+    }
+    final byType = <String, _DeckSlot>{};
+    for (final z in zones) {
+      final wasRequired = byType[z.deckType]?.required ?? false;
+      byType[z.deckType] = _DeckSlot(
+        deckType: z.deckType,
+        label: byType[z.deckType]?.label ?? z.name,
+        required: wasRequired || !z.deckOptional,
+      );
+    }
+    return byType.values.toList();
+  }
+
+  late final Map<String, Map<String, int>> _quantitiesBySlot = {
+    for (final s in _slots) s.deckType: <String, int>{},
+  };
+  late String _activeDeckType = _slots.first.deckType;
+  Map<String, int> get _activeQuantities => _quantitiesBySlot[_activeDeckType]!;
   String? _hoveredDefinitionId;
 
   /// Per-group set of which of that group's tags currently show in the pool,
@@ -340,7 +392,7 @@ class _DeckEditorScreenState extends State<DeckEditorScreen> {
     super.dispose();
   }
 
-  int get _totalCards => _quantities.values.fold(0, (a, b) => a + b);
+  int get _totalCards => _activeQuantities.values.fold(0, (a, b) => a + b);
 
   /// Every currently-selected tag across every group, combined -- a card is
   /// tag-visible if it has *any* one of these, regardless of which group
@@ -372,22 +424,32 @@ class _DeckEditorScreenState extends State<DeckEditorScreen> {
   List<CardDefinition> get _visibleCards => widget.game.cards.where(_isVisible).toList();
 
   void _addCopy(String definitionId) {
-    setState(() => _quantities[definitionId] = (_quantities[definitionId] ?? 0) + 1);
+    setState(() => _activeQuantities[definitionId] = (_activeQuantities[definitionId] ?? 0) + 1);
   }
 
   void _removeCopy(String definitionId) {
-    final current = _quantities[definitionId];
+    final current = _activeQuantities[definitionId];
     if (current == null) return;
     setState(() {
       if (current <= 1) {
-        _quantities.remove(definitionId);
+        _activeQuantities.remove(definitionId);
       } else {
-        _quantities[definitionId] = current - 1;
+        _activeQuantities[definitionId] = current - 1;
       }
     });
   }
 
   Future<void> _saveDeck() async {
+    final missingRequired = [
+      for (final s in _slots)
+        if (s.required && (_quantitiesBySlot[s.deckType]?.values.fold<int>(0, (a, b) => a + b) ?? 0) == 0) s.label,
+    ];
+    if (missingRequired.isNotEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Add at least one card to: ${missingRequired.join(', ')} before saving.')),
+      );
+      return;
+    }
     final root = await _resolveDecksLibraryRoot();
     if (!mounted) return;
     final name = await _promptForDeckName(
@@ -399,8 +461,15 @@ class _DeckEditorScreenState extends State<DeckEditorScreen> {
     if (name == null || !mounted) return;
     final deckConfig = DeckConfig(
       gameId: widget.game.id,
-      entries: [
-        for (final entry in _quantities.entries) DeckEntry(definitionId: entry.key, quantity: entry.value),
+      subdecks: [
+        for (final s in _slots)
+          SubDeck(
+            name: s.deckType,
+            entries: [
+              for (final entry in (_quantitiesBySlot[s.deckType] ?? const {}).entries)
+                DeckEntry(definitionId: entry.key, quantity: entry.value),
+            ],
+          ),
       ],
     );
     final folderPath = '$root${Platform.pathSeparator}${widget.game.id}';
@@ -426,11 +495,16 @@ class _DeckEditorScreenState extends State<DeckEditorScreen> {
       return;
     }
     setState(() {
-      _quantities
-        ..clear()
-        ..addEntries(deckConfig.entries.where((e) => _definitionsById.containsKey(e.definitionId)).map(
-              (e) => MapEntry(e.definitionId, e.quantity),
-            ));
+      for (final s in _slots) {
+        _quantitiesBySlot[s.deckType]!
+          ..clear()
+          ..addEntries(
+            deckConfig
+                .entriesFor(s.deckType)
+                .where((e) => _definitionsById.containsKey(e.definitionId))
+                .map((e) => MapEntry(e.definitionId, e.quantity)),
+          );
+      }
     });
   }
 
@@ -553,7 +627,7 @@ class _DeckEditorScreenState extends State<DeckEditorScreen> {
   /// overlaid on the face and a title underneath (still needed for real-art
   /// cards whose image has no title baked in).
   Widget _buildPoolCard(CardDefinition card) {
-    final quantity = _quantities[card.id] ?? 0;
+    final quantity = _activeQuantities[card.id] ?? 0;
     return MouseRegion(
       onEnter: (_) => setState(() => _hoveredDefinitionId = card.id),
       onExit: (_) => setState(() {
@@ -665,14 +739,32 @@ class _DeckEditorScreenState extends State<DeckEditorScreen> {
     );
   }
 
+  /// Switches which subdeck [_activeDeckType] is currently being edited --
+  /// shown only when the game declares more than one deck type, labeled by
+  /// the zone name(s) that consume each one, per the Deck Editor's "refer to
+  /// them by the Zone Name" convention.
+  Widget _buildSlotSwitcher() {
+    if (_slots.length <= 1) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+      child: SegmentedButton<String>(
+        segments: [for (final s in _slots) ButtonSegment(value: s.deckType, label: Text(s.label))],
+        selected: {_activeDeckType},
+        onSelectionChanged: (selection) => setState(() => _activeDeckType = selection.first),
+      ),
+    );
+  }
+
   Widget _buildDeckPanel() {
-    final entries = _quantities.entries.toList();
+    final entries = _activeQuantities.entries.toList();
+    final activeLabel = _slots.firstWhere((s) => s.deckType == _activeDeckType).label;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        _buildSlotSwitcher(),
         Padding(
           padding: const EdgeInsets.all(12),
-          child: Text('Deck -- $_totalCards card(s)', style: const TextStyle(fontWeight: FontWeight.bold)),
+          child: Text('$activeLabel -- $_totalCards card(s)', style: const TextStyle(fontWeight: FontWeight.bold)),
         ),
         const Divider(height: 1),
         Expanded(

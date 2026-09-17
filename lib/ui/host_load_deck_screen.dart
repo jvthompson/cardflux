@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../game/sound_service.dart';
 import '../models/deck_config.dart';
 import '../models/game_definition.dart';
 import '../models/player.dart';
@@ -48,7 +49,7 @@ class HostLoadDeckScreen extends StatefulWidget {
 }
 
 class _HostLoadDeckScreenState extends State<HostLoadDeckScreen> {
-  final Map<String, Map<String, DeckConfig>> _decksByPlayerId = {};
+  final Map<String, DeckConfig> _decksByPlayerId = {};
   final Set<String> _readyPlayerIds = {};
   StreamSubscription<IncomingMessage>? _sub;
   StreamSubscription<List<PlayerInfo>>? _rosterSub;
@@ -84,9 +85,8 @@ class _HostLoadDeckScreenState extends State<HostLoadDeckScreen> {
   void _handleMessage(IncomingMessage incoming) {
     final msg = incoming.message;
     if (msg.type == NetMessageType.requestDeckChosen) {
-      final zoneId = msg.payload['zoneId'] as String;
       final deck = DeckConfig.fromJson((msg.payload['deck'] as Map).cast<String, dynamic>());
-      setState(() => (_decksByPlayerId[incoming.senderId] ??= {})[zoneId] = deck);
+      setState(() => _decksByPlayerId[incoming.senderId] = deck);
       return;
     }
     if (msg.type == NetMessageType.requestReady) {
@@ -96,12 +96,11 @@ class _HostLoadDeckScreenState extends State<HostLoadDeckScreen> {
     }
   }
 
-  void _chooseHostDeck(String zoneId, DeckConfig deck) {
-    setState(() => (_decksByPlayerId[widget.hostPlayerId] ??= {})[zoneId] = deck);
+  void _chooseHostDeck(DeckConfig deck) {
+    setState(() => _decksByPlayerId[widget.hostPlayerId] = deck);
   }
 
-  bool get _hostDecksComplete =>
-      (_decksByPlayerId[widget.hostPlayerId]?.length ?? 0) >= widget.game.deckBuildingZones.length;
+  bool get _hostDecksComplete => _decksByPlayerId.containsKey(widget.hostPlayerId);
 
   /// Locks the host's own deck selection in -- irreversible from this screen
   /// (mirrors a client's own `_markReady` in `ClientGameScreen`).
@@ -140,6 +139,7 @@ class _HostLoadDeckScreenState extends State<HostLoadDeckScreen> {
   void _returnHome() {
     if (_navigatedAway || !mounted) return;
     _navigatedAway = true;
+    SoundService.instance.play(SoundEffect.error);
     widget.hostServer.stop();
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(builder: (_) => const HomeScreen(message: 'Opponent disconnected.')),
@@ -207,7 +207,6 @@ class _HostLoadDeckScreenState extends State<HostLoadDeckScreen> {
 
   String _statusLineFor(PlayerInfo p) {
     if (_readyPlayerIds.contains(p.id)) return '${p.name}: Ready';
-    final loaded = _decksByPlayerId[p.id]?.length ?? 0;
-    return '${p.name}: loading deck(s) ($loaded/${widget.game.deckBuildingZones.length})';
+    return _decksByPlayerId.containsKey(p.id) ? '${p.name}: deck loaded' : '${p.name}: loading deck';
   }
 }

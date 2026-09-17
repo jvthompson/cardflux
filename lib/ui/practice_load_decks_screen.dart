@@ -30,17 +30,16 @@ class PracticeLoadDecksScreen extends StatefulWidget {
 }
 
 class _PracticeLoadDecksScreenState extends State<PracticeLoadDecksScreen> {
-  final Map<String, Map<String, DeckConfig>> _decksByPlayerId = {};
+  final Map<String, DeckConfig> _decksByPlayerId = {};
   int _seatIndex = 0;
 
   PlayerInfo get _currentPlayer => widget.players[_seatIndex];
 
-  void _chooseDeck(String zoneId, DeckConfig deck) {
-    setState(() => (_decksByPlayerId[_currentPlayer.id] ??= {})[zoneId] = deck);
+  void _chooseDeck(DeckConfig deck) {
+    setState(() => _decksByPlayerId[_currentPlayer.id] = deck);
   }
 
-  bool get _currentSeatComplete =>
-      (_decksByPlayerId[_currentPlayer.id]?.length ?? 0) >= widget.game.deckBuildingZones.length;
+  bool get _currentSeatComplete => _decksByPlayerId.containsKey(_currentPlayer.id);
 
   void _continue() {
     if (!_currentSeatComplete) return;

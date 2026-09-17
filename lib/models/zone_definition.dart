@@ -34,6 +34,8 @@ class ZoneDefinition {
     required this.name,
     this.shared = false,
     this.dealsBuiltDeck = false,
+    this.deckType = 'main_deck',
+    this.deckOptional = false,
     this.entries = const [],
     this.faceUp = false,
     this.shuffleable = true,
@@ -68,6 +70,22 @@ class ZoneDefinition {
   /// one owned zone (e.g. METW's Draw Deck and Location Deck) -- each gets
   /// its own separately loaded deck file, see `GameDefinition.deckBuildingZones`.
   final bool dealsBuiltDeck;
+
+  /// Only meaningful when [dealsBuiltDeck] is true: which named subdeck (see
+  /// `DeckConfig.subdecks`) in a player's chosen deck file this zone deals
+  /// from. Lets one deck file supply more than one owned zone (e.g. METW's
+  /// Draw Deck using `main_deck` and Location Deck using `location_deck`).
+  /// `'main_deck'` is the default, used whenever a game only has one such
+  /// zone (or doesn't bother naming its type).
+  final String deckType;
+
+  /// Only meaningful when [dealsBuiltDeck] is true: whether a chosen deck is
+  /// allowed to have no cards (or no subdeck at all) for [deckType] --
+  /// false (the default) means a deck missing this type is rejected outright
+  /// (at Load Deck selection and at Deck Editor save time); true means the
+  /// zone simply deals empty when absent, for a game where this deck slot is
+  /// genuinely optional.
+  final bool deckOptional;
 
   /// Static starting contents, dealt once at game start. Ignored when
   /// [dealsBuiltDeck] is true (an owned zone), or [standardDeck]/[deckName]
@@ -159,6 +177,8 @@ class ZoneDefinition {
       name: json['name'] as String,
       shared: json['shared'] as bool? ?? false,
       dealsBuiltDeck: json['dealsBuiltDeck'] as bool? ?? false,
+      deckType: json['deckType'] as String? ?? 'main_deck',
+      deckOptional: json['deckOptional'] as bool? ?? false,
       entries:
           (json['entries'] as List?)
               ?.map(
@@ -194,6 +214,8 @@ class ZoneDefinition {
       'name': name,
       if (shared) 'shared': shared,
       if (dealsBuiltDeck) 'dealsBuiltDeck': dealsBuiltDeck,
+      if (deckType != 'main_deck') 'deckType': deckType,
+      if (deckOptional) 'deckOptional': deckOptional,
       if (entries.isNotEmpty)
         'entries': entries.map((e) => e.toJson()).toList(),
       if (faceUp) 'faceUp': faceUp,
@@ -226,6 +248,8 @@ class ZoneDefinition {
     String? name,
     bool? shared,
     bool? dealsBuiltDeck,
+    String? deckType,
+    bool? deckOptional,
     List<DeckEntry>? entries,
     bool? faceUp,
     bool? shuffleable,
@@ -247,6 +271,8 @@ class ZoneDefinition {
       name: name ?? this.name,
       shared: shared ?? this.shared,
       dealsBuiltDeck: dealsBuiltDeck ?? this.dealsBuiltDeck,
+      deckType: deckType ?? this.deckType,
+      deckOptional: deckOptional ?? this.deckOptional,
       entries: entries ?? this.entries,
       faceUp: faceUp ?? this.faceUp,
       shuffleable: shuffleable ?? this.shuffleable,

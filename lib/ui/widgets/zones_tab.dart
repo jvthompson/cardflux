@@ -106,6 +106,9 @@ class _ZoneEditorCardState extends State<_ZoneEditorCard> {
   late final TextEditingController _deckNameController = TextEditingController(
     text: widget.zone.deckName ?? '',
   );
+  late final TextEditingController _deckTypeController = TextEditingController(
+    text: widget.zone.deckType,
+  );
   late final TextEditingController _counterStartingValueController =
       TextEditingController(text: '${widget.zone.counterStartingValue}');
   late final TextEditingController _counterStartingColorController =
@@ -118,6 +121,7 @@ class _ZoneEditorCardState extends State<_ZoneEditorCard> {
     _idController.dispose();
     _nameController.dispose();
     _deckNameController.dispose();
+    _deckTypeController.dispose();
     _counterStartingValueController.dispose();
     _counterStartingColorController.dispose();
     _counterStartingTextColorController.dispose();
@@ -247,6 +251,40 @@ class _ZoneEditorCardState extends State<_ZoneEditorCard> {
                         : (v) => widget.onChanged(
                             zone.copyWith(dealsBuiltDeck: v),
                           ),
+                  ),
+                  Opacity(
+                    opacity: zone.dealsBuiltDeck ? 1 : 0.4,
+                    child: IgnorePointer(
+                      ignoring: !zone.dealsBuiltDeck,
+                      child: Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: TextField(
+                          controller: _deckTypeController,
+                          decoration: const InputDecoration(
+                            labelText: 'Deck Type',
+                            helperText: 'Which subdeck (by name) this zone loads from a chosen deck file -- defaults to main_deck',
+                            border: OutlineInputBorder(),
+                          ),
+                          onChanged: (v) => widget.onChanged(
+                            zone.copyWith(deckType: v.trim().isEmpty ? 'main_deck' : v),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  Opacity(
+                    opacity: zone.dealsBuiltDeck ? 1 : 0.4,
+                    child: IgnorePointer(
+                      ignoring: !zone.dealsBuiltDeck,
+                      child: SwitchListTile(
+                        title: const Text('Deck Optional'),
+                        subtitle: const Text(
+                          "A chosen deck may leave this zone's subdeck empty or missing (deals empty instead of being rejected)",
+                        ),
+                        value: zone.deckOptional,
+                        onChanged: (v) => widget.onChanged(zone.copyWith(deckOptional: v)),
+                      ),
+                    ),
                   ),
                   SwitchListTile(
                     title: const Text('Face Up'),

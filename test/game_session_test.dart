@@ -40,18 +40,14 @@ void main() {
         players: _players,
         localPlayerId: 'p1',
         deckConfigsByPlayerId: {
-          'p1': {
-            'draw_deck': const DeckConfig(
-              gameId: 'g1',
-              entries: [DeckEntry(definitionId: 'a', quantity: 2)],
-            ),
-          },
-          'p2': {
-            'draw_deck': const DeckConfig(
-              gameId: 'g1',
-              entries: [DeckEntry(definitionId: 'b', quantity: 3)],
-            ),
-          },
+          'p1': const DeckConfig(
+            gameId: 'g1',
+            subdecks: [SubDeck(name: 'main_deck', entries: [DeckEntry(definitionId: 'a', quantity: 2)])],
+          ),
+          'p2': const DeckConfig(
+            gameId: 'g1',
+            subdecks: [SubDeck(name: 'main_deck', entries: [DeckEntry(definitionId: 'b', quantity: 3)])],
+          ),
         },
       );
 
@@ -109,12 +105,10 @@ void main() {
         players: [_players[0]],
         localPlayerId: 'p1',
         deckConfigsByPlayerId: {
-          'p1': {
-            'draw_deck': const DeckConfig(
-              gameId: 'g1',
-              entries: [DeckEntry(definitionId: 'a', quantity: 1)],
-            ),
-          },
+          'p1': const DeckConfig(
+            gameId: 'g1',
+            subdecks: [SubDeck(name: 'main_deck', entries: [DeckEntry(definitionId: 'a', quantity: 1)])],
+          ),
         },
       );
       expect(
@@ -145,22 +139,25 @@ void main() {
         players: [_players[0]],
         localPlayerId: 'p1',
         deckConfigsByPlayerId: {
-          'p1': {
-            'draw_deck': const DeckConfig(
-              gameId: 'g1',
-              entries: [
-                DeckEntry(definitionId: 'a', quantity: 1),
-                DeckEntry(definitionId: 'nonexistent', quantity: 5),
-              ],
-            ),
-          },
+          'p1': const DeckConfig(
+            gameId: 'g1',
+            subdecks: [
+              SubDeck(
+                name: 'main_deck',
+                entries: [
+                  DeckEntry(definitionId: 'a', quantity: 1),
+                  DeckEntry(definitionId: 'nonexistent', quantity: 5),
+                ],
+              ),
+            ],
+          ),
         },
       );
       expect(session.state.cards, hasLength(1));
       expect(session.state.cards.single.definitionId, 'a');
     });
 
-    test('two dealsBuiltDeck zones each get their own distinct chosen deck, not one duplicated into both', () {
+    test('two dealsBuiltDeck zones with distinct deck types each deal from their own subdeck', () {
       const game = GameDefinition(
         id: 'g1',
         name: 'G',
@@ -175,6 +172,7 @@ void main() {
             id: 'location_deck',
             name: 'Location Deck',
             dealsBuiltDeck: true,
+            deckType: 'location_deck',
           ),
         ],
       );
@@ -183,16 +181,13 @@ void main() {
         players: [_players[0]],
         localPlayerId: 'p1',
         deckConfigsByPlayerId: {
-          'p1': {
-            'draw_deck': const DeckConfig(
-              gameId: 'g1',
-              entries: [DeckEntry(definitionId: 'a', quantity: 2)],
-            ),
-            'location_deck': const DeckConfig(
-              gameId: 'g1',
-              entries: [DeckEntry(definitionId: 'b', quantity: 1)],
-            ),
-          },
+          'p1': const DeckConfig(
+            gameId: 'g1',
+            subdecks: [
+              SubDeck(name: 'main_deck', entries: [DeckEntry(definitionId: 'a', quantity: 2)]),
+              SubDeck(name: 'location_deck', entries: [DeckEntry(definitionId: 'b', quantity: 1)]),
+            ],
+          ),
         },
       );
 
@@ -206,6 +201,32 @@ void main() {
       expect(drawDeckCards.every((c) => c.definitionId == 'a'), isTrue);
       expect(locationDeckCards, hasLength(1));
       expect(locationDeckCards.single.definitionId, 'b');
+    });
+
+    test('a chosen deck missing an optional zone\'s subdeck deals that zone empty, not a full-deck fallback', () {
+      const game = GameDefinition(
+        id: 'g1',
+        name: 'G',
+        cards: _cards,
+        zones: [
+          ZoneDefinition(
+            id: 'location_deck',
+            name: 'Location Deck',
+            dealsBuiltDeck: true,
+            deckType: 'location_deck',
+            deckOptional: true,
+          ),
+        ],
+      );
+      final session = GameSession.dealFromZones(
+        game: game,
+        players: [_players[0]],
+        localPlayerId: 'p1',
+        deckConfigsByPlayerId: {
+          'p1': const DeckConfig(gameId: 'g1', subdecks: []),
+        },
+      );
+      expect(session.state.cards, isEmpty);
     });
   });
 
@@ -655,7 +676,7 @@ void main() {
         sharedDeckConfigsByZoneId: {
           'deck': const DeckConfig(
             gameId: 'g1',
-            entries: [DeckEntry(definitionId: 'b', quantity: 4)],
+            subdecks: [SubDeck(name: 'main_deck', entries: [DeckEntry(definitionId: 'b', quantity: 4)])],
           ),
         },
       );

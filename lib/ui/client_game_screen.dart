@@ -12,6 +12,7 @@ import '../data/player_profile_settings.dart';
 import '../game/drag_preview.dart';
 import '../game/game_session.dart';
 import '../game/seat_utils.dart';
+import '../game/sound_service.dart';
 import '../game/table_controller.dart';
 import '../models/card_definition.dart';
 import '../models/deck_config.dart';
@@ -52,7 +53,7 @@ class _ClientGameScreenState extends State<ClientGameScreen> {
   StreamSubscription<NetMessage>? _sub;
   StreamSubscription<ClientConnectionStatus>? _statusSub;
   GameDefinition? _game;
-  final Map<String, DeckConfig> _localDecks = {};
+  DeckConfig? _localDeck;
   bool _localReady = false;
   bool _navigatedHome = false;
   List<PlayerInfo> _roster = const [];
@@ -83,6 +84,7 @@ class _ClientGameScreenState extends State<ClientGameScreen> {
     }
     _statusSub = widget.gameClient.statusStream.listen((status) {
       if (status != ClientConnectionStatus.disconnected) return;
+      SoundService.instance.play(SoundEffect.error);
       _returnHome(switch (widget.gameClient.disconnectReason) {
         'kicked' => 'You were removed from the game by the host.',
         'hostLeft' => 'The host ended the game.',
@@ -232,13 +234,10 @@ class _ClientGameScreenState extends State<ClientGameScreen> {
     });
   }
 
-  void _chooseDeck(String zoneId, DeckConfig deck) {
-    setState(() => _localDecks[zoneId] = deck);
+  void _chooseDeck(DeckConfig deck) {
+    setState(() => _localDeck = deck);
     widget.gameClient.send(
-      NetMessage(
-        type: NetMessageType.requestDeckChosen,
-        payload: {'zoneId': zoneId, 'deck': deck.toJson()},
-      ),
+      NetMessage(type: NetMessageType.requestDeckChosen, payload: {'deck': deck.toJson()}),
     );
   }
 
@@ -248,8 +247,7 @@ class _ClientGameScreenState extends State<ClientGameScreen> {
   /// also presses Ready and deals -- signaled implicitly by the eventual
   /// `fullState` broadcast this screen already waits for.
   void _markReady() {
-    final game = _game;
-    if (_localReady || game == null || _localDecks.length < game.deckBuildingZones.length) return;
+    if (_localReady || _localDeck == null) return;
     setState(() => _localReady = true);
     widget.gameClient.send(const NetMessage(type: NetMessageType.requestReady));
   }
@@ -269,7 +267,7 @@ class _ClientGameScreenState extends State<ClientGameScreen> {
       final game = _game;
       final zones = game?.deckBuildingZones ?? const [];
       if (game != null && zones.isNotEmpty) {
-        final localDecksComplete = _localDecks.length >= zones.length;
+        final localDecksComplete = _localDeck != null;
         return Scaffold(
           appBar: AppBar(title: Text('Load Deck -- ${game.name}')),
           body: Column(

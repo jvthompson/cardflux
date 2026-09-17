@@ -88,13 +88,13 @@ class GameSession extends ChangeNotifier {
   /// [players] (1-4 of them) are all simulated by the one real person at
   /// this device, who starts out acting as `players.first` and can switch
   /// via [setActiveSeat] -- see [actingPlayerId]. [deckConfigsByPlayerId]
-  /// works exactly like the networked host path: a zone marked
-  /// [ZoneDefinition.dealsBuiltDeck] with no matching entry falls back to
-  /// one of every card in [game].
+  /// works exactly like the networked host path: a wholly-missing map falls
+  /// back to one of every card in [game] for every
+  /// [ZoneDefinition.dealsBuiltDeck] zone.
   factory GameSession.localPractice({
     required GameDefinition game,
     required List<PlayerInfo> players,
-    Map<String, Map<String, DeckConfig>>? deckConfigsByPlayerId,
+    Map<String, DeckConfig>? deckConfigsByPlayerId,
   }) {
     return GameSession.dealFromZones(
       game: game,
@@ -107,12 +107,16 @@ class GameSession extends ChangeNotifier {
 
   /// Deals every [player]'s zones from [game]'s [GameDefinition.zones]:
   /// for each player, each owned zone (`!shared`) gets either that player's
-  /// entry in [deckConfigsByPlayerId] (if the zone is marked
-  /// [ZoneDefinition.dealsBuiltDeck] -- looked up by *both* player id and
-  /// zone id, since a game can have more than one such zone, e.g. METW's
-  /// Draw Deck and Location Deck; falls back to one of every card in [game]
-  /// if no config was supplied for that zone, e.g. Practice Mode) or its own
-  /// static [ZoneDefinition.entries] (typically empty, e.g. a discard pile
+  /// chosen deck in [deckConfigsByPlayerId] (if the zone is marked
+  /// [ZoneDefinition.dealsBuiltDeck] -- that deck's subdeck named
+  /// [ZoneDefinition.deckType] supplies this zone's entries, since a game can
+  /// have more than one such zone sharing one deck file, e.g. METW's Draw
+  /// Deck and Location Deck; a wholly-missing [deckConfigsByPlayerId] falls
+  /// back to one of every card in [game], e.g. Practice Mode with no Load
+  /// Deck step -- a chosen deck simply missing that subdeck deals empty
+  /// instead, since required-subdeck completeness is validated before a deck
+  /// is ever chosen) or its own static [ZoneDefinition.entries] (typically
+  /// empty, e.g. a discard pile
   /// starting empty). Each shared zone is dealt once, unowned, into a docked
   /// side panel (see [ZoneDefinition.side]) rather than any canonical table
   /// position -- [x]/[y] are just the same `0.5, 0.5` placeholder owned-zone
@@ -138,7 +142,7 @@ class GameSession extends ChangeNotifier {
     required GameDefinition game,
     required List<PlayerInfo> players,
     required String localPlayerId,
-    Map<String, Map<String, DeckConfig>>? deckConfigsByPlayerId,
+    Map<String, DeckConfig>? deckConfigsByPlayerId,
     Map<String, DeckConfig>? sharedDeckConfigsByZoneId,
     bool isLocalPractice = false,
   }) {
@@ -209,8 +213,9 @@ class GameSession extends ChangeNotifier {
         (z) => !z.shared && z.kind == ZoneKind.card,
       )) {
         final entries = zone.dealsBuiltDeck
-            ? (deckConfigsByPlayerId?[player.id]?[zone.id]?.entries ??
-                  fullDeckEntries)
+            ? (deckConfigsByPlayerId == null
+                  ? fullDeckEntries
+                  : (deckConfigsByPlayerId[player.id]?.entriesFor(zone.deckType) ?? const []))
             : zone.entries;
         deal(
           entries,
@@ -263,7 +268,7 @@ class GameSession extends ChangeNotifier {
       } else {
         final loadedDeck = sharedDeckConfigsByZoneId?[zone.id];
         entries = loadedDeck != null
-            ? loadedDeck.entries
+            ? loadedDeck.entriesFor('main_deck')
             : (zone.entries.isNotEmpty || zone.isDiscardPile
                   ? zone.entries
                   : fullDeckEntries);

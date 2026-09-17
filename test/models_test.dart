@@ -506,6 +506,25 @@ void main() {
       expect(zone.shuffleable, isTrue);
       expect(zone.visibleToAll, isFalse);
       expect(zone.autoShuffle, isFalse);
+      expect(zone.deckType, 'main_deck');
+      expect(zone.deckOptional, isFalse);
+    });
+
+    test('deckType/deckOptional round-trip through JSON, omitted from JSON at their defaults', () {
+      const defaultZone = ZoneDefinition(id: 'draw_deck', name: 'Draw Deck', dealsBuiltDeck: true);
+      expect(defaultZone.toJson().containsKey('deckType'), isFalse);
+      expect(defaultZone.toJson().containsKey('deckOptional'), isFalse);
+
+      const zone = ZoneDefinition(
+        id: 'location_deck',
+        name: 'Location Deck',
+        dealsBuiltDeck: true,
+        deckType: 'location_deck',
+        deckOptional: true,
+      );
+      final roundTripped = ZoneDefinition.fromJson(zone.toJson());
+      expect(roundTripped.deckType, 'location_deck');
+      expect(roundTripped.deckOptional, isTrue);
     });
 
     test('faceUp/shuffleable/visibleToAll round-trip through JSON', () {
@@ -918,15 +937,36 @@ void main() {
     test('round-trips through JSON', () {
       const deck = DeckConfig(
         gameId: 'standard_52',
-        entries: [DeckEntry(definitionId: 'hearts_A', quantity: 1)],
+        subdecks: [
+          SubDeck(name: 'main_deck', entries: [DeckEntry(definitionId: 'hearts_A', quantity: 1)]),
+        ],
       );
       final roundTripped = DeckConfig.fromJson(deck.toJson());
       expect(roundTripped.gameId, 'standard_52');
-      expect(roundTripped.entries, hasLength(1));
-      expect(roundTripped.entries.first.quantity, 1);
+      expect(roundTripped.entriesFor('main_deck'), hasLength(1));
+      expect(roundTripped.entriesFor('main_deck').first.quantity, 1);
     });
 
-    test('DeckConfig.full includes one entry per game card at quantity 1', () {
+    test('fromJson throws LegacyDeckFormatException for a pre-subdeck file', () {
+      expect(
+        () => DeckConfig.fromJson({
+          'gameId': 'standard_52',
+          'entries': [
+            {'definitionId': 'hearts_A', 'quantity': 1},
+          ],
+        }),
+        throwsA(isA<LegacyDeckFormatException>()),
+      );
+    });
+
+    test('entriesFor/cardCountFor fall back to empty for an absent subdeck', () {
+      const deck = DeckConfig(gameId: 'g1', subdecks: []);
+      expect(deck.entriesFor('main_deck'), isEmpty);
+      expect(deck.cardCountFor('main_deck'), 0);
+    });
+
+    test('DeckConfig.full includes one entry per game card at quantity 1, in a single main_deck subdeck '
+        'when the game has no deck-building zones', () {
       const game = GameDefinition(
         id: 'g1',
         name: 'G',
@@ -937,8 +977,23 @@ void main() {
       );
       final deck = DeckConfig.full(game);
       expect(deck.gameId, 'g1');
-      expect(deck.entries.map((e) => e.definitionId).toSet(), {'a', 'b'});
-      expect(deck.entries.every((e) => e.quantity == 1), isTrue);
+      expect(deck.subdecks, hasLength(1));
+      expect(deck.entriesFor('main_deck').map((e) => e.definitionId).toSet(), {'a', 'b'});
+      expect(deck.entriesFor('main_deck').every((e) => e.quantity == 1), isTrue);
+    });
+
+    test('DeckConfig.full builds one subdeck per distinct deck-building zone type', () {
+      const game = GameDefinition(
+        id: 'g1',
+        name: 'G',
+        cards: [CardDefinition(id: 'a', cardTitle: 'A', colorHex: '#000000')],
+        zones: [
+          ZoneDefinition(id: 'draw_deck', name: 'Draw Deck', dealsBuiltDeck: true),
+          ZoneDefinition(id: 'location_deck', name: 'Location Deck', dealsBuiltDeck: true, deckType: 'location_deck'),
+        ],
+      );
+      final deck = DeckConfig.full(game);
+      expect(deck.subdecks.map((s) => s.name).toSet(), {'main_deck', 'location_deck'});
     });
   });
 

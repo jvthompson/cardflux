@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import '../../data/deck_library_loader.dart';
 import '../../data/decks_directory_settings.dart';
 import '../../data/directory_picker.dart';
+import '../../game/sound_service.dart';
 import '../../models/deck_config.dart';
 import '../../models/game_definition.dart';
 import '../../models/zone_definition.dart';
@@ -17,16 +18,19 @@ const List<XTypeGroup> _deckFileTypes = [
   XTypeGroup(label: 'Deck', extensions: ['json']),
 ];
 
-/// Lets a player load a pre-built deck for [game] -- one per entry in
-/// [zones] (every owned zone marked `ZoneDefinition.dealsBuiltDeck`, see
-/// `GameDefinition.deckBuildingZones`), calling [onDeckChosen] once per
-/// successful load. Replaces the old file-dialog-only `LoadDeckScreen` with
-/// a Deck Library browser -- modeled on `GamePicker`'s directory-scan
-/// pattern -- showing every deck saved under the chosen library root's
-/// `game.id` subfolder as `*.json` files (remembered across launches via
-/// [DecksDirectorySettings]) as a grid of draggable tiles a player drops
-/// onto a labeled loading zone. A "Browse for file..." action is kept per
-/// zone for a one-off deck or a library that hasn't been set up yet.
+/// Lets a player load a single pre-built deck for [game], calling
+/// [onDeckChosen] once with the whole [DeckConfig] -- its subdecks (see
+/// `DeckConfig.subdecks`) supply every zone in [zones] (every owned zone
+/// marked `ZoneDefinition.dealsBuiltDeck`, see
+/// `GameDefinition.deckBuildingZones`) at once, keyed by
+/// [ZoneDefinition.deckType]. Shows every deck saved under the chosen
+/// library root's `game.id` subfolder as `*.json` files (remembered across
+/// launches via [DecksDirectorySettings]) as a grid of tappable tiles, with
+/// a "Browse for file..." fallback for a one-off deck or an unset-up
+/// library. A tapped deck missing a required (non-optional) zone's subdeck
+/// is rejected with an inline message instead of being chosen; an
+/// old-format (pre-subdeck) deck file for this game shows in the grid
+/// visibly flagged as incompatible rather than being hidden.
 ///
 /// Shared by the host's and the client's Load Deck screens -- both need the
 /// identical load/validate step, differing only in what happens with the
@@ -36,7 +40,7 @@ class DeckLibraryScreen extends StatefulWidget {
 
   final GameDefinition game;
   final List<ZoneDefinition> zones;
-  final void Function(String zoneId, DeckConfig deck) onDeckChosen;
+  final void Function(DeckConfig deck) onDeckChosen;
 
   @override
   State<DeckLibraryScreen> createState() => _DeckLibraryScreenState();
@@ -47,14 +51,13 @@ class _DeckLibraryScreenState extends State<DeckLibraryScreen> {
   final DecksDirectorySettings _settings = DecksDirectorySettings();
 
   String? _directoryPath;
-  List<DeckLibraryEntry>? _decks;
+  DeckLibraryScanResult? _scan;
   bool _busy = false;
-  String? _error;
+  String? _folderError;
+  String? _selectionError;
 
-  final Map<String, DeckLibraryEntry> _loadedEntryByZoneId = {};
-  final Map<String, String> _loadedFileNameByZoneId = {};
-  final Map<String, int> _loadedCardCountByZoneId = {};
-  final Map<String, GlobalKey> _zoneDropKeys = {};
+  String? _chosenDisplayName;
+  DeckConfig? _chosenDeck;
 
   @override
   void initState() {
@@ -72,13 +75,15 @@ class _DeckLibraryScreenState extends State<DeckLibraryScreen> {
   Future<void> _refresh(String path) async {
     setState(() {
       _busy = true;
-      _error = null;
+      _folderError = null;
     });
-    List<DeckLibraryEntry> decks = const [];
+    DeckLibraryScanResult scan = const DeckLibraryScanResult(entries: [], incompatible: []);
     String? error;
     try {
-      decks = await _loader.loadDecksForGame(path, widget.game);
-      if (decks.isEmpty) error = 'No decks found for ${widget.game.name} in that folder.';
+      scan = await _loader.loadDecksForGame(path, widget.game);
+      if (scan.entries.isEmpty && scan.incompatible.isEmpty) {
+        error = 'No decks found for ${widget.game.name} in that folder.';
+      }
     } catch (e) {
       // Never leave `_busy` stuck true on a bad/inaccessible folder -- that
       // would permanently disable both Refresh and Change Folder...,
@@ -86,10 +91,11 @@ class _DeckLibraryScreenState extends State<DeckLibraryScreen> {
       error = 'Could not read that folder: $e';
     }
     if (!mounted) return;
+    if (error != null) SoundService.instance.play(SoundEffect.error);
     setState(() {
       _busy = false;
-      _decks = decks;
-      _error = error;
+      _scan = scan;
+      _folderError = error;
     });
   }
 
@@ -107,54 +113,65 @@ class _DeckLibraryScreenState extends State<DeckLibraryScreen> {
     await _refresh(path);
   }
 
-  GlobalKey _zoneDropKey(String zoneId) => _zoneDropKeys.putIfAbsent(zoneId, GlobalKey.new);
+  /// Every required (non-optional) zone whose type has no cards in [deck] --
+  /// empty means [deck] satisfies every required zone.
+  List<ZoneDefinition> _missingRequiredZones(DeckConfig deck) =>
+      widget.zones.where((z) => !z.deckOptional && deck.cardCountFor(z.deckType) == 0).toList();
 
-  String? _zoneIdAt(Offset globalPoint) {
-    for (final entry in _zoneDropKeys.entries) {
-      final box = entry.value.currentContext?.findRenderObject() as RenderBox?;
-      if (box == null) continue;
-      final rect = box.localToGlobal(Offset.zero) & box.size;
-      if (rect.contains(globalPoint)) return entry.key;
+  void _selectDeck(DeckConfig deck, String displayName) {
+    final missing = _missingRequiredZones(deck);
+    if (missing.isNotEmpty) {
+      SoundService.instance.play(SoundEffect.error);
+      setState(() => _selectionError = 'That deck is missing required cards for: ${missing.map((z) => z.name).join(', ')}.');
+      return;
     }
-    return null;
-  }
-
-  void _handleDrop(DeckLibraryEntry entry, Offset globalTopLeft) {
-    final globalCenter = globalTopLeft + const Offset(cardWidth / 2, cardHeight / 2);
-    final zoneId = _zoneIdAt(globalCenter);
-    if (zoneId == null) return;
     setState(() {
-      _loadedEntryByZoneId[zoneId] = entry;
-      _loadedFileNameByZoneId.remove(zoneId);
-      _loadedCardCountByZoneId.remove(zoneId);
+      _selectionError = null;
+      _chosenDeck = deck;
+      _chosenDisplayName = displayName;
     });
-    widget.onDeckChosen(zoneId, entry.deck);
+    widget.onDeckChosen(deck);
   }
 
-  Future<void> _browseSingleFile(ZoneDefinition zone) async {
+  void _selectIncompatible(IncompatibleDeckFile file) {
+    SoundService.instance.play(SoundEffect.error);
+    setState(() {
+      _selectionError = 'The deck "${file.displayName}" was saved in an older format and needs to be rebuilt in the Deck Editor.';
+    });
+  }
+
+  void _clearChosen() {
+    setState(() {
+      _chosenDeck = null;
+      _chosenDisplayName = null;
+    });
+  }
+
+  Future<void> _browseSingleFile() async {
     final file = await openFile(acceptedTypeGroups: _deckFileTypes);
     if (file == null || !mounted) return;
     DeckConfig deckConfig;
     try {
       final raw = await file.readAsString();
       deckConfig = DeckConfig.fromJson(jsonDecode(raw) as Map<String, dynamic>);
+    } on LegacyDeckFormatException catch (e) {
+      if (!mounted) return;
+      SoundService.instance.play(SoundEffect.error);
+      setState(() => _selectionError = '$e');
+      return;
     } catch (_) {
       if (!mounted) return;
-      setState(() => _error = 'That file is not a valid deck.');
+      SoundService.instance.play(SoundEffect.error);
+      setState(() => _selectionError = 'That file is not a valid deck.');
       return;
     }
     if (deckConfig.gameId != widget.game.id) {
       if (!mounted) return;
-      setState(() => _error = 'That deck is for a different game (${deckConfig.gameId}).');
+      SoundService.instance.play(SoundEffect.error);
+      setState(() => _selectionError = 'That deck is for a different game (${deckConfig.gameId}).');
       return;
     }
-    setState(() {
-      _error = null;
-      _loadedFileNameByZoneId[zone.id] = file.name;
-      _loadedCardCountByZoneId[zone.id] = deckConfig.entries.fold<int>(0, (a, e) => a + e.quantity);
-      _loadedEntryByZoneId.remove(zone.id);
-    });
-    widget.onDeckChosen(zone.id, deckConfig);
+    _selectDeck(deckConfig, file.name);
   }
 
   Widget _buildDirectoryRow() {
@@ -182,38 +199,65 @@ class _DeckLibraryScreenState extends State<DeckLibraryScreen> {
     );
   }
 
-  Widget _buildDeckTileContent(DeckLibraryEntry entry) {
+  Widget _buildDeckTileContent(String displayName, int cardCount, {bool incompatible = false}) {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
         SizedBox(
           width: cardWidth,
           height: cardHeight,
-          child: CardBackWidget(cardBacks: widget.game.cardBacks),
+          child: Opacity(
+            opacity: incompatible ? 0.35 : 1,
+            child: CardBackWidget(cardBacks: widget.game.cardBacks),
+          ),
         ),
         const SizedBox(height: 4),
         SizedBox(
           width: cardWidth,
           child: Text(
-            entry.displayName,
+            displayName,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             textAlign: TextAlign.center,
             style: const TextStyle(fontSize: 11),
           ),
         ),
-        Text('${entry.cardCount} card(s)', style: TextStyle(fontSize: 10, color: Theme.of(context).colorScheme.onSurfaceVariant)),
+        Text(
+          incompatible ? 'Old format' : '$cardCount card(s)',
+          style: TextStyle(
+            fontSize: 10,
+            color: incompatible ? Colors.red : Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+        ),
       ],
     );
   }
 
   Widget _buildDeckTile(DeckLibraryEntry entry) {
-    return Draggable<DeckLibraryEntry>(
-      data: entry,
-      feedback: Material(type: MaterialType.transparency, child: _buildDeckTileContent(entry)),
-      childWhenDragging: Opacity(opacity: 0.3, child: _buildDeckTileContent(entry)),
-      onDragEnd: (details) => _handleDrop(entry, details.offset),
-      child: _buildDeckTileContent(entry),
+    final selected = _chosenDisplayName == entry.displayName;
+    return InkWell(
+      onTap: () => _selectDeck(entry.deck, entry.displayName),
+      child: Container(
+        padding: const EdgeInsets.all(4),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(
+            color: selected ? Theme.of(context).colorScheme.primary : Colors.transparent,
+            width: 2,
+          ),
+        ),
+        child: _buildDeckTileContent(entry.displayName, entry.cardCount),
+      ),
+    );
+  }
+
+  Widget _buildIncompatibleTile(IncompatibleDeckFile file) {
+    return Tooltip(
+      message: 'Old format -- rebuild in the Deck Editor',
+      child: InkWell(
+        onTap: () => _selectIncompatible(file),
+        child: _buildDeckTileContent(file.displayName, 0, incompatible: true),
+      ),
     );
   }
 
@@ -232,11 +276,14 @@ class _DeckLibraryScreenState extends State<DeckLibraryScreen> {
       );
     }
     if (_busy) return const Center(child: CircularProgressIndicator(strokeWidth: 2));
-    if (_error != null) {
-      return Center(child: Text(_error!, style: const TextStyle(color: Colors.red), textAlign: TextAlign.center));
+    if (_folderError != null) {
+      return Center(
+        child: Text(_folderError!, style: const TextStyle(color: Colors.red), textAlign: TextAlign.center),
+      );
     }
-    final decks = _decks ?? const [];
-    if (decks.isEmpty) {
+    final entries = _scan?.entries ?? const [];
+    final incompatible = _scan?.incompatible ?? const [];
+    if (entries.isEmpty && incompatible.isEmpty) {
       return Center(
         child: Text(
           'No decks found for ${widget.game.name} in that folder.',
@@ -252,46 +299,53 @@ class _DeckLibraryScreenState extends State<DeckLibraryScreen> {
         crossAxisSpacing: 12,
         mainAxisSpacing: 12,
       ),
-      itemCount: decks.length,
-      itemBuilder: (context, index) => _buildDeckTile(decks[index]),
+      itemCount: entries.length + incompatible.length,
+      itemBuilder: (context, index) => index < entries.length
+          ? _buildDeckTile(entries[index])
+          : _buildIncompatibleTile(incompatible[index - entries.length]),
     );
   }
 
-  Widget _buildLoadingZone(ZoneDefinition zone) {
-    final loadedEntry = _loadedEntryByZoneId[zone.id];
-    final loadedFileName = _loadedFileNameByZoneId[zone.id];
-    final hasLoaded = loadedEntry != null || loadedFileName != null;
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 12),
+  Widget _buildSummaryPanel() {
+    return SingleChildScrollView(
       child: Column(
-        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(zone.name, style: const TextStyle(fontWeight: FontWeight.bold)),
+          Text('This game needs', style: Theme.of(context).textTheme.titleSmall),
           const SizedBox(height: 8),
-          Container(
-            key: _zoneDropKey(zone.id),
-            width: cardWidth,
-            height: cardHeight,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(6),
-              border: Border.all(color: Colors.white24, width: 1.5),
+          for (final zone in widget.zones)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(zone.name, style: const TextStyle(fontWeight: FontWeight.bold)),
+                  Text(
+                    zone.deckOptional ? '${zone.deckType} (optional)' : '${zone.deckType} (required)',
+                    style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                  ),
+                ],
+              ),
             ),
-            child: hasLoaded ? CardBackWidget(cardBacks: widget.game.cardBacks) : null,
-          ),
-          const SizedBox(height: 8),
-          if (loadedEntry != null)
-            Text('Loaded "${loadedEntry.displayName}" -- ${loadedEntry.cardCount} card(s)', textAlign: TextAlign.center)
-          else if (loadedFileName != null)
+          const Divider(height: 24),
+          if (_chosenDeck != null) ...[
+            Text('Loaded "$_chosenDisplayName"', style: const TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            for (final zone in widget.zones)
+              Text('${zone.name}: ${_chosenDeck!.cardCountFor(zone.deckType)} card(s)', style: const TextStyle(fontSize: 12)),
+            const SizedBox(height: 8),
+            TextButton(onPressed: _clearChosen, child: const Text('Choose a different deck')),
+          ] else
             Text(
-              'Loaded "$loadedFileName" -- ${_loadedCardCountByZoneId[zone.id]} card(s)',
-              textAlign: TextAlign.center,
+              'Tap a deck to load it.',
+              style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 12),
             ),
-          const SizedBox(height: 8),
-          TextButton(
-            onPressed: () => _browseSingleFile(zone),
-            child: Text(hasLoaded ? 'Browse for a different file...' : 'Browse for file...'),
-          ),
+          if (_selectionError != null) ...[
+            const SizedBox(height: 12),
+            Text(_selectionError!, style: const TextStyle(color: Colors.red, fontSize: 12)),
+          ],
+          const SizedBox(height: 12),
+          TextButton(onPressed: _browseSingleFile, child: const Text('Browse for file...')),
         ],
       ),
     );
@@ -305,9 +359,7 @@ class _DeckLibraryScreenState extends State<DeckLibraryScreen> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
-            widget.zones.length > 1
-                ? 'Load your decks for ${widget.game.name}'
-                : 'Load your deck for ${widget.game.name}',
+            'Load your deck for ${widget.game.name}',
             textAlign: TextAlign.center,
             style: const TextStyle(fontWeight: FontWeight.bold),
           ),
@@ -320,12 +372,7 @@ class _DeckLibraryScreenState extends State<DeckLibraryScreen> {
               children: [
                 Expanded(flex: 2, child: _buildDeckGrid()),
                 const VerticalDivider(width: 24),
-                SizedBox(
-                  width: 220,
-                  child: SingleChildScrollView(
-                    child: Column(children: [for (final zone in widget.zones) _buildLoadingZone(zone)]),
-                  ),
-                ),
+                SizedBox(width: 240, child: _buildSummaryPanel()),
               ],
             ),
           ),

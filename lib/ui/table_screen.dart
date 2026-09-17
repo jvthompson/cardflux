@@ -13,6 +13,7 @@ import '../game/drag_preview.dart';
 import '../game/game_session.dart';
 import '../game/geometry_utils.dart';
 import '../game/seat_utils.dart';
+import '../game/sound_service.dart';
 import '../game/stack_utils.dart';
 import '../game/table_controller.dart';
 import '../models/active_search.dart';
@@ -824,12 +825,23 @@ class _TableScreenState extends State<TableScreen>
     return null;
   }
 
+  void _shuffleZone(String zoneId) {
+    widget.controller.shuffleZone(zoneId);
+    SoundService.instance.play(SoundEffect.shuffle);
+  }
+
+  void _shufflePile(String pileRootId) {
+    widget.controller.shufflePile(pileRootId);
+    SoundService.instance.play(SoundEffect.shuffle);
+  }
+
   void _rotateHovered({required bool clockwise}) {
     final card = _ownedHoveredTableCard();
     if (card == null) return;
     final state = context.read<GameSession>().state;
     final rootId = _stackUtils.rootIdOf(state.cards, card);
     widget.controller.rotateStack(rootId, clockwise: clockwise);
+    SoundService.instance.play(clockwise ? SoundEffect.tap : SoundEffect.untap);
   }
 
   /// Z while hovering a table card bumps its whole stack to the front of
@@ -943,6 +955,7 @@ class _TableScreenState extends State<TableScreen>
   void _drawNFromHovered(int n) {
     final target = _hoveredDrawTarget();
     if (target == null) return;
+    SoundService.instance.play(SoundEffect.draw);
     final pileRootId = target.pileRootId;
     if (pileRootId != null) {
       if (n == 1) {
@@ -1454,6 +1467,18 @@ class _TableScreenState extends State<TableScreen>
     // ever clear this player's remote ghost (see TableController's doc).
     widget.controller.endCardDragPreview();
     _cardDragActive = false;
+    // Resolved before any controller call below can move it -- lets the
+    // final table-drop branch tell "played from hand" apart from "just
+    // repositioned an already-on-the-table card" for SoundEffect.playCard,
+    // without needing pickupCandidates (which may not include hand cards)
+    // to carry that distinction itself.
+    CardZone? originZone;
+    for (final c in context.read<GameSession>().state.cards) {
+      if (c.instanceId == instanceId) {
+        originZone = c.zone;
+        break;
+      }
+    }
     CardInstance? dragged;
     for (final c in pickupCandidates) {
       if (c.instanceId == instanceId) {
@@ -1556,6 +1581,7 @@ class _TableScreenState extends State<TableScreen>
     // card just moves there instead of piling onto it. (A shared zone is no
     // longer a free-table proximity target at all -- it's only reachable via
     // [_dockedZoneIdAt] above, exactly like an owned zone.)
+    if (originZone == CardZone.hand) SoundService.instance.play(SoundEffect.playCard);
     if (target != null && altHeld) {
       widget.controller.stackCard(instanceId, target.instanceId);
     } else {
@@ -2356,7 +2382,7 @@ class _TableScreenState extends State<TableScreen>
                       _handleCardDragPreviewUpdate([top], globalPos),
             onShuffle: cards.isEmpty || !zone.shuffleable
                 ? null
-                : () => widget.controller.shuffleZone(zone.id),
+                : () => _shuffleZone(zone.id),
             isBeingSearched: isBeingSearched,
             cardBacks: widget.cardBacks,
             borderColor: borderColor,
@@ -2532,7 +2558,7 @@ class _TableScreenState extends State<TableScreen>
                       _handleCardDragPreviewUpdate([top], globalPos),
             onShuffle: cards.isEmpty || !zone.shuffleable
                 ? null
-                : () => widget.controller.shuffleZone(zone.id),
+                : () => _shuffleZone(zone.id),
             isBeingSearched: isBeingSearched,
             cardBacks: widget.cardBacks,
             onHover: top == null
@@ -3471,10 +3497,9 @@ class _TableScreenState extends State<TableScreen>
                                                             }
                                                           },
                                                           onShuffle: () =>
-                                                              widget.controller
-                                                                  .shufflePile(
-                                                                    group.key,
-                                                                  ),
+                                                              _shufflePile(
+                                                                group.key,
+                                                              ),
                                                           isMirrored:
                                                               cardFacesAwayFromMe(
                                                                 top.ownerId,

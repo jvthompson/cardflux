@@ -29,7 +29,7 @@ class PracticeGameScreen extends StatefulWidget {
 
   final GameDefinition game;
   final List<PlayerInfo> players;
-  final Map<String, Map<String, DeckConfig>>? deckConfigsByPlayerId;
+  final Map<String, DeckConfig>? deckConfigsByPlayerId;
 
   /// The real player's own avatar -- only ever shown for seat 1 (see
   /// `TableScreen._avatarCorner`'s `isLocal`, which stays anchored to

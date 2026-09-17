@@ -67,6 +67,12 @@ class GameDefinition {
   /// for a game with no such zone (e.g. Standard 52).
   List<ZoneDefinition> get deckBuildingZones => zones.where((z) => !z.shared && z.dealsBuiltDeck).toList();
 
+  /// Every distinct [ZoneDefinition.deckType] declared across
+  /// [deckBuildingZones] -- the subdeck names a player's chosen [DeckConfig]
+  /// must be able to supply (see [DeckConfig.subdecks]). Deduped, since more
+  /// than one zone can share a type.
+  Set<String> get deckTypes => {for (final z in deckBuildingZones) z.deckType};
+
   /// Whether starting this game requires each player to pick their own
   /// deck(s) on the Load Deck screen first -- true iff [deckBuildingZones]
   /// is non-empty. A game with no such zone (e.g. Standard 52, whose only
