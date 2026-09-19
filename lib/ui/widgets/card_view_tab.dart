@@ -13,6 +13,7 @@ import '../../models/tag_group.dart';
 import 'card_back_widget.dart';
 import 'card_detail_panel.dart';
 import 'card_face_widget.dart' show CardFaceWidget, cardHeight, cardWidth, orientationQuarterTurns;
+import 'card_sort_menu.dart';
 import 'multi_select_filter_menu.dart';
 
 const Uuid _uuid = Uuid();
@@ -84,14 +85,15 @@ class _CardViewTabState extends State<CardViewTab> with AutomaticKeepAliveClient
   double _poolFraction = 0.5;
   double _previewFraction = 0.25;
 
-  /// Per-group set of which of that group's tags currently show in the pool,
-  /// keyed by [TagGroup.id] -- every tag starts selected. Unlike the Deck
-  /// Editor's equivalent, this can't be `late final`: tag groups are editable
-  /// live in the Game Settings tab while this tab's `State` stays alive in
-  /// the background, so newly added groups/tags need to default to selected
-  /// too (see [didUpdateWidget]).
+  /// Per-group set of which of that group's tags are actively selected to
+  /// narrow the pool, keyed by [TagGroup.id] -- every group starts empty
+  /// ("no restriction from this group"; see [_isTagVisible]). Unlike the Deck
+  /// Editor's equivalent, this can't be `late final` assigned once and left
+  /// alone: tag groups are editable live in the Game Settings tab while this
+  /// tab's `State` stays alive in the background, so stale entries for
+  /// deleted groups/tags need pruning (see [didUpdateWidget]).
   late final Map<String, Set<String>> _selectedTagsByGroup = {
-    for (final g in widget.tagGroups) g.id: g.tags.toSet(),
+    for (final g in widget.tagGroups) g.id: <String>{},
   };
 
   /// Per-group set of which of that group's tags are actively excluded --
@@ -103,9 +105,14 @@ class _CardViewTabState extends State<CardViewTab> with AutomaticKeepAliveClient
     for (final g in widget.tagGroups) g.id: <String>{},
   };
 
-  /// Which of [CardViewTab.sets] currently show in the pool -- every set
-  /// starts selected, same rationale/sync as [_selectedTagsByGroup].
-  late final Set<String> _selectedSetIds = widget.sets.map((s) => s.id).toSet();
+  /// Which of [CardViewTab.sets] are actively selected to narrow the pool --
+  /// starts empty ("no restriction"; see [_isSetVisible]), same rationale/
+  /// sync as [_selectedTagsByGroup].
+  late final Set<String> _selectedSetIds = {};
+
+  /// Current sort key for the pool -- `null` means the original/unsorted
+  /// pool order. See [sortCardDefinitions].
+  String? _sortKey;
 
   /// Ids of [TagGroup]s whose tag-chip section is currently collapsed on the
   /// [CardDetailPanel] form -- session-level UI state only (not part of the
@@ -117,54 +124,58 @@ class _CardViewTabState extends State<CardViewTab> with AutomaticKeepAliveClient
   void didUpdateWidget(CardViewTab oldWidget) {
     super.didUpdateWidget(oldWidget);
     _hiddenDetailTagGroupIds.removeWhere((id) => !widget.tagGroups.any((g) => g.id == id));
+    final groupIds = widget.tagGroups.map((g) => g.id).toSet();
+    _selectedTagsByGroup.removeWhere((id, _) => !groupIds.contains(id));
+    _excludedTagsByGroup.removeWhere((id, _) => !groupIds.contains(id));
     for (final group in widget.tagGroups) {
-      final selected = _selectedTagsByGroup[group.id];
-      if (selected == null) {
-        _selectedTagsByGroup[group.id] = group.tags.toSet();
-      } else {
-        TagGroup? oldGroup;
-        for (final g in oldWidget.tagGroups) {
-          if (g.id == group.id) {
-            oldGroup = g;
-            break;
-          }
-        }
-        for (final tag in group.tags) {
-          if (oldGroup == null || !oldGroup.tags.contains(tag)) selected.add(tag);
-        }
-      }
-      _excludedTagsByGroup.putIfAbsent(group.id, () => <String>{});
+      final tagIds = group.tags.toSet();
+      _selectedTagsByGroup.putIfAbsent(group.id, () => <String>{}).retainWhere(tagIds.contains);
+      _excludedTagsByGroup.putIfAbsent(group.id, () => <String>{}).retainWhere(tagIds.contains);
     }
-    for (final set in widget.sets) {
-      if (!oldWidget.sets.any((s) => s.id == set.id)) _selectedSetIds.add(set.id);
+    final setIds = widget.sets.map((s) => s.id).toSet();
+    _selectedSetIds.retainWhere(setIds.contains);
+    if (_sortKey != null &&
+        _sortKey != cardSortBySet &&
+        _sortKey != cardSortByName &&
+        !groupIds.contains(_sortKey)) {
+      _sortKey = null;
     }
   }
 
-  /// Every currently-selected tag across every group, combined -- a card is
-  /// tag-visible if it has *any* one of these, regardless of which group
-  /// that tag or the card's other tags belong to. Groups only partition the
-  /// filter *buttons*; they don't each independently gate a card, since a
-  /// card commonly has tags spanning several groups at once (e.g. a
-  /// Character card that's also a Dunadan and a Scout) and requiring it to
-  /// match every group separately would hide it as soon as any one group's
-  /// selection didn't happen to include one of its tags.
-  Set<String> get _allSelectedTags => {for (final s in _selectedTagsByGroup.values) ...s};
-
   /// Every currently-excluded tag across every group, combined -- a card
-  /// with *any* one of these is hidden outright, taking priority over
-  /// [_allSelectedTags] (see [_isTagVisible]).
+  /// with *any* one of these is hidden outright, regardless of any group's
+  /// selection (see [_isTagVisible]).
   Set<String> get _allExcludedTags => {for (final s in _excludedTagsByGroup.values) ...s};
 
+  /// A card is tag-visible unless some group's active selection excludes it.
+  /// Within a group, a non-empty selection means OR: the card must have at
+  /// least one of that group's selected tags -- *unless* the card has none of
+  /// that group's tags at all, in which case that group doesn't apply to it
+  /// (mirrors [CardDefinition.types]' own "a card with no tags in a given
+  /// group is never hidden by that group's filter" contract). Across groups
+  /// this is AND: every group with an active selection must independently be
+  /// satisfied. An empty selection in every group means no filtering at all.
   bool _isTagVisible(CardDefinition card) {
     if (card.types.any(_allExcludedTags.contains)) return false;
-    return widget.tagGroups.isEmpty || card.types.isEmpty || card.types.any(_allSelectedTags.contains);
+    for (final group in widget.tagGroups) {
+      final selected = _selectedTagsByGroup[group.id];
+      if (selected == null || selected.isEmpty) continue;
+      final cardTagsInGroup = card.types.where(group.tags.contains);
+      if (cardTagsInGroup.isEmpty) continue;
+      if (!cardTagsInGroup.any(selected.contains)) return false;
+    }
+    return true;
   }
 
   bool _isSetVisible(CardDefinition card) =>
-      widget.sets.isEmpty || card.setId == null || _selectedSetIds.contains(card.setId);
+      _selectedSetIds.isEmpty || card.setId == null || _selectedSetIds.contains(card.setId);
 
-  List<CardDefinition> get _visibleCards =>
-      widget.cards.where((c) => _isSetVisible(c) && _isTagVisible(c)).toList();
+  List<CardDefinition> get _visibleCards => sortCardDefinitions(
+        widget.cards.where((c) => _isSetVisible(c) && _isTagVisible(c)).toList(),
+        sortKey: _sortKey,
+        sets: widget.sets,
+        tagGroups: widget.tagGroups,
+      );
 
   @override
   void dispose() {
@@ -221,7 +232,11 @@ class _CardViewTabState extends State<CardViewTab> with AutomaticKeepAliveClient
   }
 
   void _addBlankCard() {
-    final setId = _selectedSetIds.length == 1 ? _selectedSetIds.first : null;
+    // With no explicit Set filter narrowing the pool, fall back to the
+    // game's full set list -- so a single-set game still auto-assigns new
+    // cards to that one set by default.
+    final candidateSetIds = _selectedSetIds.isNotEmpty ? _selectedSetIds : widget.sets.map((s) => s.id).toSet();
+    final setId = candidateSetIds.length == 1 ? candidateSetIds.first : null;
     final newCard = CardDefinition(id: _uuid.v4(), cardTitle: 'New Card', setId: setId);
     widget.onCardsChanged([...widget.cards, newCard]);
     setState(() => _selectedCardId = newCard.id);
@@ -231,17 +246,15 @@ class _CardViewTabState extends State<CardViewTab> with AutomaticKeepAliveClient
     widget.onCardsChanged([for (final c in widget.cards) if (c.id == updated.id) updated else c]);
   }
 
-  /// Resets every Set/Type filter to fully permissive -- every option
-  /// selected, nothing excluded -- i.e. "no filtering in effect." An empty
-  /// selection would instead hide every card that has tags (see
-  /// [_isTagVisible]), so "off" means select-all, not select-none.
+  /// Resets every Set/Type filter to fully permissive -- nothing selected,
+  /// nothing excluded, i.e. "no filtering in effect" (see [_isTagVisible],
+  /// [_isSetVisible]). Doesn't touch [_sortKey]: sorting is independent of
+  /// filtering.
   void _clearFilters() {
     setState(() {
-      _selectedSetIds
-        ..clear()
-        ..addAll(widget.sets.map((s) => s.id));
+      _selectedSetIds.clear();
       for (final group in widget.tagGroups) {
-        _selectedTagsByGroup[group.id] = group.tags.toSet();
+        _selectedTagsByGroup[group.id]!.clear();
         _excludedTagsByGroup[group.id]!.clear();
       }
     });
@@ -311,6 +324,15 @@ class _CardViewTabState extends State<CardViewTab> with AutomaticKeepAliveClient
                     }
                   }),
                 ),
+              CardSortMenu(
+                options: [
+                  if (widget.sets.isNotEmpty) (id: cardSortBySet, name: 'Set'),
+                  (id: cardSortByName, name: 'Name (A-Z)'),
+                  for (final group in nonEmptyGroups) (id: group.id, name: group.name),
+                ],
+                selectedId: _sortKey,
+                onSelected: (id) => setState(() => _sortKey = id),
+              ),
             ],
           ),
         ],

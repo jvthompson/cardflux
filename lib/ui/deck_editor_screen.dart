@@ -15,6 +15,7 @@ import '../models/game_definition.dart';
 import '../models/tag_group.dart';
 import 'widgets/card_back_widget.dart';
 import 'widgets/card_face_widget.dart';
+import 'widgets/card_sort_menu.dart';
 import 'widgets/move_library_prompt.dart';
 import 'widgets/multi_select_filter_menu.dart';
 
@@ -424,13 +425,14 @@ class _DeckEditorScreenState extends State<DeckEditorScreen> {
   Map<String, int> get _activeQuantities => _quantitiesBySlot[_activeDeckType]!;
   String? _hoveredDefinitionId;
 
-  /// Per-group set of which of that group's tags currently show in the pool,
-  /// keyed by [TagGroup.id] -- every tag starts selected (nothing hidden).
-  /// A game's [GameDefinition.tagGroups] here is fixed for this screen's
-  /// lifetime (unlike the Game Definition Editor's Card View tab), so this
-  /// can be a plain `late final` seeded once, no `didUpdateWidget` sync.
+  /// Per-group set of which of that group's tags are actively selected to
+  /// narrow the pool, keyed by [TagGroup.id] -- every group starts empty
+  /// ("no restriction from this group"; see [_isVisible]). A game's
+  /// [GameDefinition.tagGroups] here is fixed for this screen's lifetime
+  /// (unlike the Game Definition Editor's Card View tab), so this can be a
+  /// plain `late final` seeded once, no `didUpdateWidget` sync.
   late final Map<String, Set<String>> _selectedTagsByGroup = {
-    for (final g in widget.game.tagGroups) g.id: g.tags.toSet(),
+    for (final g in widget.game.tagGroups) g.id: <String>{},
   };
 
   /// Per-group set of which of that group's tags are actively excluded --
@@ -442,10 +444,15 @@ class _DeckEditorScreenState extends State<DeckEditorScreen> {
     for (final g in widget.game.tagGroups) g.id: <String>{},
   };
 
-  /// Which of [GameDefinition.sets] currently show in the pool -- every set
-  /// starts selected. Ignored entirely when the game declares no sets at
-  /// all, in which case the filter bar doesn't render.
-  late final Set<String> _selectedSetIds = widget.game.sets.map((s) => s.id).toSet();
+  /// Which of [GameDefinition.sets] are actively selected to narrow the pool
+  /// -- starts empty ("no restriction"; see [_isVisible]). Ignored entirely
+  /// when the game declares no sets at all, in which case the filter bar
+  /// doesn't render.
+  late final Set<String> _selectedSetIds = {};
+
+  /// Current sort key for the pool -- `null` means the original/unsorted
+  /// pool order. See [sortCardDefinitions].
+  String? _sortKey;
 
   /// Case-insensitive substring search against card title and ID, combined
   /// with the tag/set filters in [_isVisible]; empty means no search filter.
@@ -461,34 +468,46 @@ class _DeckEditorScreenState extends State<DeckEditorScreen> {
 
   int get _totalCards => _activeQuantities.values.fold(0, (a, b) => a + b);
 
-  /// Every currently-selected tag across every group, combined -- a card is
-  /// tag-visible if it has *any* one of these, regardless of which group
-  /// that tag or the card's other tags belong to. Groups only partition the
-  /// filter *buttons*; they don't each independently gate a card, since a
-  /// card commonly has tags spanning several groups at once (e.g. a
-  /// Character card that's also a Dunadan and a Scout) and requiring it to
-  /// match every group separately would hide it as soon as any one group's
-  /// selection didn't happen to include one of its tags.
-  Set<String> get _allSelectedTags => {for (final s in _selectedTagsByGroup.values) ...s};
-
   /// Every currently-excluded tag across every group, combined -- a card
-  /// with *any* one of these is hidden outright, taking priority over
-  /// [_allSelectedTags] (see [_isVisible]).
+  /// with *any* one of these is hidden outright, regardless of any group's
+  /// selection (see [_isVisible]).
   Set<String> get _allExcludedTags => {for (final s in _excludedTagsByGroup.values) ...s};
 
-  /// A card with no tags at all is never hidden by the tag filters, and a
-  /// card with no set is never hidden by the set filter.
+  /// A card is tag-visible unless some group's active selection excludes it.
+  /// Within a group, a non-empty selection means OR: the card must have at
+  /// least one of that group's selected tags -- *unless* the card has none of
+  /// that group's tags at all, in which case that group doesn't apply to it
+  /// (mirrors [CardDefinition.types]' own "a card with no tags in a given
+  /// group is never hidden by that group's filter" contract). Across groups
+  /// this is AND: every group with an active selection must independently be
+  /// satisfied. An empty selection in every group means no filtering at all,
+  /// and a card with no set is never hidden by the set filter.
   bool _isVisible(CardDefinition card) {
     if (card.types.any(_allExcludedTags.contains)) return false;
-    final tagsOk = widget.game.tagGroups.isEmpty || card.types.isEmpty || card.types.any(_allSelectedTags.contains);
-    final setOk = widget.game.sets.isEmpty || card.setId == null || _selectedSetIds.contains(card.setId);
+    var tagsOk = true;
+    for (final group in widget.game.tagGroups) {
+      final selected = _selectedTagsByGroup[group.id];
+      if (selected == null || selected.isEmpty) continue;
+      final cardTagsInGroup = card.types.where(group.tags.contains);
+      if (cardTagsInGroup.isEmpty) continue;
+      if (!cardTagsInGroup.any(selected.contains)) {
+        tagsOk = false;
+        break;
+      }
+    }
+    final setOk = _selectedSetIds.isEmpty || card.setId == null || _selectedSetIds.contains(card.setId);
     final query = _searchQuery.trim().toLowerCase();
     final searchOk =
         query.isEmpty || card.cardTitle.toLowerCase().contains(query) || card.id.toLowerCase().contains(query);
     return tagsOk && setOk && searchOk;
   }
 
-  List<CardDefinition> get _visibleCards => widget.game.cards.where(_isVisible).toList();
+  List<CardDefinition> get _visibleCards => sortCardDefinitions(
+        widget.game.cards.where(_isVisible).toList(),
+        sortKey: _sortKey,
+        sets: widget.game.sets,
+        tagGroups: widget.game.tagGroups,
+      );
 
   void _addCopy(String definitionId) {
     setState(() => _activeQuantities[definitionId] = (_activeQuantities[definitionId] ?? 0) + 1);
@@ -573,17 +592,14 @@ class _DeckEditorScreenState extends State<DeckEditorScreen> {
     });
   }
 
-  /// Resets every Set/Type filter to fully permissive -- every option
-  /// selected, nothing excluded -- i.e. "no filtering in effect." An empty
-  /// selection would instead hide every card that has tags (see
-  /// [_isVisible]), so "off" means select-all, not select-none.
+  /// Resets every Set/Type filter to fully permissive -- nothing selected,
+  /// nothing excluded, i.e. "no filtering in effect" (see [_isVisible]).
+  /// Doesn't touch [_sortKey]: sorting is independent of filtering.
   void _clearFilters() {
     setState(() {
-      _selectedSetIds
-        ..clear()
-        ..addAll(widget.game.sets.map((s) => s.id));
+      _selectedSetIds.clear();
       for (final group in widget.game.tagGroups) {
-        _selectedTagsByGroup[group.id] = group.tags.toSet();
+        _selectedTagsByGroup[group.id]!.clear();
         _excludedTagsByGroup[group.id]!.clear();
       }
     });
@@ -655,6 +671,15 @@ class _DeckEditorScreenState extends State<DeckEditorScreen> {
                     }
                   }),
                 ),
+              CardSortMenu(
+                options: [
+                  if (widget.game.sets.isNotEmpty) (id: cardSortBySet, name: 'Set'),
+                  (id: cardSortByName, name: 'Name (A-Z)'),
+                  for (final group in nonEmptyGroups) (id: group.id, name: group.name),
+                ],
+                selectedId: _sortKey,
+                onSelected: (id) => setState(() => _sortKey = id),
+              ),
             ],
           ),
         ],

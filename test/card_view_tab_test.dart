@@ -6,16 +6,16 @@ import 'package:flutter_deck/ui/widgets/card_view_tab.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  // Regression test for a real bug: a card with tags spanning multiple tag
-  // groups (e.g. a METW Character card that's also a Dunadan and a Scout)
-  // was being hidden as soon as ANY one of its groups had that particular
-  // tag deselected, even though a different group's filter still matched.
-  // Tag-group filters must OR together across every selected tag globally,
-  // not AND independently per group.
-  testWidgets('a card with tags in two groups stays visible if only one of its tags is selected', (tester) async {
+  // Filters start cleared (nothing selected anywhere) and show everything.
+  // Selecting a tag in one group narrows the pool to cards having a tag from
+  // that group (OR within the group); selecting a tag in a *different* group
+  // narrows further (AND across groups) -- except for a card that has none
+  // of that group's tags at all, which that group's filter doesn't apply to.
+  testWidgets('tag filters start cleared, OR within a group, AND across groups', (tester) async {
     const cardTypeGroup = TagGroup(id: 'card_type', name: 'Card Type', tags: ['Character', 'Resource']);
     const raceGroup = TagGroup(id: 'race', name: 'Race', tags: ['Dunadan', 'Elf']);
     const adrazar = CardDefinition(id: 'adrazar', cardTitle: 'Adrazar', types: ['Character', 'Dunadan']);
+    const merry = CardDefinition(id: 'merry', cardTitle: 'Merry', types: ['Character', 'Elf']);
     const untagged = CardDefinition(id: 'blank', cardTitle: 'Untagged Card');
 
     await tester.pumpWidget(
@@ -23,7 +23,7 @@ void main() {
         home: Scaffold(
           body: CardViewTab(
             folderPath: '.',
-            cards: const [adrazar, untagged],
+            cards: const [adrazar, merry, untagged],
             sets: const [],
             tagGroups: const [cardTypeGroup, raceGroup],
             cardBacks: const [],
@@ -35,38 +35,69 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    // Deselect every Race tag (leaving Card Type's "Character" the only tag
-    // selected anywhere) via that group's Select All / Deselect All toggle.
-    await tester.tap(find.text('Race (2)'));
+    // Nothing selected anywhere -- everything shows, and the buttons read
+    // "(0)" to reflect that no restriction is active.
+    expect(find.text('Card Type (0)'), findsOneWidget);
+    expect(find.text('Race (0)'), findsOneWidget);
+    expect(find.text('Adrazar'), findsWidgets);
+    expect(find.text('Merry'), findsWidgets);
+    expect(find.text('Untagged Card'), findsWidgets);
+
+    // Select "Dunadan" in Race -- only cards with a Race tag are now subject
+    // to this filter; Adrazar (Dunadan) stays, Merry (Elf) is hidden, and the
+    // untagged card (no Race tag at all) is exempt from this group's filter.
+    await tester.tap(find.text('Race (0)'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Deselect All'));
+    await tester.tap(find.text('Dunadan'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Race (0)')); // close the menu
+    await tester.tap(find.text('Race (1)')); // close the menu
     await tester.pumpAndSettle();
 
     expect(tester.takeException(), isNull);
-    // Adrazar has "Dunadan" (deselected in Race) but also "Character"
-    // (still selected in Card Type) -- it must still show.
     expect(find.text('Adrazar'), findsWidgets);
-    // A card with no tags at all is never hidden by tag filters.
+    expect(find.text('Merry'), findsNothing);
     expect(find.text('Untagged Card'), findsWidgets);
 
-    // Now also deselect Card Type entirely -- with nothing selected in any
-    // group, Adrazar (which has tags) must disappear, but the untagged card
-    // must still show.
-    await tester.tap(find.text('Card Type (2)'));
+    // Also select "Elf" in Race (OR within the group) -- Merry comes back.
+    await tester.tap(find.text('Race (1)'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Deselect All'));
+    await tester.tap(find.text('Elf'));
     await tester.pumpAndSettle();
+    await tester.tap(find.text('Race (2)'));
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('Adrazar'), findsWidgets);
+    expect(find.text('Merry'), findsWidgets);
+
+    // Now also select "Resource" in Card Type (AND across groups) -- neither
+    // Adrazar nor Merry has a Resource tag, so both drop out even though
+    // Race still matches; the untagged card is exempt from both groups.
     await tester.tap(find.text('Card Type (0)'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Resource'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Card Type (1)'));
     await tester.pumpAndSettle();
 
     expect(tester.takeException(), isNull);
     expect(find.text('Adrazar'), findsNothing);
+    expect(find.text('Merry'), findsNothing);
+    expect(find.text('Untagged Card'), findsWidgets);
+
+    // "Clear Filters" restores the cleared, show-everything state.
+    await tester.tap(find.text('Clear Filters'));
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('Card Type (0)'), findsOneWidget);
+    expect(find.text('Race (0)'), findsOneWidget);
+    expect(find.text('Adrazar'), findsWidgets);
+    expect(find.text('Merry'), findsWidgets);
     expect(find.text('Untagged Card'), findsWidgets);
   });
 
-  testWidgets('excluding a tag hides a card even though it also has an included tag from another group', (tester) async {
+  testWidgets('excluding a tag hides a card even with no inclusion filter active', (tester) async {
     const cardTypeGroup = TagGroup(id: 'card_type', name: 'Card Type', tags: ['Character', 'Resource']);
     const raceGroup = TagGroup(id: 'race', name: 'Race', tags: ['Dunadan', 'Elf']);
     const adrazar = CardDefinition(id: 'adrazar', cardTitle: 'Adrazar', types: ['Character', 'Dunadan']);
@@ -89,12 +120,13 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    // Everything starts included, so Adrazar shows to begin with.
+    // No filters are active yet, so Adrazar shows to begin with.
     expect(find.text('Adrazar'), findsWidgets);
 
-    // Exclude "Dunadan" in the Race group -- Adrazar still has "Character"
-    // included in Card Type, but the exclude veto must win regardless.
-    await tester.tap(find.text('Race (2)'));
+    // Exclude "Dunadan" in the Race group -- no group has an active
+    // *inclusion* selection, but the exclude veto is independent and wins
+    // regardless.
+    await tester.tap(find.text('Race (0)'));
     await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('Exclude cards with this tag').first); // Dunadan is first
     await tester.pumpAndSettle();
