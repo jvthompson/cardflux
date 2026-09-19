@@ -2,6 +2,7 @@ import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
+import 'package:window_manager/window_manager.dart';
 
 import '../data/game_definition_file_ops.dart' show imageFileTypes;
 import '../data/player_avatar_file_ops.dart';
@@ -215,6 +216,13 @@ class _HomeScreenState extends State<HomeScreen> {
               tooltip: controller.isDarkMode ? 'Switch to light mode' : 'Switch to dark mode',
               onPressed: () => controller.setDarkMode(!controller.isDarkMode),
             ),
+          ),
+          // The app runs fullscreen (see main.dart) with no native window
+          // chrome, so there's otherwise no way to quit it.
+          IconButton(
+            icon: const Icon(Icons.close),
+            tooltip: 'Close Cardflux',
+            onPressed: () => windowManager.close(),
           ),
         ],
       ),
