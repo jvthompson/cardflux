@@ -9,12 +9,15 @@ import '../models/card_definition.dart';
 import '../models/card_instance.dart';
 import '../models/deck_config.dart';
 import '../models/game_definition.dart';
+import '../models/game_set.dart';
 import '../models/log_entry.dart';
+import '../models/pack_setting.dart';
 import '../models/player.dart';
 import '../models/standard_deck.dart';
 import '../models/table_state.dart';
 import '../models/zone_definition.dart';
 import 'drag_preview.dart';
+import 'pack_generator.dart';
 import 'table_actions.dart';
 
 const _uuid = Uuid();
@@ -831,6 +834,46 @@ class GameSession extends ChangeNotifier {
     final name = card != null && _isPubliclyVisible(card) ? _definitionsById[card.definitionId]?.cardTitle : null;
     final cardText = name != null ? '"$name"' : 'a card';
     _log(actingPlayerId, 'attached $kindLabel to $cardText.');
+    notifyListeners();
+  }
+
+  /// Deals a randomly-generated "pack" of cards from set [setId] straight
+  /// into [actingPlayerId]'s hand -- see [selectPackCards] for the
+  /// selection rules (this set's own [GameSet.packSettings], or
+  /// [defaultPackCardCount] random cards if none are configured). Cards are
+  /// freshly minted [CardInstance]s (like [dealFromZones]'s initial deal),
+  /// not drawn from any existing pile -- a pack can be generated repeatedly
+  /// without depleting anything. A no-op (aside from the log entry) if the
+  /// set has no matching cards.
+  void generatePack(String setId, {required String actingPlayerId}) {
+    GameSet? matchingSet;
+    for (final s in game.sets) {
+      if (s.id == setId) {
+        matchingSet = s;
+        break;
+      }
+    }
+    final setCards = game.cards.where((c) => c.setId == setId).toList();
+    final selected = selectPackCards(setCards, packSettings: matchingSet?.packSettings ?? const <PackSetting>[]);
+
+    final newCards = [
+      for (final def in selected)
+        CardInstance(
+          instanceId: _uuid.v4(),
+          definitionId: def.id,
+          x: 0.5,
+          y: 0.5,
+          zIndex: 0,
+          faceUp: true,
+          zone: CardZone.hand,
+          ownerId: actingPlayerId,
+          unownable: def.unownable,
+        ),
+    ];
+    _state = _actions.dealNewCards(_state, newCards: newCards);
+
+    final setName = matchingSet?.name ?? setId;
+    _log(actingPlayerId, 'generated a pack from the $setName set.');
     notifyListeners();
   }
 

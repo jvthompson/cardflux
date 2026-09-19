@@ -501,6 +501,26 @@ class TableActions {
     return state.copyWith(cards: cards, revision: state.revision + 1);
   }
 
+  /// Appends freshly-minted [newCards] to the table -- e.g. cards generated
+  /// by `GameSession.generatePack`. Unlike every other method in this
+  /// class, these are brand-new [CardInstance]s, not existing ones being
+  /// moved (see `GameSession.dealFromZones`'s inner `deal()` for the same
+  /// "mint fresh instances" idea at match-start time). Each of [newCards]
+  /// gets its own fresh, ascending zIndex starting at the table's current
+  /// running max, in list order -- their own `zIndex` as passed in is
+  /// ignored. A no-op if [newCards] is empty.
+  TableState dealNewCards(
+    TableState state, {
+    required List<CardInstance> newCards,
+  }) {
+    if (newCards.isEmpty) return state;
+    final baseZ = _nextZIndex(state);
+    final zIndexed = [
+      for (var i = 0; i < newCards.length; i++) newCards[i].copyWith(zIndex: baseZ + i),
+    ];
+    return state.copyWith(cards: [...state.cards, ...zIndexed], revision: state.revision + 1);
+  }
+
   /// Returns [instanceId] to the zone [zoneId] (owned by [zoneOwnerId], null
   /// for a shared zone) -- detached from wherever it was (hand, table,
   /// another zone), landing with the zone's own ownership ([zoneOwnerId])

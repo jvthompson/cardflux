@@ -8,6 +8,7 @@ import 'package:flutter_deck/models/deck_config.dart';
 import 'package:flutter_deck/models/game_definition.dart';
 import 'package:flutter_deck/models/game_set.dart';
 import 'package:flutter_deck/models/log_entry.dart';
+import 'package:flutter_deck/models/pack_setting.dart';
 import 'package:flutter_deck/models/player.dart';
 import 'package:flutter_deck/models/saved_game.dart';
 import 'package:flutter_deck/models/table_state.dart';
@@ -411,6 +412,18 @@ void main() {
       );
       final roundTripped = BoardWidgetInstance.fromJson(instance.toJson());
       expect(roundTripped.kind, BoardWidgetKind.token);
+    });
+
+    test('packGenerator kind round-trips through JSON', () {
+      final instance = BoardWidgetInstance(
+        instanceId: 'w1',
+        kind: BoardWidgetKind.packGenerator,
+        x: 0.2,
+        y: 0.3,
+        zIndex: 0,
+      );
+      final roundTripped = BoardWidgetInstance.fromJson(instance.toJson());
+      expect(roundTripped.kind, BoardWidgetKind.packGenerator);
     });
 
     test('x2/y2/creatorId default to null, are omitted from JSON, and round-trip a value', () {
@@ -899,7 +912,11 @@ void main() {
           id: 'g1',
           name: 'G',
           sets: [
-            GameSet(id: 's1', name: 'Set One'),
+            GameSet(
+              id: 's1',
+              name: 'Set One',
+              packSettings: [PackSetting(tag: 'Rare', count: 1)],
+            ),
             GameSet(id: 's2', name: 'Set Two'),
           ],
           cards: [
@@ -915,10 +932,16 @@ void main() {
         expect(setsJson, hasLength(2));
         final firstSetCards = (setsJson[0] as Map)['cards'] as List;
         expect((firstSetCards.single as Map).containsKey('setId'), isFalse);
+        expect((setsJson[0] as Map)['packSettings'], isNotNull);
+        expect((setsJson[1] as Map).containsKey('packSettings'), isFalse);
 
         final roundTripped = GameDefinition.fromJson(json);
         expect(roundTripped.sets.map((s) => s.id), ['s1', 's2']);
         expect(roundTripped.sets.map((s) => s.name), ['Set One', 'Set Two']);
+        expect(roundTripped.sets[0].packSettings, hasLength(1));
+        expect(roundTripped.sets[0].packSettings.single.tag, 'Rare');
+        expect(roundTripped.sets[0].packSettings.single.count, 1);
+        expect(roundTripped.sets[1].packSettings, isEmpty);
         expect(roundTripped.cards, hasLength(2));
         expect(roundTripped.cards[0].setId, 's1');
         expect(roundTripped.cards[1].setId, 's2');
@@ -932,6 +955,33 @@ void main() {
       final roundTripped = GameSet.fromJson(set.toJson());
       expect(roundTripped.id, 'core_set');
       expect(roundTripped.name, 'The Wizards');
+      expect(roundTripped.packSettings, isEmpty);
+    });
+
+    test('packSettings round-trips through JSON', () {
+      const set = GameSet(
+        id: 'core_set',
+        name: 'The Wizards',
+        packSettings: [PackSetting(tag: 'Common', count: 10), PackSetting(tag: 'Rare', count: 1)],
+      );
+      final roundTripped = GameSet.fromJson(set.toJson());
+      expect(roundTripped.packSettings, hasLength(2));
+      expect(roundTripped.packSettings[0].tag, 'Common');
+      expect(roundTripped.packSettings[0].count, 10);
+      expect(roundTripped.packSettings[1].tag, 'Rare');
+      expect(roundTripped.packSettings[1].count, 1);
+    });
+
+    test('copyWith updates only the requested field', () {
+      const set = GameSet(id: 'core_set', name: 'The Wizards');
+      final renamed = set.copyWith(name: 'New Name');
+      expect(renamed.id, 'core_set');
+      expect(renamed.name, 'New Name');
+      expect(renamed.packSettings, isEmpty);
+
+      final withSettings = set.copyWith(packSettings: const [PackSetting(tag: 'Rare', count: 1)]);
+      expect(withSettings.name, 'The Wizards');
+      expect(withSettings.packSettings, hasLength(1));
     });
   });
 

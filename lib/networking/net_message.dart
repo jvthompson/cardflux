@@ -50,6 +50,7 @@ enum NetMessageType {
   requestSetWidgetColors,
   requestDuplicateWidget,
   requestAttachWidgetToCard,
+  requestGeneratePack,
 
   /// The four types below are a third message category, distinct from both
   /// a persisted `requestX` action and a `fullState`/lobby broadcast: a

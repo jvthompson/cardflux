@@ -17,7 +17,16 @@ enum BoardWidgetKind {
   /// [BoardWidgetInstance.creatorId] via double-tap. Unlike every other
   /// kind, this one needs a second point; [value]/colors/attach fields are
   /// all meaningless for it.
-  arrow;
+  arrow,
+
+  /// A neutral, unowned table object showing a game's `packgen.png` image
+  /// (or a text fallback) -- see `PackGeneratorWidget`. Right-clicking it
+  /// lists the game's `GameSet`s; picking one deals a random pack into the
+  /// clicking player's hand (see `GameSession.generatePack`). No numeric
+  /// [value]/colors/attach-to-card concept applies, mirroring [token] --
+  /// which set to draw from is chosen at click-time via the menu, not
+  /// stored on the instance.
+  packGenerator;
 
   static BoardWidgetKind fromName(String name) =>
       BoardWidgetKind.values.byName(name);

@@ -137,8 +137,7 @@ class GameDefinition {
         'sets': [
           for (final s in sets)
             {
-              'id': s.id,
-              'name': s.name,
+              ...s.toJson(),
               'cards': cards
                   .where((c) => c.setId == s.id)
                   .map((c) => c.toJson()..remove('setId'))

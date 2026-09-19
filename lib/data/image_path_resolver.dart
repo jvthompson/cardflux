@@ -96,6 +96,23 @@ String _uniqueCardBackPathFor(String imagePath) {
   return (path: selected?.imagePath, missing: false, orientation: selected?.orientation ?? CardOrientation.portrait);
 }
 
+/// Bare filename every game's optional Pack Generator table-widget image is
+/// expected to be named, if present -- sits alongside `gamedef.json`, never
+/// per-set (see [resolveCardBackImagePath]'s identical existence-check
+/// pattern for another optional per-game asset).
+const String packGeneratorImageFileName = 'packgen.png';
+
+/// Absolute path to [folderPath]'s `packgen.png`, or null if that file
+/// doesn't exist -- the "does this optional per-game asset exist" check
+/// `PackGeneratorWidget` needs before deciding whether to render the image
+/// or fall back to text. Null [folderPath] (e.g. the bundled standard-52
+/// game, which has no real on-disk folder) always returns null.
+String? resolvePackGeneratorImagePath(String? folderPath) {
+  if (folderPath == null) return null;
+  final candidate = '$folderPath${Platform.pathSeparator}$packGeneratorImageFileName';
+  return File(candidate).existsSync() ? candidate : null;
+}
+
 /// Keeps [remote]'s card/zone/rule data (the session's source of truth --
 /// matters if the host is running a customized/homebrew variant) but
 /// substitutes each card's `imagePath`, and every declared card back's own

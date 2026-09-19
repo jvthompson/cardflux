@@ -38,6 +38,7 @@ import 'widgets/game_menu_overlay.dart';
 import 'widgets/hand_zone_widget.dart';
 import 'widgets/opponent_hand_zone_widget.dart';
 import 'widgets/opponent_zone_stack_widget.dart';
+import 'widgets/pack_generator_widget.dart';
 import 'widgets/pile_widget.dart';
 import 'widgets/token_widget.dart';
 import 'widgets/zone_search_overlay.dart';
@@ -1246,6 +1247,12 @@ class _TableScreenState extends State<TableScreen>
           onSecondaryTapUp: (_) {},
           interactable: false,
         ),
+        BoardWidgetKind.packGenerator => PackGeneratorWidget(
+          instance: w,
+          imagePath: resolvePackGeneratorImagePath(context.read<GameSession>().game.folderPath),
+          onSecondaryTapUp: (_) {},
+          interactable: false,
+        ),
         BoardWidgetKind.arrow => const SizedBox.shrink(),
       },
     );
@@ -1258,6 +1265,7 @@ class _TableScreenState extends State<TableScreen>
   (double, double) _widgetSize(BoardWidgetKind kind) => switch (kind) {
     BoardWidgetKind.simpleCounter => (counterWidgetWidth, counterWidgetHeight),
     BoardWidgetKind.token => (tokenWidgetSize, tokenWidgetSize),
+    BoardWidgetKind.packGenerator => (counterWidgetWidth, counterWidgetHeight),
     BoardWidgetKind.arrow => (0.0, 0.0),
   };
 
@@ -2066,6 +2074,7 @@ class _TableScreenState extends State<TableScreen>
           child: Text('Simple Counter'),
         ),
         PopupMenuItem(value: BoardWidgetKind.token, child: Text('Token')),
+        PopupMenuItem(value: BoardWidgetKind.packGenerator, child: Text('Pack Generator')),
       ],
     );
     if (kind == null || !mounted) return;
@@ -2128,6 +2137,35 @@ class _TableScreenState extends State<TableScreen>
         await _promptSetColors(instance);
       case 'delete':
         widget.controller.deleteWidget(instance.instanceId);
+    }
+  }
+
+  /// Right-clicking a placed [PackGeneratorWidget]: lists every
+  /// `GameDefinition.sets` -- picking one deals a random pack from that set
+  /// into *this* player's hand via `TableController.generatePack`. Unowned
+  /// widget, so this menu is offered to every player regardless of who
+  /// placed it (mirrors [_showCounterMenu]'s shape); Delete removes it
+  /// outright, same as every other free-floating widget.
+  Future<void> _showPackGeneratorMenu(Offset globalPosition, BoardWidgetInstance instance) async {
+    final game = context.read<GameSession>().game;
+    final setId = await showMenu<String>(
+      context: context,
+      position: RelativeRect.fromLTRB(
+        globalPosition.dx,
+        globalPosition.dy,
+        globalPosition.dx,
+        globalPosition.dy,
+      ),
+      items: [
+        for (final set in game.sets) PopupMenuItem(value: set.id, child: Text(set.name)),
+        const PopupMenuItem(value: 'delete', child: Text('Delete')),
+      ],
+    );
+    if (setId == null || !mounted) return;
+    if (setId == 'delete') {
+      widget.controller.deleteWidget(instance.instanceId);
+    } else {
+      widget.controller.generatePack(setId);
     }
   }
 
@@ -3910,6 +3948,34 @@ class _TableScreenState extends State<TableScreen>
                                                           onSecondaryTapUp:
                                                               (globalPos) =>
                                                                   _showTokenMenu(
+                                                                    globalPos,
+                                                                    w,
+                                                                  ),
+                                                          interactable:
+                                                              !_tabPressed,
+                                                        ),
+                                                      BoardWidgetKind
+                                                          .packGenerator =>
+                                                        PackGeneratorWidget(
+                                                          instance: w,
+                                                          imagePath:
+                                                              resolvePackGeneratorImagePath(
+                                                                session
+                                                                    .game
+                                                                    .folderPath,
+                                                              ),
+                                                          onDragEnd: (offset) =>
+                                                              _handleWidgetDragEnd(
+                                                                w.instanceId,
+                                                                offset,
+                                                                widgetWidth:
+                                                                    widgetWidth,
+                                                                widgetHeight:
+                                                                    widgetHeight,
+                                                              ),
+                                                          onSecondaryTapUp:
+                                                              (globalPos) =>
+                                                                  _showPackGeneratorMenu(
                                                                     globalPos,
                                                                     w,
                                                                   ),

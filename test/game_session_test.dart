@@ -5,6 +5,8 @@ import 'package:flutter_deck/models/card_definition.dart';
 import 'package:flutter_deck/models/card_instance.dart';
 import 'package:flutter_deck/models/deck_config.dart';
 import 'package:flutter_deck/models/game_definition.dart';
+import 'package:flutter_deck/models/game_set.dart';
+import 'package:flutter_deck/models/pack_setting.dart';
 import 'package:flutter_deck/models/player.dart';
 import 'package:flutter_deck/models/standard_deck.dart';
 import 'package:flutter_deck/models/table_state.dart';
@@ -1175,6 +1177,79 @@ void main() {
       session.syncConnectedPlayerIds(<String>{});
       expect(session.state.log, hasLength(1));
       expect(session.state.log.single.message, contains('Client'));
+    });
+  });
+
+  group('GameSession.generatePack', () {
+    final game = GameDefinition(
+      id: 'g1',
+      name: 'G',
+      sets: const [
+        GameSet(
+          id: 's1',
+          name: 'Booster Set',
+          packSettings: [PackSetting(tag: 'Rare', count: 1), PackSetting(tag: 'Common', count: 2)],
+        ),
+        GameSet(id: 's2', name: 'Plain Set'),
+        GameSet(id: 's3', name: 'Empty Set'),
+      ],
+      cards: [
+        const CardDefinition(id: 'r1', cardTitle: 'R1', setId: 's1', types: ['Rare']),
+        const CardDefinition(id: 'c1', cardTitle: 'C1', setId: 's1', types: ['Common']),
+        const CardDefinition(id: 'c2', cardTitle: 'C2', setId: 's1', types: ['Common']),
+        const CardDefinition(id: 'c3', cardTitle: 'C3', setId: 's1', types: ['Common']),
+        for (var i = 0; i < 12; i++) CardDefinition(id: 'p2_$i', cardTitle: 'P2_$i', setId: 's2'),
+      ],
+    );
+
+    GameSession sessionWith() {
+      return GameSession(
+        game: game,
+        localPlayerId: 'p1',
+        initialState: const TableState(gameId: 'g1', players: _players, cards: [], revision: 0),
+      );
+    }
+
+    test('respects a set\'s configured packSettings', () {
+      final session = sessionWith();
+      session.generatePack('s1', actingPlayerId: 'p1');
+      final handCards = session.state.cards;
+      expect(handCards, hasLength(3));
+      expect(handCards.where((c) => c.definitionId == 'r1'), hasLength(1));
+      expect(handCards.where((c) => ['c1', 'c2', 'c3'].contains(c.definitionId)), hasLength(2));
+      for (final c in handCards) {
+        expect(c.zone, CardZone.hand);
+        expect(c.ownerId, 'p1');
+        expect(c.faceUp, isTrue);
+      }
+      // No duplicate CardDefinitions in the pack.
+      expect(handCards.map((c) => c.definitionId).toSet().length, handCards.length);
+    });
+
+    test('falls back to 10 random cards when packSettings is empty', () {
+      final session = sessionWith();
+      session.generatePack('s2', actingPlayerId: 'p1');
+      expect(session.state.cards, hasLength(10));
+      expect(session.state.cards.map((c) => c.definitionId).toSet().length, 10);
+    });
+
+    test('a set with zero cards yields an empty pack with no crash', () {
+      final session = sessionWith();
+      session.generatePack('s3', actingPlayerId: 'p1');
+      expect(session.state.cards, isEmpty);
+    });
+
+    test('appends a log entry naming the set', () {
+      final session = sessionWith();
+      session.generatePack('s1', actingPlayerId: 'p1');
+      expect(session.state.log.single.message, 'Host generated a pack from the Booster Set set.');
+    });
+
+    test('bumps revision', () {
+      final session = sessionWith();
+      final before = session.state.revision;
+      session.generatePack('s1', actingPlayerId: 'p1');
+      expect(session.state.revision, before + 1);
     });
   });
 }

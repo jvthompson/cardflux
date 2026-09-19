@@ -59,6 +59,11 @@ abstract class TableController {
   );
   void attachWidgetToCard(String instanceId, String cardId, double x, double y);
 
+  /// Deals a random pack from set [setId] into the calling player's hand --
+  /// see [GameSession.generatePack]. Unowned/neutral action: any player may
+  /// call this regardless of who placed the `PackGeneratorWidget`.
+  void generatePack(String setId);
+
   /// Reports that [primaryInstanceId] (plus any [passengerRootInstanceIds]
   /// riding along, see `TableScreen._buildGroupFeedback`) is currently being
   /// dragged toward canonical position ([fx],[fy]) -- purely cosmetic, never
@@ -339,6 +344,9 @@ class HostTableController implements TableController {
     y,
     actingPlayerId: _session.actingPlayerId,
   );
+
+  @override
+  void generatePack(String setId) => _session.generatePack(setId, actingPlayerId: _session.actingPlayerId);
 
   @override
   void previewCardDrag(
@@ -682,6 +690,13 @@ class ClientTableController implements TableController {
         type: NetMessageType.requestAttachWidgetToCard,
         payload: {'instanceId': instanceId, 'cardId': cardId, 'x': x, 'y': y},
       ),
+    );
+  }
+
+  @override
+  void generatePack(String setId) {
+    _client.send(
+      NetMessage(type: NetMessageType.requestGeneratePack, payload: {'setId': setId}),
     );
   }
 

@@ -150,6 +150,7 @@ class _GameDefinitionEditorScreenState extends State<GameDefinitionEditorScreen>
               folderPath: _folderPath,
               sets: _sets,
               cards: _cards,
+              tagGroups: _tagGroups,
               fileOps: _fileOps,
               onSetsChanged: (v) => setState(() => _sets = v),
               onCardsChanged: (v) => setState(() => _cards = v),

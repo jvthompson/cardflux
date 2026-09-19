@@ -222,4 +222,24 @@ void main() {
       expect(resolved.orientation, CardOrientation.right);
     });
   });
+
+  group('resolvePackGeneratorImagePath', () {
+    test('returns the path when packgen.png exists in the folder', () async {
+      final tempDir = await Directory.systemTemp.createTemp('flutter_deck_test_packgen_');
+      addTearDown(() => tempDir.delete(recursive: true));
+      final packgenPath = '${tempDir.path}${Platform.pathSeparator}packgen.png';
+      await File(packgenPath).writeAsBytes([1]);
+      expect(resolvePackGeneratorImagePath(tempDir.path), packgenPath);
+    });
+
+    test('returns null when packgen.png does not exist', () async {
+      final tempDir = await Directory.systemTemp.createTemp('flutter_deck_test_packgen_');
+      addTearDown(() => tempDir.delete(recursive: true));
+      expect(resolvePackGeneratorImagePath(tempDir.path), isNull);
+    });
+
+    test('returns null when folderPath is null', () {
+      expect(resolvePackGeneratorImagePath(null), isNull);
+    });
+  });
 }

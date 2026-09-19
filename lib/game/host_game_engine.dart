@@ -355,6 +355,9 @@ class HostGameEngine implements DragPreviewSink {
           );
         }
         break;
+      case NetMessageType.requestGeneratePack:
+        session.generatePack(msg.payload['setId'] as String, actingPlayerId: clientId);
+        break;
       case NetMessageType.cardDragPreview:
         final rawIds = (msg.payload['instanceIds'] as List).cast<String>();
         if (rawIds.isNotEmpty && _isAllowedToActOn(rawIds.first, clientId)) {

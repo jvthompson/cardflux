@@ -2215,4 +2215,41 @@ void main() {
       expect(next, same(state));
     });
   });
+
+  group('dealNewCards', () {
+    CardInstance newCard(String id) => CardInstance(
+      instanceId: id,
+      definitionId: 'd1',
+      x: 0.5,
+      y: 0.5,
+      zIndex: 0,
+      faceUp: true,
+      zone: CardZone.hand,
+      ownerId: 'p1',
+    );
+
+    test('appends the given cards with ascending zIndex above the current max', () {
+      final state = _threeCardPile(); // existing zIndexes 0, 1, 2
+      final next = _actions.dealNewCards(state, newCards: [newCard('n1'), newCard('n2')]);
+      expect(next.cards.length, state.cards.length + 2);
+      final n1 = next.cards.firstWhere((c) => c.instanceId == 'n1');
+      final n2 = next.cards.firstWhere((c) => c.instanceId == 'n2');
+      expect(n1.zIndex, 3);
+      expect(n2.zIndex, 4);
+      expect(n1.zone, CardZone.hand);
+      expect(n1.ownerId, 'p1');
+    });
+
+    test('bumps revision', () {
+      final state = _threeCardPile();
+      final next = _actions.dealNewCards(state, newCards: [newCard('n1')]);
+      expect(next.revision, state.revision + 1);
+    });
+
+    test('is a no-op for an empty list', () {
+      final state = _threeCardPile();
+      final next = _actions.dealNewCards(state, newCards: []);
+      expect(next, same(state));
+    });
+  });
 }
