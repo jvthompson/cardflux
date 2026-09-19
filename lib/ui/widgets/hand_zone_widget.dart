@@ -38,6 +38,7 @@ class HandZoneWidget extends StatelessWidget {
     this.borderColor,
     this.backgroundColor = const Color(0x26000000),
     this.onDragUpdate,
+    this.cardMenuBuilder,
   });
 
   final List<CardInstance> cards;
@@ -69,9 +70,17 @@ class HandZoneWidget extends StatelessWidget {
   /// nothing to attach to.
   final GlobalKey Function(String instanceId)? cardKeyFor;
 
+  /// Wraps a rendered hand card in whatever right-click "Send to..." context
+  /// menu `TableScreen` wants -- left null (e.g. an opponent's hand row, if
+  /// this widget's ever reused for one) to render the bare card with no
+  /// menu at all. Kept as a builder rather than this widget reaching for a
+  /// `GameSession`/`TableController` itself, matching [cardKeyFor]'s own
+  /// callback-driven style.
+  final Widget Function(CardInstance card, Widget child)? cardMenuBuilder;
+
   Widget _cardAt(int index) {
     final card = cards[index];
-    return DraggableCard(
+    final cardWidget = DraggableCard(
       key: cardKeyFor?.call(card.instanceId),
       instance: card,
       definition: definitionsById[card.definitionId],
@@ -85,6 +94,9 @@ class HandZoneWidget extends StatelessWidget {
       cardBacks: cardBacks,
       opponentBorderColor: borderColor,
     );
+    return cardMenuBuilder == null
+        ? cardWidget
+        : cardMenuBuilder!(card, cardWidget);
   }
 
   @override
@@ -157,7 +169,9 @@ class HandZoneWidget extends StatelessWidget {
                 // blank space around its (naturally-sized) card -- keeps
                 // every card its true, undistorted size regardless of how
                 // tall this Container ends up.
-                return Center(child: SizedBox(height: cardHeight, child: row));
+                return Center(
+                  child: SizedBox(height: cardHeight, child: row),
+                );
               },
             ),
     );

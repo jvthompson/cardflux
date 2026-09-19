@@ -1,5 +1,6 @@
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
 
 import '../data/game_definition_file_ops.dart' show imageFileTypes;
@@ -130,11 +131,19 @@ class _HomeScreenState extends State<HomeScreen> {
   String? _avatarPath;
   final _profileSettings = PlayerProfileSettings();
   final _avatarFileOps = PlayerAvatarFileOps();
+  String? _buildNumber;
 
   @override
   void initState() {
     super.initState();
     _loadProfile();
+    _loadBuildNumber();
+  }
+
+  Future<void> _loadBuildNumber() async {
+    final info = await PackageInfo.fromPlatform();
+    if (!mounted) return;
+    setState(() => _buildNumber = info.buildNumber);
   }
 
   Future<void> _loadProfile() async {
@@ -209,97 +218,112 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 360),
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (widget.message != null) ...[
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.orange.withValues(alpha: 0.15),
+      body: Stack(
+        children: [
+          Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 360),
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (widget.message != null) ...[
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.orange.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.orange),
+                        ),
+                        child: Text(widget.message!, style: const TextStyle(color: Colors.orange)),
+                      ),
+                      const SizedBox(height: 24),
+                    ],
+                    InkWell(
+                      onTap: _openEditPlayerSettingsDialog,
                       borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.orange),
+                      child: Padding(
+                        padding: const EdgeInsets.all(8),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            AvatarWidget(color: _playerColor, imagePath: _avatarPath),
+                            const SizedBox(height: 12),
+                            Text(_playerName, style: Theme.of(context).textTheme.titleLarge),
+                          ],
+                        ),
+                      ),
                     ),
-                    child: Text(widget.message!, style: const TextStyle(color: Colors.orange)),
-                  ),
-                  const SizedBox(height: 24),
-                ],
-                InkWell(
-                  onTap: _openEditPlayerSettingsDialog,
-                  borderRadius: BorderRadius.circular(8),
-                  child: Padding(
-                    padding: const EdgeInsets.all(8),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        AvatarWidget(color: _playerColor, imagePath: _avatarPath),
-                        const SizedBox(height: 12),
-                        Text(_playerName, style: Theme.of(context).textTheme.titleLarge),
-                      ],
+                    const SizedBox(height: 24),
+                    FilledButton(
+                      onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+                        builder: (_) => PlayerCountScreen(
+                          localPlayerName: _playerName,
+                          localPlayerColor: _playerColor,
+                          localAvatarPath: _avatarPath,
+                        ),
+                      )),
+                      child: const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 12),
+                        child: Text('Host Game'),
+                      ),
                     ),
-                  ),
-                ),
-                const SizedBox(height: 24),
-                FilledButton(
-                  onPressed: () => Navigator.of(context).push(MaterialPageRoute(
-                    builder: (_) => PlayerCountScreen(
-                      localPlayerName: _playerName,
-                      localPlayerColor: _playerColor,
-                      localAvatarPath: _avatarPath,
+                    const SizedBox(height: 12),
+                    OutlinedButton(
+                      onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+                        builder: (_) => JoinScreen(
+                          localPlayerName: _playerName,
+                          localPlayerColor: _playerColor,
+                          localAvatarPath: _avatarPath,
+                        ),
+                      )),
+                      child: const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 12),
+                        child: Text('Join Game'),
+                      ),
                     ),
-                  )),
-                  child: const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 12),
-                    child: Text('Host Game'),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                OutlinedButton(
-                  onPressed: () => Navigator.of(context).push(MaterialPageRoute(
-                    builder: (_) => JoinScreen(
-                      localPlayerName: _playerName,
-                      localPlayerColor: _playerColor,
-                      localAvatarPath: _avatarPath,
+                    const SizedBox(height: 24),
+                    TextButton(
+                      onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+                        builder: (_) => PracticePlayerCountScreen(
+                          localPlayerName: _playerName,
+                          localPlayerColor: _playerColor,
+                          localAvatarPath: _avatarPath,
+                        ),
+                      )),
+                      child: const Text('Practice Offline'),
                     ),
-                  )),
-                  child: const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 12),
-                    child: Text('Join Game'),
-                  ),
-                ),
-                const SizedBox(height: 24),
-                TextButton(
-                  onPressed: () => Navigator.of(context).push(MaterialPageRoute(
-                    builder: (_) => PracticePlayerCountScreen(
-                      localPlayerName: _playerName,
-                      localPlayerColor: _playerColor,
-                      localAvatarPath: _avatarPath,
+                    TextButton(
+                      onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+                        builder: (_) => const DeckEditorGameSelectScreen(),
+                      )),
+                      child: const Text('Deck Editor'),
                     ),
-                  )),
-                  child: const Text('Practice Offline'),
+                    TextButton(
+                      onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+                        builder: (_) => const GameDefinitionEditorEntryScreen(),
+                      )),
+                      child: const Text('Game Definition Editor'),
+                    ),
+                  ],
                 ),
-                TextButton(
-                  onPressed: () => Navigator.of(context).push(MaterialPageRoute(
-                    builder: (_) => const DeckEditorGameSelectScreen(),
-                  )),
-                  child: const Text('Deck Editor'),
-                ),
-                TextButton(
-                  onPressed: () => Navigator.of(context).push(MaterialPageRoute(
-                    builder: (_) => const GameDefinitionEditorEntryScreen(),
-                  )),
-                  child: const Text('Game Definition Editor'),
-                ),
-              ],
+              ),
             ),
           ),
-        ),
+          if (_buildNumber != null)
+            Positioned(
+              left: 8,
+              bottom: 8,
+              child: Text(
+                'Build $_buildNumber',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Theme.of(context).disabledColor,
+                    ),
+              ),
+            ),
+        ],
       ),
     );
   }

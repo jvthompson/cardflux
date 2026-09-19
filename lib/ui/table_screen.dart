@@ -1828,65 +1828,147 @@ class _TableScreenState extends State<TableScreen>
     if (action == 'search') onSearch();
   }
 
-  /// Sentinel [showMenu] value for "Remove Ownership" -- distinct from any
-  /// real player id (a UUID), so it can share one menu/one dispatch with
-  /// the per-player "Give to..." items below.
-  static const String _removeOwnershipValue = '__release__';
-
-  /// Right-clicking a free-table card/pile -- unlike a zone/pile's plain
-  /// Search menu ([_showSearchMenu], still used as-is for owned zones and
-  /// shared-zone piles), a free-table card can *also* be given away or
-  /// released if the local player owns it, so this builds one combined
+  /// Right-clicking an owned card (table or hand) or a free-table/shared
+  /// pile -- unlike a zone/pile's plain Search menu ([_showSearchMenu],
+  /// still used as-is for owned zones and shared-zone piles), an owned card
+  /// can also be relocated via "Send to..." and (table cards only, see
+  /// below) given away or released, so this builds one combined hover-flyout
   /// menu instead of a separate popup per concern. [onSearch] is passed
   /// through unchanged from each call site's own existing gating (e.g. an
   /// opponent-owned pile passes null, exactly like [_showSearchMenu]'s old
-  /// direct call did) -- this method doesn't re-derive it. Shows nothing at
-  /// all if there's neither a search option nor anything ownership-related
-  /// to offer (an opponent's or an already-unowned card, with no
-  /// [onSearch]).
-  Future<void> _showCardMenu(
-    Offset globalPosition,
-    CardInstance card, {
+  /// direct call did) -- this method doesn't re-derive it. Returns [child]
+  /// unwrapped if there's neither a search option nor anything
+  /// ownership-related to offer (an opponent's or an already-unowned card,
+  /// with no [onSearch]).
+  ///
+  /// Uses [MenuAnchor]/[SubmenuButton] (Material 3) rather than this file's
+  /// usual [showMenu] so "Send to..." and each deck zone can flyout on
+  /// hover, like a native desktop context menu -- [showMenu]'s
+  /// [PopupMenuItem]s have no such nested-hover concept. [MenuAnchor]'s
+  /// `builder` is handed its own Flutter-managed [MenuController] on every
+  /// build, so there's no controller field to store; [MenuController.open]'s
+  /// `position` is local to the anchor's own render box, which is exactly
+  /// what the wrapping [GestureDetector]'s `details.localPosition` already
+  /// is since it's the same widget the `builder` returns -- no manual
+  /// global-to-local translation needed.
+  Widget _wrapWithCardContextMenu({
+    required Widget child,
+    required CardInstance card,
     VoidCallback? onSearch,
-  }) async {
+  }) {
     final session = context.read<GameSession>();
     // An unownable card (see CardInstance.unownable) never has anything
     // ownership-related to offer -- it's always free-for-anyone, by design.
     final isOwner = !card.unownable && card.ownerId == session.actingPlayerId;
-    final givablePlayers = !isOwner
-        ? const <PlayerInfo>[]
-        : session.state.players
+    if (!isOwner && onSearch == null) return child;
+
+    // Give to.../Remove Ownership only reassign CardInstance.ownerId,
+    // leaving `zone` untouched (see TableActions.giveCard's doc) -- fine for
+    // a table card, but calling either on a hand card would leave it with
+    // zone: hand owned by someone else, a state the rest of the app never
+    // expects. Hand cards (see HandZoneWidget's cardMenuBuilder) only ever
+    // get "Send to..." here.
+    final isTableCard = card.zone == CardZone.table;
+    final givablePlayers = isOwner && isTableCard
+        ? session.state.players
               .where((p) => p.id != session.actingPlayerId && p.connected)
-              .toList();
-    if (onSearch == null && !isOwner) return;
-    final action = await showMenu<String>(
-      context: context,
-      position: RelativeRect.fromLTRB(
-        globalPosition.dx,
-        globalPosition.dy,
-        globalPosition.dx,
-        globalPosition.dy,
-      ),
-      items: [
-        if (onSearch != null)
-          const PopupMenuItem(value: 'search', child: Text('Search...')),
-        for (final player in givablePlayers)
-          PopupMenuItem(value: player.id, child: Text('Give to ${player.name}')),
+              .toList()
+        : const <PlayerInfo>[];
+    final discardZoneId = _localDiscardZoneId;
+    final deckZones = widget.zones
+        .where((z) => z.kind == ZoneKind.card && !z.isDiscardPile)
+        .toList();
+
+    return MenuAnchor(
+      menuChildren: [
         if (isOwner)
-          const PopupMenuItem(
-            value: _removeOwnershipValue,
-            child: Text('Remove Ownership'),
+          SubmenuButton(
+            menuChildren: [
+              // Sending to Hand is a no-op when the card is already there.
+              if (card.zone != CardZone.hand)
+                MenuItemButton(
+                  onPressed: () =>
+                      widget.controller.moveToHand(card.instanceId),
+                  child: const Text('Hand'),
+                ),
+              if (discardZoneId != null)
+                MenuItemButton(
+                  onPressed: () => widget.controller.returnToZone(
+                    card.instanceId,
+                    discardZoneId,
+                    toBottom: false,
+                  ),
+                  child: const Text('Discard'),
+                ),
+              for (final zone in deckZones)
+                SubmenuButton(
+                  menuChildren: [
+                    MenuItemButton(
+                      onPressed: () => widget.controller.returnToZone(
+                        card.instanceId,
+                        zone.id,
+                        toBottom: false,
+                      ),
+                      child: const Text('Top'),
+                    ),
+                    // A zone whose own Shuffle button is hidden
+                    // (!shuffleable) no-ops shuffleZone entirely -- see
+                    // GameSession.shuffleZone's doc -- so this entry would
+                    // silently leave the card on top instead of shuffled.
+                    if (zone.shuffleable)
+                      MenuItemButton(
+                        onPressed: () =>
+                            _sendIntoZoneShuffled(card.instanceId, zone.id),
+                        child: const Text('Shuffle Into'),
+                      ),
+                    MenuItemButton(
+                      onPressed: () => widget.controller.returnToZone(
+                        card.instanceId,
+                        zone.id,
+                        toBottom: true,
+                      ),
+                      child: const Text('Bottom'),
+                    ),
+                  ],
+                  child: Text(zone.name),
+                ),
+            ],
+            child: const Text('Send to...'),
+          ),
+        if (onSearch != null)
+          MenuItemButton(onPressed: onSearch, child: const Text('Search...')),
+        if (isOwner && isTableCard)
+          for (final player in givablePlayers)
+            MenuItemButton(
+              onPressed: () =>
+                  widget.controller.giveCard(card.instanceId, player.id),
+              child: Text('Give to ${player.name}'),
+            ),
+        if (isOwner && isTableCard)
+          MenuItemButton(
+            onPressed: () => widget.controller.giveCard(card.instanceId, null),
+            child: const Text('Remove Ownership'),
           ),
       ],
+      builder: (context, controller, child) => GestureDetector(
+        onSecondaryTapUp: (details) =>
+            controller.open(position: details.localPosition),
+        child: child,
+      ),
+      child: child,
     );
-    if (action == null) return;
-    if (action == 'search') {
-      onSearch?.call();
-    } else if (action == _removeOwnershipValue) {
-      widget.controller.giveCard(card.instanceId, null);
-    } else {
-      widget.controller.giveCard(card.instanceId, action);
-    }
+  }
+
+  /// "Shuffle Into" for a deck zone: there's no atomic "insert at a random
+  /// index" primitive (see [_wrapWithCardContextMenu]'s doc), so this just
+  /// composes the two existing calls a card-into-zone drop and that zone's
+  /// own Shuffle button already each independently make -- since a
+  /// shuffleable zone's order is opaque to players anyway, reshuffling the
+  /// whole zone right after inserting is indistinguishable from a true
+  /// random insert.
+  void _sendIntoZoneShuffled(String instanceId, String zoneId) {
+    widget.controller.returnToZone(instanceId, zoneId);
+    widget.controller.shuffleZone(zoneId);
   }
 
   Future<void> _showBoardContextMenu(Offset globalPosition) async {
@@ -2692,6 +2774,8 @@ class _TableScreenState extends State<TableScreen>
             cardKeyFor: _handCardKey,
             borderColor: borderColor,
             backgroundColor: backgroundColor,
+            cardMenuBuilder: (card, child) =>
+                _wrapWithCardContextMenu(card: card, child: child),
           )
         : OpponentHandZoneWidget(
             count: handCountByPlayerId[player.id] ?? 0,
@@ -3425,22 +3509,16 @@ class _TableScreenState extends State<TableScreen>
                                                                 : 1.0,
                                                             child: child,
                                                           ),
-                                                      child: GestureDetector(
-                                                        onSecondaryTapUp: (
-                                                          details,
-                                                        ) => _showCardMenu(
-                                                          details
-                                                              .globalPosition,
-                                                          top,
-                                                          onSearch:
-                                                              ownedByOpponent
-                                                              ? null
-                                                              : () => widget
-                                                                    .controller
-                                                                    .startSearchPile(
-                                                                      group.key,
-                                                                    ),
-                                                        ),
+                                                      child: _wrapWithCardContextMenu(
+                                                        card: top,
+                                                        onSearch:
+                                                            ownedByOpponent
+                                                            ? null
+                                                            : () => widget
+                                                                  .controller
+                                                                  .startSearchPile(
+                                                                    group.key,
+                                                                  ),
                                                         child: PileWidget(
                                                           count: cards.length,
                                                           topInstanceId:
@@ -3564,13 +3642,8 @@ class _TableScreenState extends State<TableScreen>
                                                               : 1.0,
                                                           child: child,
                                                         ),
-                                                    child: GestureDetector(
-                                                      onSecondaryTapUp: (
-                                                        details,
-                                                      ) => _showCardMenu(
-                                                        details.globalPosition,
-                                                        top,
-                                                      ),
+                                                    child: _wrapWithCardContextMenu(
+                                                      card: top,
                                                       child: DraggableCard(
                                                         instance: top,
                                                         definition:

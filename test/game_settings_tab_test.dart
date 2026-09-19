@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_deck/data/game_definition_file_ops.dart';
+import 'package:flutter_deck/models/card_definition.dart';
+import 'package:flutter_deck/models/game_set.dart';
 import 'package:flutter_deck/models/tag_group.dart';
 import 'package:flutter_deck/ui/widgets/game_settings_tab.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -147,5 +149,52 @@ void main() {
     expect(groups.single.id, 'g1');
     expect(groups.single.name, 'Card Type');
     expect(groups.single.tags, ['Character', 'Item']);
+  });
+
+  testWidgets('merging duplicate card images confirms then reports the merged list', (tester) async {
+    var cards = [
+      const CardDefinition(id: 'c1', cardTitle: 'Goofy', imagePath: 'goofy.png', setId: 's1', types: ['Hero']),
+      const CardDefinition(id: 'c2', cardTitle: 'Goofy (dup)', imagePath: 'goofy.png', setId: 's1', types: ['Ally']),
+      const CardDefinition(id: 'c3', cardTitle: 'Solo', imagePath: 'solo.png', setId: 's1'),
+    ];
+
+    await tester.pumpWidget(
+      _wrap(
+        StatefulBuilder(
+          builder: (context, setState) => GameSettingsTab(
+            folderPath: '.',
+            name: 'Test Game',
+            cardBacks: const [],
+            tagGroups: const [],
+            cards: cards,
+            sets: const [GameSet(id: 's1', name: 'Set One')],
+            fileOps: GameDefinitionFileOps(),
+            onNameChanged: (_) {},
+            onCardBacksChanged: (_) {},
+            onTagGroupsChanged: (_) {},
+            onCardsChanged: (v) => setState(() => cards = v),
+          ),
+        ),
+      ),
+    );
+
+    await tester.dragUntilVisible(
+      find.text('Merge Duplicate Card Images...'),
+      find.byType(Scrollable).first,
+      const Offset(0, -300),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Merge Duplicate Card Images...'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Merge 1 Duplicate Group'), findsOneWidget);
+    await tester.tap(find.text('Merge 1 Duplicate Group'));
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(cards, hasLength(2));
+    expect(cards[0].id, 'c1');
+    expect(cards[0].types, ['Hero', 'Ally']);
+    expect(cards[1].id, 'c3');
   });
 }

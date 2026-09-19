@@ -273,7 +273,10 @@ class _CardViewTabState extends State<CardViewTab> with AutomaticKeepAliveClient
               if (widget.sets.isNotEmpty)
                 MultiSelectFilterMenu(
                   label: 'Set',
-                  options: [for (final set in widget.sets) (id: set.id, name: set.name)],
+                  options: [
+                    for (final set in widget.sets)
+                      (id: set.id, name: '${set.name} (${widget.cards.where((c) => c.setId == set.id).length})'),
+                  ],
                   selectedIds: _selectedSetIds,
                   onToggle: (id, selected) => setState(() {
                     if (selected) {

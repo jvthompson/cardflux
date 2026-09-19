@@ -12,6 +12,7 @@ import '../../models/game_set.dart';
 import '../../models/tag_group.dart';
 import 'card_face_widget.dart' show cardHeight, cardWidth;
 import 'duplicate_card_ids_dialog.dart';
+import 'duplicate_card_images_dialog.dart';
 
 const Uuid _uuid = Uuid();
 
@@ -234,6 +235,23 @@ class _GameSettingsTabState extends State<GameSettingsTab> with AutomaticKeepAli
           icon: const Icon(Icons.copy_all_outlined),
           label: const Text('Check for Duplicate Card IDs...'),
           onPressed: () => showDuplicateCardIdsDialog(
+            context,
+            cards: widget.cards,
+            sets: widget.sets,
+            onChanged: widget.onCardsChanged,
+          ),
+        ),
+        const SizedBox(height: 16),
+        Text(
+          'A different kind of duplicate: cards in the same set that share the exact same image '
+          'file. This offers to merge each such group into one card, combining their tags.',
+          style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 12),
+        ),
+        const SizedBox(height: 8),
+        OutlinedButton.icon(
+          icon: const Icon(Icons.merge_type),
+          label: const Text('Merge Duplicate Card Images...'),
+          onPressed: () => showFixDuplicateCardImagesDialog(
             context,
             cards: widget.cards,
             sets: widget.sets,

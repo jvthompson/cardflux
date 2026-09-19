@@ -4,12 +4,10 @@ import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 
 import '../../data/game_definition_file_ops.dart';
-import '../../data/image_path_resolver.dart';
 import '../../models/card_back_definition.dart';
 import '../../models/card_definition.dart';
 import '../../models/game_set.dart';
 import '../../models/tag_group.dart';
-import 'card_face_widget.dart' show cardHeight, cardWidth;
 
 /// Every editable field of one [CardDefinition], for the Game Definition
 /// Editor's Card View tab. A controlled component -- edits are reported via
@@ -50,13 +48,11 @@ class CardDetailPanel extends StatefulWidget {
 }
 
 class _CardDetailPanelState extends State<CardDetailPanel> {
-  late final TextEditingController _idController = TextEditingController(text: widget.card.id);
   late final TextEditingController _titleController = TextEditingController(text: widget.card.cardTitle);
   bool _busy = false;
 
   @override
   void dispose() {
-    _idController.dispose();
     _titleController.dispose();
     super.dispose();
   }
@@ -129,18 +125,10 @@ class _CardDetailPanelState extends State<CardDetailPanel> {
   @override
   Widget build(BuildContext context) {
     final card = widget.card;
-    final resolvedImage =
-        resolvedImagePathForDisplay(widget.folderPath, bareImagePath: card.imagePath, setId: card.setId);
 
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        TextField(
-          controller: _idController,
-          decoration: const InputDecoration(labelText: 'Card ID', border: OutlineInputBorder(), isDense: true),
-          onChanged: (v) => widget.onChanged(card.copyWith(id: v)),
-        ),
-        const SizedBox(height: 12),
         TextField(
           controller: _titleController,
           decoration: const InputDecoration(labelText: 'Card Title', border: OutlineInputBorder(), isDense: true),
@@ -154,13 +142,6 @@ class _CardDetailPanelState extends State<CardDetailPanel> {
           onChanged: (v) {
             if (v != null) widget.onChanged(card.copyWith(orientation: v));
           },
-        ),
-        SwitchListTile(
-          contentPadding: EdgeInsets.zero,
-          title: const Text('Unownable'),
-          subtitle: const Text('Always stays unowned on the table -- any player can interact with it'),
-          value: card.unownable,
-          onChanged: (v) => widget.onChanged(card.copyWith(unownable: v)),
         ),
         if (widget.allSets.isNotEmpty) ...[
           const SizedBox(height: 12),
@@ -177,41 +158,20 @@ class _CardDetailPanelState extends State<CardDetailPanel> {
         const SizedBox(height: 16),
         const Text('Image', style: TextStyle(fontWeight: FontWeight.bold)),
         const SizedBox(height: 8),
+        Text(
+          card.imagePath ?? '(no image)',
+          style: Theme.of(context).textTheme.bodyMedium,
+          overflow: TextOverflow.ellipsis,
+        ),
+        const SizedBox(height: 8),
         Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              width: cardWidth,
-              height: cardHeight,
-              decoration: BoxDecoration(
-                border: Border.all(color: Theme.of(context).colorScheme.outline),
-                borderRadius: BorderRadius.circular(6),
+            OutlinedButton(onPressed: _busy ? null : _chooseImage, child: const Text('Choose Image...')),
+            if (card.imagePath != null)
+              TextButton(
+                onPressed: _busy ? null : () => widget.onChanged(card.copyWith(imagePath: null)),
+                child: const Text('Clear'),
               ),
-              child: resolvedImage == null
-                  ? Icon(Icons.image_not_supported_outlined, color: Theme.of(context).colorScheme.outline)
-                  : ClipRRect(
-                      borderRadius: BorderRadius.circular(5),
-                      child: Image.file(
-                        File(resolvedImage),
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) =>
-                            Icon(Icons.broken_image_outlined, color: Theme.of(context).colorScheme.outline),
-                      ),
-                    ),
-            ),
-            const SizedBox(width: 16),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                OutlinedButton(onPressed: _busy ? null : _chooseImage, child: const Text('Choose Image...')),
-                if (card.imagePath != null)
-                  TextButton(
-                    onPressed: _busy ? null : () => widget.onChanged(card.copyWith(imagePath: null)),
-                    child: const Text('Clear'),
-                  ),
-              ],
-            ),
           ],
         ),
         const SizedBox(height: 12),
@@ -295,7 +255,15 @@ class _CardDetailPanelState extends State<CardDetailPanel> {
             onDelete: () => _removeExtraField(entry.key),
           ),
         TextButton.icon(icon: const Icon(Icons.add), label: const Text('Add Field'), onPressed: _addExtraField),
-        const SizedBox(height: 24),
+        const SizedBox(height: 16),
+        SwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          title: const Text('Unownable'),
+          subtitle: const Text('Always stays unowned on the table -- any player can interact with it'),
+          value: card.unownable,
+          onChanged: (v) => widget.onChanged(card.copyWith(unownable: v)),
+        ),
+        const SizedBox(height: 8),
         FilledButton.tonalIcon(
           icon: const Icon(Icons.delete_outline),
           label: const Text('Delete Card'),
