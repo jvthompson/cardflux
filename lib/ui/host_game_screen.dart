@@ -87,8 +87,19 @@ class _HostGameScreenState extends State<HostGameScreen> {
     // gameData handling just overwrites `_game` with an identical value.
     widget.hostServer.broadcast(NetMessage(type: NetMessageType.gameData, payload: widget.game.toJson()));
     final loadedState = widget.loadedState;
+    // Resumes the log's elapsed-time clock from where it left off (instead
+    // of restarting at zero) when there's an existing log entry to resume
+    // from -- see `GameSession._clockStart`.
+    final resumeClockStart = loadedState == null || loadedState.log.isEmpty
+        ? null
+        : DateTime.now().subtract(Duration(milliseconds: loadedState.log.last.elapsedMs));
     final session = loadedState != null
-        ? GameSession(game: widget.game, localPlayerId: widget.hostPlayerId, initialState: loadedState)
+        ? GameSession(
+            game: widget.game,
+            localPlayerId: widget.hostPlayerId,
+            initialState: loadedState,
+            clockStart: resumeClockStart,
+          )
         : GameSession.dealFromZones(
             game: widget.game,
             players: players,

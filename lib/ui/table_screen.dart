@@ -8,6 +8,7 @@ import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
 
 import '../app_theme.dart';
+import '../data/game_log_file_ops.dart';
 import '../data/image_path_resolver.dart';
 import '../game/drag_preview.dart';
 import '../game/game_session.dart';
@@ -21,9 +22,11 @@ import '../models/board_widget_instance.dart';
 import '../models/card_back_definition.dart';
 import '../models/card_definition.dart';
 import '../models/card_instance.dart';
+import '../models/log_entry.dart';
 import '../models/player.dart';
 import '../models/table_state.dart';
 import '../models/zone_definition.dart';
+import 'widgets/action_log_overlay.dart';
 import 'widgets/arrow_widget.dart';
 import 'widgets/avatar_widget.dart';
 import 'widgets/card_back_widget.dart';
@@ -271,6 +274,12 @@ class _TableScreenState extends State<TableScreen>
   /// Search overlay's is, just by the menu's own scrim sitting on top of it
   /// in [build]'s `Stack`.
   bool _gameMenuOpen = false;
+
+  /// Whether the L-triggered [ActionLogOverlay] is open -- suppresses other
+  /// keyboard shortcuts the same way [_gameMenuOpen] does (see
+  /// [_handleKeyEvent]); [_toggleGameMenu] force-closes this if it's open,
+  /// so the two overlays can never show at once.
+  bool _actionLogOpen = false;
 
   /// Toggled by F1 -- while true, [ownerBorderColor]-driven card borders are
   /// hidden table-wide (they can get visually busy with 3-4 players' colors
@@ -724,6 +733,14 @@ class _TableScreenState extends State<TableScreen>
       // nothing left to clean up here.
       return false;
     }
+    if (_actionLogOpen) {
+      // Mirrors the _gameMenuOpen guard above -- swallow everything except
+      // L itself, which closes the log.
+      if (event.logicalKey == LogicalKeyboardKey.keyL && event is KeyDownEvent) {
+        _toggleActionLog();
+      }
+      return false;
+    }
     if (event.logicalKey == LogicalKeyboardKey.space) {
       final pressed = event is! KeyUpEvent;
       if (pressed != _spacePressed) setState(() => _spacePressed = pressed);
@@ -784,6 +801,8 @@ class _TableScreenState extends State<TableScreen>
         setState(() => _colorTintEnabled = !_colorTintEnabled);
       } else if (event.logicalKey == LogicalKeyboardKey.f12) {
         _cyclePlaymat();
+      } else if (event.logicalKey == LogicalKeyboardKey.keyL) {
+        _toggleActionLog();
       } else {
         final drawCount = _drawCountKeys[event.logicalKey];
         if (drawCount != null) _drawNFromHovered(drawCount);
@@ -803,6 +822,7 @@ class _TableScreenState extends State<TableScreen>
     setState(() {
       _gameMenuOpen = !_gameMenuOpen;
       if (_gameMenuOpen) {
+        _actionLogOpen = false;
         for (final key in _movementKeys) {
           _setMovementKeyPressed(key, false);
         }
@@ -812,6 +832,47 @@ class _TableScreenState extends State<TableScreen>
         _arrowDrag.value = null;
       }
     });
+  }
+
+  /// Opens/closes the Game Log ([ActionLogOverlay]) -- mirrors
+  /// [_toggleGameMenu]'s held-key cleanup exactly.
+  void _toggleActionLog() {
+    setState(() {
+      _actionLogOpen = !_actionLogOpen;
+      if (_actionLogOpen) {
+        for (final key in _movementKeys) {
+          _setMovementKeyPressed(key, false);
+        }
+        _spacePressed = false;
+        _tabPressed = false;
+        if (_arrowDrag.value != null) widget.controller.endArrowDragPreview();
+        _arrowDrag.value = null;
+      }
+    });
+  }
+
+  /// Writes the current log to `<gameFolderPath>/gamelogs/`, auto-named from
+  /// the real-world timestamp -- see `GameLogFileOps`. No-op if
+  /// [TableScreen.gameFolderPath] is null (gated by [_buildActionLogOverlay],
+  /// which only passes a non-null `onSaveLog` when it isn't).
+  Future<void> _saveLog(List<LogEntry> entries) async {
+    final folderPath = widget.gameFolderPath;
+    if (folderPath == null) return;
+    final now = DateTime.now();
+    String two(int n) => n.toString().padLeft(2, '0');
+    final fileName =
+        'gamelog_${now.year}-${two(now.month)}-${two(now.day)}_'
+        '${two(now.hour)}${two(now.minute)}${two(now.second)}.txt';
+    final contents = entries
+        .map((e) => '[${formatElapsedTime(e.elapsedMs)}] ${e.message}')
+        .join('\n');
+    await GameLogFileOps().writeLog(
+      gameFolderPath: folderPath,
+      fileName: fileName,
+      contents: contents,
+    );
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Saved "$fileName"')));
   }
 
   /// The hovered card, if it exists, sits on the table, and belongs to the
@@ -2279,6 +2340,16 @@ class _TableScreenState extends State<TableScreen>
     );
   }
 
+  /// The L-triggered Game Log overlay (see [_toggleActionLog]).
+  Widget? _buildActionLogOverlay(TableState state) {
+    if (!_actionLogOpen) return null;
+    return ActionLogOverlay(
+      entries: state.log,
+      onClose: _toggleActionLog,
+      onSaveLog: widget.gameFolderPath == null ? null : () => _saveLog(state.log),
+    );
+  }
+
   /// The local player's own Search window, if [session] has an
   /// [ActiveSearch] recorded for them in [state.searches] -- null otherwise
   /// (every other client only ever sees the eyeball badge, wired at each
@@ -3285,6 +3356,7 @@ class _TableScreenState extends State<TableScreen>
                     localHand,
                   );
                   final gameMenuOverlay = _buildGameMenuOverlay(session);
+                  final actionLogOverlay = _buildActionLogOverlay(state);
                   // Solid black rather than the translucent zoneBackgroundColor
                   // every owned zone/hand uses -- a deliberate visual distinction
                   // for the docked shared-zone sidebar, not an oversight.
@@ -4056,6 +4128,10 @@ class _TableScreenState extends State<TableScreen>
                             screenSize,
                             _hoveredForceFaceUp,
                           ),
+                        // Below the Game Menu -- [_toggleGameMenu] force-
+                        // closes this one, so the two never actually stack,
+                        // but this keeps the (harmless) order intentional.
+                        ?actionLogOverlay,
                         // Topmost of all -- Escape should always bring up the
                         // Game Menu above whatever else is on screen.
                         ?gameMenuOverlay,

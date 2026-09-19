@@ -58,12 +58,16 @@ class _PracticeGameScreenState extends State<PracticeGameScreen> {
   void initState() {
     super.initState();
     final loadedState = widget.loadedState;
+    final resumeClockStart = loadedState == null || loadedState.log.isEmpty
+        ? null
+        : DateTime.now().subtract(Duration(milliseconds: loadedState.log.last.elapsedMs));
     _session = loadedState != null
         ? GameSession(
             game: widget.game,
             localPlayerId: widget.players.first.id,
             initialState: loadedState,
             isLocalPractice: true,
+            clockStart: resumeClockStart,
           )
         : GameSession.localPractice(
             game: widget.game,

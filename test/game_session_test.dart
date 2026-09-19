@@ -486,7 +486,7 @@ void main() {
               revision: 0,
             ),
           );
-          session.returnToZone('h1', 'discard_pile', zoneOwnerId: 'p1');
+          session.returnToZone('h1', 'discard_pile', zoneOwnerId: 'p1', actingPlayerId: 'p1');
           expect(
             session.state.cards.firstWhere((c) => c.instanceId == 'h1').faceUp,
             isTrue,
@@ -514,7 +514,7 @@ void main() {
           localPlayerId: 'p1',
         );
         final before = session.state;
-        session.shuffleZone('discard_pile', zoneOwnerId: 'p1');
+        session.shuffleZone('discard_pile', zoneOwnerId: 'p1', actingPlayerId: 'p1');
         expect(session.state, same(before));
       });
 
@@ -540,7 +540,7 @@ void main() {
           localPlayerId: 'p1',
         );
         final before = session.state;
-        session.shuffleZone('draw_deck', zoneOwnerId: 'p1');
+        session.shuffleZone('draw_deck', zoneOwnerId: 'p1', actingPlayerId: 'p1');
         expect(session.state, isNot(same(before)));
       });
     },
@@ -817,7 +817,7 @@ void main() {
         session.createWidget('w1', BoardWidgetKind.simpleCounter, 0, 0);
         var notified = false;
         session.addListener(() => notified = true);
-        session.setWidgetValue('w1', 500000);
+        session.setWidgetValue('w1', 500000, actingPlayerId: 'p1');
         expect(session.state.widgets.single.value, boardWidgetCounterMax);
         expect(notified, isTrue);
       },
@@ -885,12 +885,296 @@ void main() {
       session.createWidget('w1', BoardWidgetKind.token, 0, 0);
       var notified = false;
       session.addListener(() => notified = true);
-      session.attachWidgetToCard('w1', 'c1', 0.42, 0.53);
+      session.attachWidgetToCard('w1', 'c1', 0.42, 0.53, actingPlayerId: 'p1');
       final token = session.state.widgets.single;
       expect(token.x, closeTo(0.42, 1e-9));
       expect(token.y, closeTo(0.53, 1e-9));
       expect(token.attachedCardId, 'c1');
       expect(notified, isTrue);
+    });
+  });
+
+  group('action log', () {
+    const game = GameDefinition(
+      id: 'g1',
+      name: 'G',
+      cards: _cards,
+      zones: [
+        ZoneDefinition(id: 'draw_deck', name: 'Draw Deck'),
+        ZoneDefinition(
+          id: 'discard_pile',
+          name: 'Discard Pile',
+          isDiscardPile: true,
+          faceUp: true,
+        ),
+        ZoneDefinition(
+          id: 'life_total',
+          name: 'Life Total',
+          kind: ZoneKind.widget,
+        ),
+      ],
+    );
+
+    GameSession sessionWith(List<CardInstance> cards) {
+      return GameSession(
+        game: game,
+        localPlayerId: 'p1',
+        initialState: TableState(
+          gameId: 'g1',
+          players: _players,
+          cards: cards,
+          revision: 0,
+        ),
+      );
+    }
+
+    test('moveCard reveals the name of a face-up hand card played to the table', () {
+      final session = sessionWith([
+        CardInstance(
+          instanceId: 'c1',
+          definitionId: 'a',
+          x: 0,
+          y: 0,
+          zIndex: 0,
+          faceUp: true,
+          zone: CardZone.hand,
+          ownerId: 'p1',
+        ),
+      ]);
+      session.moveCard('c1', 0.5, 0.5, actingPlayerId: 'p1');
+      expect(session.state.log, hasLength(1));
+      expect(session.state.log.single.message, 'Host played "A" to the table from hand.');
+    });
+
+    test('moveCard stays generic for a face-down zone card played to the table', () {
+      final session = sessionWith([
+        CardInstance(
+          instanceId: 'c1',
+          definitionId: 'a',
+          x: 0,
+          y: 0,
+          zIndex: 0,
+          faceUp: false,
+          zone: CardZone.zone,
+          zoneId: 'draw_deck',
+          ownerId: 'p1',
+        ),
+      ]);
+      session.moveCard('c1', 0.5, 0.5, actingPlayerId: 'p1');
+      expect(
+        session.state.log.single.message,
+        'Host played a card to the table from the Draw Deck.',
+      );
+    });
+
+    test('moveCard does not log a same-zone table reposition', () {
+      final session = sessionWith([
+        CardInstance(instanceId: 'c1', definitionId: 'a', x: 0, y: 0, zIndex: 0, faceUp: true, zone: CardZone.table),
+      ]);
+      session.moveCard('c1', 0.5, 0.5, actingPlayerId: 'p1');
+      expect(session.state.log, isEmpty);
+    });
+
+    test('flipCard always names the real card, even one hidden both before and after', () {
+      final session = sessionWith([
+        CardInstance(
+          instanceId: 'c1',
+          definitionId: 'a',
+          x: 0,
+          y: 0,
+          zIndex: 0,
+          faceUp: false,
+          zone: CardZone.hand,
+          ownerId: 'p1',
+        ),
+      ]);
+      session.flipCard('c1', actingPlayerId: 'p1');
+      expect(session.state.log.single.message, 'Host flipped "A" face up.');
+    });
+
+    test('drawCard is always generic', () {
+      final session = sessionWith([
+        CardInstance(instanceId: 'c1', definitionId: 'a', x: 0, y: 0, zIndex: 0, faceUp: true, zone: CardZone.table),
+      ]);
+      session.drawCard('c1', ownerId: 'p1');
+      expect(session.state.log.single.message, 'Host drew a card.');
+    });
+
+    test('drawFromZone is always generic but names the zone', () {
+      final session = sessionWith([
+        CardInstance(
+          instanceId: 'c1',
+          definitionId: 'a',
+          x: 0,
+          y: 0,
+          zIndex: 0,
+          faceUp: false,
+          zone: CardZone.zone,
+          zoneId: 'draw_deck',
+          ownerId: 'p1',
+        ),
+      ]);
+      session.drawFromZone('draw_deck', zoneOwnerId: 'p1', toOwnerId: 'p1');
+      expect(session.state.log.single.message, 'Host drew a card from the Draw Deck.');
+    });
+
+    test('shuffleZone is always generic but names the zone', () {
+      final session = sessionWith([
+        CardInstance(
+          instanceId: 'c1',
+          definitionId: 'a',
+          x: 0,
+          y: 0,
+          zIndex: 0,
+          faceUp: false,
+          zone: CardZone.zone,
+          zoneId: 'draw_deck',
+          ownerId: 'p1',
+        ),
+        CardInstance(
+          instanceId: 'c2',
+          definitionId: 'b',
+          x: 0,
+          y: 0,
+          zIndex: 1,
+          faceUp: false,
+          zone: CardZone.zone,
+          zoneId: 'draw_deck',
+          ownerId: 'p1',
+        ),
+      ]);
+      session.shuffleZone('draw_deck', zoneOwnerId: 'p1', actingPlayerId: 'p1');
+      expect(session.state.log.single.message, 'Host shuffled the Draw Deck.');
+    });
+
+    test('shufflePile is always generic', () {
+      final session = sessionWith([
+        CardInstance(instanceId: 'c1', definitionId: 'a', x: 0, y: 0, zIndex: 0, faceUp: true, zone: CardZone.table),
+        CardInstance(
+          instanceId: 'c2',
+          definitionId: 'b',
+          x: 0,
+          y: 0,
+          zIndex: 1,
+          faceUp: true,
+          zone: CardZone.table,
+          stackParentId: 'c1',
+        ),
+      ]);
+      session.shufflePile('c1', actingPlayerId: 'p1');
+      expect(session.state.log.single.message, 'Host shuffled a pile of cards.');
+    });
+
+    test('setWidgetValue logs the zone name for a zone-bound counter', () {
+      final session = GameSession(
+        game: game,
+        localPlayerId: 'p1',
+        initialState: TableState(
+          gameId: 'g1',
+          players: _players,
+          cards: const [],
+          revision: 0,
+          widgets: [
+            BoardWidgetInstance(
+              instanceId: 'w1',
+              kind: BoardWidgetKind.simpleCounter,
+              x: 0.5,
+              y: 0.5,
+              zIndex: 0,
+              value: 20,
+              ownerId: 'p1',
+              zoneId: 'life_total',
+            ),
+          ],
+        ),
+      );
+      session.setWidgetValue('w1', 18, actingPlayerId: 'p1');
+      expect(session.state.log.single.message, 'Host set Life Total to 18.');
+    });
+
+    test('setWidgetValue logs generically for a free-floating counter', () {
+      final session = sessionWith(const []);
+      session.createWidget('w1', BoardWidgetKind.simpleCounter, 0.5, 0.5);
+      session.setWidgetValue('w1', 5, actingPlayerId: 'p1');
+      expect(session.state.log.single.message, 'Host set a counter to 5.');
+    });
+
+    test('setWidgetValue does not log for a non-counter widget', () {
+      final session = sessionWith(const []);
+      session.createWidget('w1', BoardWidgetKind.token, 0.5, 0.5);
+      session.setWidgetValue('w1', 5, actingPlayerId: 'p1');
+      expect(session.state.log, isEmpty);
+    });
+
+    test('attachWidgetToCard names the widget kind and reveals a visible card', () {
+      final session = sessionWith([
+        CardInstance(instanceId: 'c1', definitionId: 'a', x: 0.4, y: 0.5, zIndex: 0, faceUp: true, zone: CardZone.table),
+      ]);
+      session.createWidget('w1', BoardWidgetKind.token, 0, 0);
+      session.attachWidgetToCard('w1', 'c1', 0.42, 0.53, actingPlayerId: 'p1');
+      expect(session.state.log.last.message, 'Host attached a token to "A".');
+    });
+
+    test('attachWidgetToCard stays generic for a hidden card', () {
+      final session = sessionWith([
+        CardInstance(
+          instanceId: 'c1',
+          definitionId: 'a',
+          x: 0,
+          y: 0,
+          zIndex: 0,
+          faceUp: false,
+          zone: CardZone.hand,
+          ownerId: 'p1',
+        ),
+      ]);
+      session.createWidget('w1', BoardWidgetKind.token, 0, 0);
+      session.attachWidgetToCard('w1', 'c1', 0, 0, actingPlayerId: 'p1');
+      expect(session.state.log.last.message, 'Host attached a token to a card.');
+    });
+
+    test('startSearchZone logs the zone name', () {
+      final session = sessionWith(const []);
+      session.startSearchZone('draw_deck', zoneOwnerId: 'p1', searcherId: 'p1');
+      expect(session.state.log.single.message, 'Host opened a search on the Draw Deck.');
+    });
+
+    test('startSearchPile logs generically', () {
+      final session = sessionWith([
+        CardInstance(instanceId: 'c1', definitionId: 'a', x: 0, y: 0, zIndex: 0, faceUp: true, zone: CardZone.table),
+      ]);
+      session.startSearchPile('c1', searcherId: 'p1');
+      expect(session.state.log.single.message, 'Host opened a search on a pile of cards.');
+    });
+
+    test('stopSearch only logs when a search was actually open', () {
+      final session = sessionWith(const []);
+      session.stopSearch(searcherId: 'p1');
+      expect(session.state.log, isEmpty);
+
+      session.startSearchZone('draw_deck', zoneOwnerId: 'p1', searcherId: 'p1');
+      session.stopSearch(searcherId: 'p1');
+      expect(session.state.log.last.message, 'Host closed their search.');
+    });
+
+    test('syncConnectedPlayerIds logs connect/disconnect only for a player whose state changed', () {
+      final session = sessionWith(const []);
+      // Matches the already-connected initial state -- no log on the first call.
+      session.syncConnectedPlayerIds({'p2'});
+      expect(session.state.log, isEmpty);
+
+      session.syncConnectedPlayerIds(<String>{});
+      expect(session.state.log.single.message, 'Client disconnected.');
+
+      session.syncConnectedPlayerIds({'p2'});
+      expect(session.state.log.last.message, 'Client connected.');
+    });
+
+    test('syncConnectedPlayerIds never logs for the host', () {
+      final session = sessionWith(const []);
+      session.syncConnectedPlayerIds(<String>{});
+      expect(session.state.log, hasLength(1));
+      expect(session.state.log.single.message, contains('Client'));
     });
   });
 }

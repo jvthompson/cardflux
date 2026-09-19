@@ -133,6 +133,7 @@ class HostGameEngine implements DragPreviewSink {
             instanceId,
             (msg.payload['x'] as num).toDouble(),
             (msg.payload['y'] as num).toDouble(),
+            actingPlayerId: clientId,
           );
         }
         break;
@@ -149,6 +150,7 @@ class HostGameEngine implements DragPreviewSink {
             passengerRootInstanceIds,
             (msg.payload['x'] as num).toDouble(),
             (msg.payload['y'] as num).toDouble(),
+            actingPlayerId: clientId,
           );
         }
         break;
@@ -168,6 +170,7 @@ class HostGameEngine implements DragPreviewSink {
           session.rotateStack(
             rootInstanceId,
             clockwise: msg.payload['clockwise'] as bool,
+            actingPlayerId: clientId,
           );
         }
         break;
@@ -180,7 +183,7 @@ class HostGameEngine implements DragPreviewSink {
       case NetMessageType.requestFlip:
         final instanceId = msg.payload['instanceId'] as String;
         if (_isAllowedToActOn(instanceId, clientId)) {
-          session.flipCard(instanceId);
+          session.flipCard(instanceId, actingPlayerId: clientId);
         }
         break;
       case NetMessageType.requestGiveCard:
@@ -190,7 +193,7 @@ class HostGameEngine implements DragPreviewSink {
             newOwnerId == null ||
             session.state.players.any((p) => p.id == newOwnerId);
         if (_isAllowedToActOn(instanceId, clientId) && targetIsValid) {
-          session.giveCard(instanceId, newOwnerId);
+          session.giveCard(instanceId, newOwnerId, actingPlayerId: clientId);
         }
         break;
       case NetMessageType.requestStack:
@@ -198,7 +201,7 @@ class HostGameEngine implements DragPreviewSink {
         final ontoInstanceId = msg.payload['ontoInstanceId'] as String;
         if (_isAllowedToActOn(instanceId, clientId) &&
             _cardExists(ontoInstanceId)) {
-          session.stackCard(instanceId, ontoInstanceId);
+          session.stackCard(instanceId, ontoInstanceId, actingPlayerId: clientId);
         }
         break;
       case NetMessageType.requestMoveToHand:
@@ -224,7 +227,7 @@ class HostGameEngine implements DragPreviewSink {
       case NetMessageType.requestShuffle:
         final pileRootInstanceId = msg.payload['pileRootInstanceId'] as String;
         if (_isAllowedToDrawOrShuffle(pileRootInstanceId, clientId)) {
-          session.shufflePile(pileRootInstanceId);
+          session.shufflePile(pileRootInstanceId, actingPlayerId: clientId);
         }
         break;
       case NetMessageType.requestDrawFromZone:
@@ -247,6 +250,7 @@ class HostGameEngine implements DragPreviewSink {
             zoneId,
             zoneOwnerId: _zoneOwnerId(zoneId, clientId),
             toBottom: toBottom,
+            actingPlayerId: clientId,
           );
         }
         break;
@@ -255,6 +259,7 @@ class HostGameEngine implements DragPreviewSink {
         session.shuffleZone(
           zoneId,
           zoneOwnerId: _zoneOwnerId(zoneId, clientId),
+          actingPlayerId: clientId,
         );
         break;
       case NetMessageType.requestStartSearchZone:
@@ -308,7 +313,7 @@ class HostGameEngine implements DragPreviewSink {
       case NetMessageType.requestSetWidgetValue:
         final instanceId = msg.payload['instanceId'] as String;
         if (_isAllowedToActOnWidget(instanceId, clientId)) {
-          session.setWidgetValue(instanceId, msg.payload['value'] as int);
+          session.setWidgetValue(instanceId, msg.payload['value'] as int, actingPlayerId: clientId);
         }
         break;
       case NetMessageType.requestDeleteWidget:
@@ -346,6 +351,7 @@ class HostGameEngine implements DragPreviewSink {
             msg.payload['cardId'] as String,
             (msg.payload['x'] as num).toDouble(),
             (msg.payload['y'] as num).toDouble(),
+            actingPlayerId: clientId,
           );
         }
         break;

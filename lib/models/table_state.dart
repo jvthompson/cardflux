@@ -1,6 +1,7 @@
 import 'active_search.dart';
 import 'board_widget_instance.dart';
 import 'card_instance.dart';
+import 'log_entry.dart';
 import 'player.dart';
 
 /// A full snapshot of a session: either the host's authoritative truth, or a
@@ -13,6 +14,7 @@ class TableState {
     required this.revision,
     this.widgets = const [],
     this.searches = const [],
+    this.log = const [],
   });
 
   final String gameId;
@@ -31,12 +33,22 @@ class TableState {
   /// though the searched cards themselves may not be.
   final List<ActiveSearch> searches;
 
+  /// The running in-game action log -- see `GameSession`'s private logging
+  /// helpers, which are the only place entries are ever appended. Each
+  /// [LogEntry.message] is already fully composed with full host-side
+  /// knowledge of card identities, only ever naming a card that was publicly
+  /// visible (see `GameSession._isPubliclyVisible`) -- so, like [widgets]/
+  /// [searches], this is never touched by `state_filter.dart` and is safe to
+  /// show every recipient identically.
+  final List<LogEntry> log;
+
   TableState copyWith({
     List<PlayerInfo>? players,
     List<CardInstance>? cards,
     int? revision,
     List<BoardWidgetInstance>? widgets,
     List<ActiveSearch>? searches,
+    List<LogEntry>? log,
   }) {
     return TableState(
       gameId: gameId,
@@ -45,6 +57,7 @@ class TableState {
       revision: revision ?? this.revision,
       widgets: widgets ?? this.widgets,
       searches: searches ?? this.searches,
+      log: log ?? this.log,
     );
   }
 
@@ -75,6 +88,11 @@ class TableState {
               )
               .toList() ??
           const [],
+      log:
+          (json['log'] as List?)
+              ?.map((e) => LogEntry.fromJson((e as Map).cast<String, dynamic>()))
+              .toList() ??
+          const [],
     );
   }
 
@@ -88,6 +106,7 @@ class TableState {
         'widgets': widgets.map((w) => w.toJson()).toList(),
       if (searches.isNotEmpty)
         'searches': searches.map((s) => s.toJson()).toList(),
+      if (log.isNotEmpty) 'log': log.map((e) => e.toJson()).toList(),
     };
   }
 }

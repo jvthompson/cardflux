@@ -121,7 +121,8 @@ class HostTableController implements TableController {
 
   @override
   void moveCard(String instanceId, double x, double y) {
-    if (_isOwnedOrUnowned(instanceId)) _session.moveCard(instanceId, x, y);
+    if (_isOwnedOrUnowned(instanceId))
+      _session.moveCard(instanceId, x, y, actingPlayerId: _session.actingPlayerId);
   }
 
   @override
@@ -132,7 +133,13 @@ class HostTableController implements TableController {
     double y,
   ) {
     if (_isOwnedOrUnowned(primaryInstanceId))
-      _session.moveGroup(primaryInstanceId, passengerRootInstanceIds, x, y);
+      _session.moveGroup(
+        primaryInstanceId,
+        passengerRootInstanceIds,
+        x,
+        y,
+        actingPlayerId: _session.actingPlayerId,
+      );
   }
 
   @override
@@ -144,7 +151,11 @@ class HostTableController implements TableController {
   @override
   void rotateStack(String rootInstanceId, {required bool clockwise}) {
     if (_isOwnedOrUnowned(rootInstanceId))
-      _session.rotateStack(rootInstanceId, clockwise: clockwise);
+      _session.rotateStack(
+        rootInstanceId,
+        clockwise: clockwise,
+        actingPlayerId: _session.actingPlayerId,
+      );
   }
 
   @override
@@ -154,20 +165,21 @@ class HostTableController implements TableController {
 
   @override
   void flipCard(String instanceId) {
-    if (_isOwnedOrUnowned(instanceId)) _session.flipCard(instanceId);
+    if (_isOwnedOrUnowned(instanceId))
+      _session.flipCard(instanceId, actingPlayerId: _session.actingPlayerId);
   }
 
   @override
   void giveCard(String instanceId, String? newOwnerId) {
     if (_isOwnedOrUnowned(instanceId)) {
-      _session.giveCard(instanceId, newOwnerId);
+      _session.giveCard(instanceId, newOwnerId, actingPlayerId: _session.actingPlayerId);
     }
   }
 
   @override
   void stackCard(String instanceId, String ontoInstanceId) {
     if (_isOwnedOrUnowned(instanceId))
-      _session.stackCard(instanceId, ontoInstanceId);
+      _session.stackCard(instanceId, ontoInstanceId, actingPlayerId: _session.actingPlayerId);
   }
 
   @override
@@ -190,7 +202,7 @@ class HostTableController implements TableController {
 
   @override
   void shufflePile(String pileRootInstanceId) =>
-      _session.shufflePile(pileRootInstanceId);
+      _session.shufflePile(pileRootInstanceId, actingPlayerId: _session.actingPlayerId);
 
   /// A zone request never carries an owner -- it always means "my own
   /// instance of this zone, or the shared one," resolved here from the
@@ -221,11 +233,15 @@ class HostTableController implements TableController {
     zoneId,
     zoneOwnerId: _zoneOwnerId(zoneId),
     toBottom: toBottom,
+    actingPlayerId: _session.actingPlayerId,
   );
 
   @override
-  void shuffleZone(String zoneId) =>
-      _session.shuffleZone(zoneId, zoneOwnerId: _zoneOwnerId(zoneId));
+  void shuffleZone(String zoneId) => _session.shuffleZone(
+    zoneId,
+    zoneOwnerId: _zoneOwnerId(zoneId),
+    actingPlayerId: _session.actingPlayerId,
+  );
 
   @override
   void startSearchZone(String zoneId) => _session.startSearchZone(
@@ -293,7 +309,7 @@ class HostTableController implements TableController {
 
   @override
   void setWidgetValue(String instanceId, int value) =>
-      _session.setWidgetValue(instanceId, value);
+      _session.setWidgetValue(instanceId, value, actingPlayerId: _session.actingPlayerId);
 
   @override
   void deleteWidget(String instanceId) => _session.deleteWidget(instanceId);
@@ -316,7 +332,13 @@ class HostTableController implements TableController {
     String cardId,
     double x,
     double y,
-  ) => _session.attachWidgetToCard(instanceId, cardId, x, y);
+  ) => _session.attachWidgetToCard(
+    instanceId,
+    cardId,
+    x,
+    y,
+    actingPlayerId: _session.actingPlayerId,
+  );
 
   @override
   void previewCardDrag(

@@ -7,6 +7,7 @@ import 'package:flutter_deck/models/card_instance.dart';
 import 'package:flutter_deck/models/deck_config.dart';
 import 'package:flutter_deck/models/game_definition.dart';
 import 'package:flutter_deck/models/game_set.dart';
+import 'package:flutter_deck/models/log_entry.dart';
 import 'package:flutter_deck/models/player.dart';
 import 'package:flutter_deck/models/saved_game.dart';
 import 'package:flutter_deck/models/table_state.dart';
@@ -1105,6 +1106,49 @@ void main() {
       expect(roundTripped.searches.single.targetType, SearchTargetType.zone);
       expect(roundTripped.searches.single.targetId, 'deck');
       expect(roundTripped.searches.single.targetOwnerId, 'p1');
+    });
+
+    test('log defaults to empty and is omitted from JSON', () {
+      final state = TableState(
+        gameId: 'g',
+        players: const [],
+        cards: const [],
+        revision: 0,
+      );
+      expect(state.log, isEmpty);
+      expect(state.toJson().containsKey('log'), isFalse);
+    });
+
+    test('log round-trips through JSON', () {
+      final state = TableState(
+        gameId: 'g',
+        players: const [],
+        cards: const [],
+        revision: 0,
+        log: const [
+          LogEntry(elapsedMs: 1000, message: 'Alice played "Dragon" to the table from hand.'),
+        ],
+      );
+      final roundTripped = TableState.fromJson(state.toJson());
+      expect(roundTripped.log, hasLength(1));
+      expect(roundTripped.log.single.elapsedMs, 1000);
+      expect(roundTripped.log.single.message, 'Alice played "Dragon" to the table from hand.');
+    });
+  });
+
+  group('LogEntry', () {
+    test('round-trips through JSON', () {
+      const entry = LogEntry(elapsedMs: 65000, message: 'Bob drew a card.');
+      final roundTripped = LogEntry.fromJson(entry.toJson());
+      expect(roundTripped.elapsedMs, 65000);
+      expect(roundTripped.message, 'Bob drew a card.');
+    });
+
+    test('formatElapsedTime formats HH:MM:SS', () {
+      expect(formatElapsedTime(0), '00:00:00');
+      expect(formatElapsedTime(3661000), '01:01:01');
+      expect(formatElapsedTime(59999), '00:00:59');
+      expect(formatElapsedTime(61000), '00:01:01');
     });
   });
 

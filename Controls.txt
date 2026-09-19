@@ -107,6 +107,9 @@ F1              | Key-down                          | Toggles the colored owners
 F2              | Key-down                          | Toggles every zone/hand background AND every player's avatar     | Session-local (resets to color-tinted, the default, next
                 |                                   | header background, table-wide, between a darkened shade of       | time you open the table)
                 |                                   | each player's own color (default) and the flat black tint        |
+L               | Key-down                          | Opens/closes the Game Log -- a timestamped record of every       | Any player. Auto-scrolls to the latest entry when opened;
+                |                                   | meaningful gameplay action (draws, plays, flips, rotations,      | has its own Save Log button to export it as a text file
+                |                                   | shuffles, etc.), with a Save Log button                          |
 Alt (at drop)   | Dropping a dragged card near      | Stacks it instead of just placing it nearby                      | Not needed when the target is already a defined zone --
                 | another loose card                |                                                                    | that always stacks
 Alt (at drop)   | Dropping onto a defined zone      | Sends the card to the BOTTOM of that zone instead of the top      |
