@@ -126,20 +126,31 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen> with WindowListener {
   final _nameController = TextEditingController(text: 'Player');
   int _playerColor = boardWidgetColorPalette.first;
   String? _avatarPath;
   final _profileSettings = PlayerProfileSettings();
   final _avatarFileOps = PlayerAvatarFileOps();
   String? _buildNumber;
+  bool _isMaximized = true;
 
   @override
   void initState() {
     super.initState();
     _loadProfile();
     _loadBuildNumber();
+    windowManager.addListener(this);
+    windowManager.isMaximized().then((value) {
+      if (mounted) setState(() => _isMaximized = value);
+    });
   }
+
+  @override
+  void onWindowMaximize() => setState(() => _isMaximized = true);
+
+  @override
+  void onWindowUnmaximize() => setState(() => _isMaximized = false);
 
   Future<void> _loadBuildNumber() async {
     final info = await PackageInfo.fromPlatform();
@@ -195,6 +206,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   void dispose() {
+    windowManager.removeListener(this);
     _nameController.dispose();
     super.dispose();
   }
@@ -209,6 +221,11 @@ class _HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Cardflux'),
+        // The window is frameless (see main.dart) with no native title bar,
+        // so give the app bar itself drag-to-move (and double-tap-to-maximize)
+        // behavior. It sits behind the title/actions in the AppBar's stack,
+        // so it only catches drags on the bar's empty space.
+        flexibleSpace: const DragToMoveArea(child: SizedBox.expand()),
         actions: [
           Consumer<ThemeModeController>(
             builder: (context, controller, _) => IconButton(
@@ -217,8 +234,15 @@ class _HomeScreenState extends State<HomeScreen> {
               onPressed: () => controller.setDarkMode(!controller.isDarkMode),
             ),
           ),
-          // The app runs fullscreen (see main.dart) with no native window
-          // chrome, so there's otherwise no way to quit it.
+          // The window is frameless with no native maximize/restore control.
+          IconButton(
+            icon: Icon(_isMaximized ? Icons.filter_none : Icons.crop_square),
+            tooltip: _isMaximized ? 'Restore' : 'Maximize',
+            onPressed: () =>
+                _isMaximized ? windowManager.unmaximize() : windowManager.maximize(),
+          ),
+          // The app runs with no native window chrome, so there's otherwise
+          // no way to quit it.
           IconButton(
             icon: const Icon(Icons.close),
             tooltip: 'Close Cardflux',
