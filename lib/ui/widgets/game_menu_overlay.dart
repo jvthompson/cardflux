@@ -19,6 +19,7 @@ class GameMenuOverlay extends StatelessWidget {
     required this.leaveConfirmationMessage,
     this.kickablePlayers = const [],
     this.onKickPlayer,
+    this.onSaveGame,
   });
 
   final VoidCallback onClose;
@@ -43,6 +44,12 @@ class GameMenuOverlay extends StatelessWidget {
   /// the host can see the feature exists.
   final List<PlayerInfo> kickablePlayers;
   final void Function(String playerId)? onKickPlayer;
+
+  /// Dumps the current table state to a JSON file for later reload -- see
+  /// `SaveGameDialog`. Null for a client's own `TableScreen` instance (only
+  /// the host's/practice player's session is authoritative/complete enough
+  /// to be worth saving), same gating rationale as [onKickPlayer].
+  final VoidCallback? onSaveGame;
 
   Future<void> _confirmLeave(BuildContext context) async {
     final confirmed = await showDialog<bool>(
@@ -145,6 +152,14 @@ class GameMenuOverlay extends StatelessWidget {
                           label: Text(leaveButtonLabel),
                           onPressed: () => _confirmLeave(context),
                         ),
+                        if (onSaveGame != null) ...[
+                          const SizedBox(height: 12),
+                          OutlinedButton.icon(
+                            icon: const Icon(Icons.save),
+                            label: const Text('Save Game...'),
+                            onPressed: onSaveGame,
+                          ),
+                        ],
                         if (onKickPlayer != null) ...[
                           const SizedBox(height: 20),
                           const Align(

@@ -96,6 +96,7 @@ class TableScreen extends StatefulWidget {
     this.avatarBytesByPlayerId = const {},
     this.gameFolderPath,
     this.onKickPlayer,
+    this.onSaveGame,
   });
 
   final Map<String, CardDefinition> definitionsById;
@@ -151,6 +152,12 @@ class TableScreen extends StatefulWidget {
   /// section at all (a client has no such capability, so this stays null
   /// there). Forcibly disconnects the given player id.
   final void Function(String playerId)? onKickPlayer;
+
+  /// Non-null only for the host's/practice player's own `TableScreen`
+  /// instance -- its presence is what tells [GameMenuOverlay] to show the
+  /// "Save Game" button at all. A client passes neither this nor
+  /// [onKickPlayer].
+  final VoidCallback? onSaveGame;
 
   @override
   State<TableScreen> createState() => _TableScreenState();
@@ -2268,6 +2275,7 @@ class _TableScreenState extends State<TableScreen>
                 .where((p) => p.role != PlayerRole.host && p.connected)
                 .toList(),
       onKickPlayer: widget.onKickPlayer,
+      onSaveGame: widget.onSaveGame,
     );
   }
 

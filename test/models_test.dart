@@ -8,6 +8,7 @@ import 'package:flutter_deck/models/deck_config.dart';
 import 'package:flutter_deck/models/game_definition.dart';
 import 'package:flutter_deck/models/game_set.dart';
 import 'package:flutter_deck/models/player.dart';
+import 'package:flutter_deck/models/saved_game.dart';
 import 'package:flutter_deck/models/table_state.dart';
 import 'package:flutter_deck/models/tag_group.dart';
 import 'package:flutter_deck/models/zone_definition.dart';
@@ -1104,6 +1105,39 @@ void main() {
       expect(roundTripped.searches.single.targetType, SearchTargetType.zone);
       expect(roundTripped.searches.single.targetId, 'deck');
       expect(roundTripped.searches.single.targetOwnerId, 'p1');
+    });
+  });
+
+  group('SavedGame', () {
+    test('round-trips through JSON', () {
+      final saved = SavedGame(
+        savedAt: DateTime.utc(2026, 1, 2, 3, 4, 5),
+        state: TableState(
+          gameId: 'standard_52',
+          players: const [
+            PlayerInfo(id: 'p1', name: 'Alice', role: PlayerRole.host, color: 0xFFD32F2F),
+          ],
+          cards: [
+            CardInstance(
+              instanceId: 'i1',
+              definitionId: 'hearts_A',
+              x: 0,
+              y: 0,
+              zIndex: 0,
+              faceUp: false,
+              zone: CardZone.hand,
+              ownerId: 'p1',
+            ),
+          ],
+          revision: 3,
+        ),
+      );
+      final roundTripped = SavedGame.fromJson(saved.toJson());
+      expect(roundTripped.savedAt, saved.savedAt);
+      expect(roundTripped.state.gameId, 'standard_52');
+      expect(roundTripped.state.players.single.name, 'Alice');
+      expect(roundTripped.state.cards.single.ownerId, 'p1');
+      expect(roundTripped.state.revision, 3);
     });
   });
 

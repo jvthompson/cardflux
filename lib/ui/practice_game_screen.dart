@@ -1,14 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../data/save_game_file_ops.dart';
 import '../game/game_session.dart';
 import '../game/table_controller.dart';
 import '../models/card_definition.dart';
 import '../models/deck_config.dart';
 import '../models/game_definition.dart';
 import '../models/player.dart';
+import '../models/saved_game.dart';
+import '../models/table_state.dart';
 import 'home_screen.dart';
 import 'table_screen.dart';
+import 'widgets/save_game_dialog.dart';
 
 /// Deals [game]/[deckConfigsByPlayerId] into a local, no-networking
 /// [GameSession] for [players] (1-4 simulated seats, all controlled by the
@@ -25,11 +29,17 @@ class PracticeGameScreen extends StatefulWidget {
     required this.players,
     required this.deckConfigsByPlayerId,
     this.localAvatarPath,
+    this.loadedState,
   });
 
   final GameDefinition game;
   final List<PlayerInfo> players;
   final Map<String, DeckConfig>? deckConfigsByPlayerId;
+
+  /// A previously-saved, already player-remapped [TableState] to resume
+  /// instead of dealing a fresh one -- see `HostGameScreen.loadedState` and
+  /// `LoadSavedGameScreen`.
+  final TableState? loadedState;
 
   /// The real player's own avatar -- only ever shown for seat 1 (see
   /// `TableScreen._avatarCorner`'s `isLocal`, which stays anchored to
@@ -47,11 +57,19 @@ class _PracticeGameScreenState extends State<PracticeGameScreen> {
   @override
   void initState() {
     super.initState();
-    _session = GameSession.localPractice(
-      game: widget.game,
-      players: widget.players,
-      deckConfigsByPlayerId: widget.deckConfigsByPlayerId,
-    );
+    final loadedState = widget.loadedState;
+    _session = loadedState != null
+        ? GameSession(
+            game: widget.game,
+            localPlayerId: widget.players.first.id,
+            initialState: loadedState,
+            isLocalPractice: true,
+          )
+        : GameSession.localPractice(
+            game: widget.game,
+            players: widget.players,
+            deckConfigsByPlayerId: widget.deckConfigsByPlayerId,
+          );
     _definitionsById = {for (final c in widget.game.cards) c.id: c};
   }
 
@@ -60,6 +78,24 @@ class _PracticeGameScreenState extends State<PracticeGameScreen> {
       MaterialPageRoute(builder: (_) => const HomeScreen()),
       (route) => false,
     );
+  }
+
+  /// The Game Menu's "Save Game..." action -- see `HostGameScreen._saveGame`,
+  /// identical logic minus the network broadcast. Null (hidden) when
+  /// [GameDefinition.folderPath] is null (the bundled Standard 52 deck).
+  Future<void> _saveGame() async {
+    final folderPath = widget.game.folderPath;
+    final session = _session;
+    if (folderPath == null || session == null) return;
+    final name = await showDialog<String>(
+      context: context,
+      builder: (_) => SaveGameDialog(gameFolderPath: folderPath, gameName: widget.game.name),
+    );
+    if (name == null || !mounted) return;
+    final save = SavedGame(savedAt: DateTime.now(), state: session.state.copyWith(searches: const []));
+    await SaveGameFileOps().writeSaveGame(gameFolderPath: folderPath, name: name, save: save);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Saved "$name"')));
   }
 
   @override
@@ -84,6 +120,7 @@ class _PracticeGameScreenState extends State<PracticeGameScreen> {
         onLeaveGame: _leaveGame,
         leaveButtonLabel: 'Leave Game',
         leaveConfirmationMessage: 'Leave this practice game and return to the home screen?',
+        onSaveGame: widget.game.folderPath == null ? null : _saveGame,
       ),
     );
   }

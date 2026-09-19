@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/color_palette.dart';
 import '../models/game_definition.dart';
 import '../models/player.dart';
+import 'load_saved_game_screen.dart';
 import 'practice_game_screen.dart';
 import 'practice_load_decks_screen.dart';
 import 'widgets/game_picker.dart';
@@ -61,12 +62,47 @@ class PracticeGameSelectScreen extends StatelessWidget {
     ));
   }
 
+  void _loadSavedGame(BuildContext context) {
+    final players = _buildPlayers();
+    Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => LoadSavedGameScreen(
+        currentPlayers: players,
+        onLoaded: (game, state) => Navigator.of(context).push(MaterialPageRoute(
+          builder: (_) => PracticeGameScreen(
+            game: game,
+            players: players,
+            deckConfigsByPlayerId: null,
+            loadedState: state,
+            localAvatarPath: localAvatarPath,
+          ),
+        )),
+      ),
+    ));
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Choose a Game')),
-      body: Center(
-        child: GamePicker(onGameChosen: (game) => _chooseGame(context, game)),
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: OutlinedButton.icon(
+                icon: const Icon(Icons.folder_open),
+                label: const Text('Load a Saved Game...'),
+                onPressed: () => _loadSavedGame(context),
+              ),
+            ),
+          ),
+          Expanded(
+            child: Center(
+              child: GamePicker(onGameChosen: (game) => _chooseGame(context, game)),
+            ),
+          ),
+        ],
       ),
     );
   }

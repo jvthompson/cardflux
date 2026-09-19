@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../data/player_profile_settings.dart';
+import '../data/save_game_file_ops.dart';
 import '../game/game_session.dart';
 import '../game/host_game_engine.dart';
 import '../game/seat_utils.dart';
@@ -9,10 +10,13 @@ import '../game/table_controller.dart';
 import '../models/card_definition.dart';
 import '../models/deck_config.dart';
 import '../models/game_definition.dart';
+import '../models/saved_game.dart';
+import '../models/table_state.dart';
 import '../networking/host_server.dart';
 import '../networking/net_message.dart';
 import 'home_screen.dart';
 import 'table_screen.dart';
+import 'widgets/save_game_dialog.dart';
 
 /// Deals [game]/[deckConfigsByPlayerId] into the host's authoritative
 /// [GameSession], starts the [HostGameEngine] broadcast loop, and renders
@@ -36,6 +40,7 @@ class HostGameScreen extends StatefulWidget {
     required this.game,
     required this.deckConfigsByPlayerId,
     this.sharedDeckConfigsByZoneId = const {},
+    this.loadedState,
   });
 
   final HostServer hostServer;
@@ -47,6 +52,14 @@ class HostGameScreen extends StatefulWidget {
   /// `GameSelectScreen` before this screen was ever built -- passed straight
   /// to `GameSession.dealFromZones`.
   final Map<String, DeckConfig> sharedDeckConfigsByZoneId;
+
+  /// A previously-saved, already player-remapped [TableState] to resume
+  /// instead of dealing a fresh one -- set only when the host picked "Load a
+  /// Saved Game..." on [GameSelectScreen] instead of a game tile. When set,
+  /// [deckConfigsByPlayerId]/[sharedDeckConfigsByZoneId] are ignored (a
+  /// loaded save already has real dealt cards, no deck-building needed). See
+  /// `LoadSavedGameScreen`.
+  final TableState? loadedState;
 
   @override
   State<HostGameScreen> createState() => _HostGameScreenState();
@@ -73,13 +86,16 @@ class _HostGameScreenState extends State<HostGameScreen> {
     // Harmless to send again for the deck-building path -- ClientGameScreen's
     // gameData handling just overwrites `_game` with an identical value.
     widget.hostServer.broadcast(NetMessage(type: NetMessageType.gameData, payload: widget.game.toJson()));
-    final session = GameSession.dealFromZones(
-      game: widget.game,
-      players: players,
-      localPlayerId: widget.hostPlayerId,
-      deckConfigsByPlayerId: widget.deckConfigsByPlayerId,
-      sharedDeckConfigsByZoneId: widget.sharedDeckConfigsByZoneId,
-    );
+    final loadedState = widget.loadedState;
+    final session = loadedState != null
+        ? GameSession(game: widget.game, localPlayerId: widget.hostPlayerId, initialState: loadedState)
+        : GameSession.dealFromZones(
+            game: widget.game,
+            players: players,
+            localPlayerId: widget.hostPlayerId,
+            deckConfigsByPlayerId: widget.deckConfigsByPlayerId,
+            sharedDeckConfigsByZoneId: widget.sharedDeckConfigsByZoneId,
+          );
     final engine = HostGameEngine(session: session, hostServer: widget.hostServer, hostPlayerId: widget.hostPlayerId);
     engine.start();
     // No player count auto-ends the session on disconnect, for any match
@@ -119,6 +135,25 @@ class _HostGameScreenState extends State<HostGameScreen> {
     );
   }
 
+  /// The Game Menu's "Save Game..." action -- writes the host's own
+  /// authoritative, unfiltered `session.state` (see `SaveGameDialog`,
+  /// `SaveGameFileOps`). Null (hidden) when [GameDefinition.folderPath] is
+  /// null -- the bundled Standard 52 deck has no folder to save into.
+  Future<void> _saveGame() async {
+    final folderPath = widget.game.folderPath;
+    final session = _session;
+    if (folderPath == null || session == null) return;
+    final name = await showDialog<String>(
+      context: context,
+      builder: (_) => SaveGameDialog(gameFolderPath: folderPath, gameName: widget.game.name),
+    );
+    if (name == null || !mounted) return;
+    final save = SavedGame(savedAt: DateTime.now(), state: session.state.copyWith(searches: const []));
+    await SaveGameFileOps().writeSaveGame(gameFolderPath: folderPath, name: name, save: save);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Saved "$name"')));
+  }
+
   @override
   Widget build(BuildContext context) {
     final session = _session;
@@ -149,6 +184,7 @@ class _HostGameScreenState extends State<HostGameScreen> {
             'player will be disconnected -- you can start a new session any '
             'time.',
         onKickPlayer: widget.hostServer.kick,
+        onSaveGame: widget.game.folderPath == null ? null : _saveGame,
       ),
     );
   }
