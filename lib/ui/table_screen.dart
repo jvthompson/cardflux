@@ -34,7 +34,7 @@ import 'widgets/arrow_widget.dart';
 import 'widgets/avatar_widget.dart';
 import 'widgets/card_back_widget.dart';
 import 'widgets/card_face_widget.dart';
-import 'widgets/color_swatch_row.dart';
+import 'widgets/color_picker_field.dart';
 import 'widgets/counter_widget.dart';
 import 'widgets/deck_library_screen.dart';
 import 'widgets/deck_widget.dart';
@@ -541,11 +541,11 @@ class _TableScreenState extends State<TableScreen>
       _toWorldPixel(fx, fy) + _worldOffset + _clampedCameraOffset;
 
   /// Fixed size (in [kWorldSize]'s real, unscaled pixels) of the darker-green
-  /// landmark rectangle centered on the table -- 1600x900 so it fills most of
+  /// landmark rectangle centered on the table -- 1440x810 so it fills most of
   /// a 1920x1080 viewport's visible playspace, giving every player a shared
   /// reference for "the general center of the table" regardless of their own
   /// window size or camera pan.
-  static const Size _centerMarkerSize = Size(1600, 900);
+  static const Size _centerMarkerSize = Size(1440, 810);
   static const double _centerMarkerRadius = 32;
 
   /// A static rectangle centered on [kWorldSize] itself, not on any card or
@@ -2472,16 +2472,16 @@ class _TableScreenState extends State<TableScreen>
               children: [
                 const Text('Background'),
                 const SizedBox(height: 8),
-                ColorSwatchRow(
+                ColorPickerField(
                   selected: background,
-                  onSelected: (c) => setState(() => background = c),
+                  onChanged: (c) => setState(() => background = c),
                 ),
                 const SizedBox(height: 16),
                 const Text('Text'),
                 const SizedBox(height: 8),
-                ColorSwatchRow(
+                ColorPickerField(
                   selected: text,
-                  onSelected: (c) => setState(() => text = c),
+                  onChanged: (c) => setState(() => text = c),
                 ),
               ],
             ),
@@ -2550,9 +2550,9 @@ class _TableScreenState extends State<TableScreen>
         builder: (context, setState) => AlertDialog(
           title: const Text('Set Color'),
           content: SingleChildScrollView(
-            child: ColorSwatchRow(
+            child: ColorPickerField(
               selected: color,
-              onSelected: (c) => setState(() => color = c),
+              onChanged: (c) => setState(() => color = c),
             ),
           ),
           actions: [

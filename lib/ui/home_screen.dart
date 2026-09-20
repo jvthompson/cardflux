@@ -13,7 +13,7 @@ import 'navigation.dart';
 import 'player_count_screen.dart';
 import 'practice_player_count_screen.dart';
 import 'widgets/avatar_widget.dart';
-import 'widgets/color_swatch_row.dart';
+import 'widgets/color_picker_field.dart';
 
 /// Result of [_promptEditPlayerSettings] -- what the user chose to save, or
 /// null if they cancelled. [avatarChanged] distinguishes "avatar untouched"
@@ -85,7 +85,7 @@ Future<PlayerProfileEditResult?> _promptEditPlayerSettings(
                   const SizedBox(height: 16),
                   const Align(alignment: Alignment.centerLeft, child: Text('Your color')),
                   const SizedBox(height: 8),
-                  ColorSwatchRow(selected: color, onSelected: (c) => setState(() => color = c)),
+                  ColorPickerField(selected: color, onChanged: (c) => setState(() => color = c)),
                 ],
               ),
             ),

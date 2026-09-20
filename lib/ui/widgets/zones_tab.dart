@@ -4,6 +4,7 @@ import 'package:uuid/uuid.dart';
 import '../../models/card_definition.dart';
 import '../../models/deck_config.dart';
 import '../../models/zone_definition.dart';
+import 'color_picker_field.dart';
 
 const Uuid _uuid = Uuid();
 
@@ -111,10 +112,6 @@ class _ZoneEditorCardState extends State<_ZoneEditorCard> {
   );
   late final TextEditingController _counterStartingValueController =
       TextEditingController(text: '${widget.zone.counterStartingValue}');
-  late final TextEditingController _counterStartingColorController =
-      TextEditingController(text: _hexFromColor(widget.zone.counterStartingColor));
-  late final TextEditingController _counterStartingTextColorController =
-      TextEditingController(text: _hexFromColor(widget.zone.counterStartingTextColor));
 
   @override
   void dispose() {
@@ -123,27 +120,7 @@ class _ZoneEditorCardState extends State<_ZoneEditorCard> {
     _deckNameController.dispose();
     _deckTypeController.dispose();
     _counterStartingValueController.dispose();
-    _counterStartingColorController.dispose();
-    _counterStartingTextColorController.dispose();
     super.dispose();
-  }
-
-  /// The RGB (no alpha) portion of an ARGB int as a 6-digit uppercase hex
-  /// string, e.g. `0xFF455A64` -> `'455A64'` -- a counter's starting color is
-  /// always opaque (matching every default color constant in this app), so
-  /// the editor only ever shows/accepts the RGB half.
-  static String _hexFromColor(int argb) =>
-      (argb & 0xFFFFFF).toRadixString(16).padLeft(6, '0').toUpperCase();
-
-  /// Parses a 6-digit RGB hex string (an optional leading `#` is stripped)
-  /// back into an opaque ARGB int -- falls back to [fallback] for anything
-  /// that doesn't parse, same tolerant-input style as this form's numeric
-  /// fields elsewhere.
-  static int _colorFromHex(String input, int fallback) {
-    final cleaned = input.trim().replaceFirst('#', '');
-    if (cleaned.length != 6) return fallback;
-    final rgb = int.tryParse(cleaned, radix: 16);
-    return rgb == null ? fallback : 0xFF000000 | rgb;
   }
 
   void _updateEntry(int index, DeckEntry updated) {
@@ -516,41 +493,24 @@ class _ZoneEditorCardState extends State<_ZoneEditorCard> {
                   ),
                   const SizedBox(height: 12),
                   Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Expanded(
-                        child: TextField(
-                          controller: _counterStartingColorController,
-                          decoration: const InputDecoration(
-                            labelText: 'Starting Color (hex)',
-                            prefixText: '#',
-                            border: OutlineInputBorder(),
-                          ),
-                          onChanged: (v) => widget.onChanged(
-                            zone.copyWith(
-                              counterStartingColor: _colorFromHex(
-                                v,
-                                zone.counterStartingColor,
-                              ),
-                            ),
+                        child: ColorPickerField(
+                          selected: zone.counterStartingColor,
+                          hexLabel: 'Starting Color (hex)',
+                          onChanged: (c) => widget.onChanged(
+                            zone.copyWith(counterStartingColor: c),
                           ),
                         ),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
-                        child: TextField(
-                          controller: _counterStartingTextColorController,
-                          decoration: const InputDecoration(
-                            labelText: 'Starting Text Color (hex)',
-                            prefixText: '#',
-                            border: OutlineInputBorder(),
-                          ),
-                          onChanged: (v) => widget.onChanged(
-                            zone.copyWith(
-                              counterStartingTextColor: _colorFromHex(
-                                v,
-                                zone.counterStartingTextColor,
-                              ),
-                            ),
+                        child: ColorPickerField(
+                          selected: zone.counterStartingTextColor,
+                          hexLabel: 'Starting Text Color (hex)',
+                          onChanged: (c) => widget.onChanged(
+                            zone.copyWith(counterStartingTextColor: c),
                           ),
                         ),
                       ),
