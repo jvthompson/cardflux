@@ -20,10 +20,7 @@ enum NetMessageType {
   welcome,
   gameData,
   fullState,
-  requestDeckChosen,
-  requestReady,
   lobbyRosterUpdate,
-  lobbyReadyUpdate,
   requestMove,
   requestMoveStack,
   requestMoveGroup,
@@ -51,6 +48,7 @@ enum NetMessageType {
   requestDuplicateWidget,
   requestAttachWidgetToCard,
   requestGeneratePack,
+  requestLoadDeckIntoZone,
 
   /// The four types below are a third message category, distinct from both
   /// a persisted `requestX` action and a `fullState`/lobby broadcast: a
@@ -91,9 +89,9 @@ class NetMessage {
 
 /// A [NetMessage] paired with the id of whichever connected client actually
 /// sent it -- [HostServer.incoming] emits this instead of a bare [NetMessage]
-/// so [HostGameEngine]/`HostLoadDeckScreen` can tell N clients' requests
-/// apart, instead of assuming (as when this app supported only one client)
-/// that every incoming message came from "the" one opponent.
+/// so [HostGameEngine] can tell N clients' requests apart, instead of
+/// assuming (as when this app supported only one client) that every
+/// incoming message came from "the" one opponent.
 class IncomingMessage {
   const IncomingMessage({required this.senderId, required this.message});
 

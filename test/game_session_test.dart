@@ -1265,6 +1265,165 @@ void main() {
     });
   });
 
+  group('GameSession.loadDeckIntoZone', () {
+    const cardsWithUnownable = [
+      CardDefinition(id: 'a', cardTitle: 'A', colorHex: '#000000'),
+      CardDefinition(id: 'b', cardTitle: 'B', colorHex: '#000000'),
+      CardDefinition(id: 'u', cardTitle: 'U', colorHex: '#000000', unownable: true),
+    ];
+
+    const game = GameDefinition(
+      id: 'g1',
+      name: 'G',
+      cards: cardsWithUnownable,
+      zones: [
+        ZoneDefinition(id: 'draw_deck', name: 'Draw Deck', dealsBuiltDeck: true),
+        ZoneDefinition(
+          id: 'location_deck',
+          name: 'Location Deck',
+          dealsBuiltDeck: true,
+          deckType: 'location_deck',
+        ),
+        ZoneDefinition(id: 'shuffled_deck', name: 'Shuffled Deck', dealsBuiltDeck: true, autoShuffle: true),
+        ZoneDefinition(id: 'face_up_deck', name: 'Face Up Deck', dealsBuiltDeck: true, faceUp: true),
+      ],
+    );
+
+    GameSession sessionWith() {
+      return GameSession(
+        game: game,
+        localPlayerId: 'p1',
+        initialState: const TableState(gameId: 'g1', players: _players, cards: [], revision: 0),
+      );
+    }
+
+    test('mints the target zone\'s own deckType entries, ignoring other subdecks in the same DeckConfig', () {
+      final session = sessionWith();
+      session.loadDeckIntoZone(
+        'draw_deck',
+        const DeckConfig(
+          gameId: 'g1',
+          subdecks: [
+            SubDeck(name: 'main_deck', entries: [DeckEntry(definitionId: 'a', quantity: 2)]),
+            SubDeck(name: 'location_deck', entries: [DeckEntry(definitionId: 'b', quantity: 5)]),
+          ],
+        ),
+        actingPlayerId: 'p1',
+      );
+      expect(session.state.cards, hasLength(2));
+      expect(session.state.cards.every((c) => c.definitionId == 'a'), isTrue);
+      expect(session.state.cards.every((c) => c.zoneId == 'draw_deck'), isTrue);
+    });
+
+    test('filters out entries referencing an unknown definitionId without crashing', () {
+      final session = sessionWith();
+      session.loadDeckIntoZone(
+        'draw_deck',
+        const DeckConfig(
+          gameId: 'g1',
+          subdecks: [
+            SubDeck(
+              name: 'main_deck',
+              entries: [
+                DeckEntry(definitionId: 'a', quantity: 1),
+                DeckEntry(definitionId: 'nonexistent', quantity: 5),
+              ],
+            ),
+          ],
+        ),
+        actingPlayerId: 'p1',
+      );
+      expect(session.state.cards, hasLength(1));
+      expect(session.state.cards.single.definitionId, 'a');
+    });
+
+    test('sets faceUp from the zone definition, defaulting to face-down', () {
+      final session = sessionWith();
+      const deck = DeckConfig(
+        gameId: 'g1',
+        subdecks: [SubDeck(name: 'main_deck', entries: [DeckEntry(definitionId: 'a', quantity: 1)])],
+      );
+      session.loadDeckIntoZone('draw_deck', deck, actingPlayerId: 'p1');
+      expect(session.state.cards.single.faceUp, isFalse);
+
+      session.loadDeckIntoZone('face_up_deck', deck, actingPlayerId: 'p1');
+      final faceUpCard = session.state.cards.firstWhere((c) => c.zoneId == 'face_up_deck');
+      expect(faceUpCard.faceUp, isTrue);
+    });
+
+    test('sets ownerId to the acting player', () {
+      final session = sessionWith();
+      session.loadDeckIntoZone(
+        'draw_deck',
+        const DeckConfig(
+          gameId: 'g1',
+          subdecks: [SubDeck(name: 'main_deck', entries: [DeckEntry(definitionId: 'a', quantity: 1)])],
+        ),
+        actingPlayerId: 'p2',
+      );
+      expect(session.state.cards.single.ownerId, 'p2');
+    });
+
+    test('carries unownable through from the CardDefinition', () {
+      final session = sessionWith();
+      session.loadDeckIntoZone(
+        'draw_deck',
+        const DeckConfig(
+          gameId: 'g1',
+          subdecks: [SubDeck(name: 'main_deck', entries: [DeckEntry(definitionId: 'u', quantity: 1)])],
+        ),
+        actingPlayerId: 'p1',
+      );
+      expect(session.state.cards.single.unownable, isTrue);
+    });
+
+    test('deals the full set of cards even when autoShuffle is set on the zone', () {
+      final session = sessionWith();
+      session.loadDeckIntoZone(
+        'shuffled_deck',
+        const DeckConfig(
+          gameId: 'g1',
+          subdecks: [
+            SubDeck(
+              name: 'main_deck',
+              entries: [DeckEntry(definitionId: 'a', quantity: 3), DeckEntry(definitionId: 'b', quantity: 2)],
+            ),
+          ],
+        ),
+        actingPlayerId: 'p1',
+      );
+      expect(session.state.cards.where((c) => c.definitionId == 'a'), hasLength(3));
+      expect(session.state.cards.where((c) => c.definitionId == 'b'), hasLength(2));
+    });
+
+    test('appends a log entry naming the zone', () {
+      final session = sessionWith();
+      session.loadDeckIntoZone(
+        'draw_deck',
+        const DeckConfig(
+          gameId: 'g1',
+          subdecks: [SubDeck(name: 'main_deck', entries: [DeckEntry(definitionId: 'a', quantity: 1)])],
+        ),
+        actingPlayerId: 'p1',
+      );
+      expect(session.state.log.single.message, 'Host loaded a deck into the Draw Deck.');
+    });
+
+    test('bumps revision', () {
+      final session = sessionWith();
+      final before = session.state.revision;
+      session.loadDeckIntoZone(
+        'draw_deck',
+        const DeckConfig(
+          gameId: 'g1',
+          subdecks: [SubDeck(name: 'main_deck', entries: [DeckEntry(definitionId: 'a', quantity: 1)])],
+        ),
+        actingPlayerId: 'p1',
+      );
+      expect(session.state.revision, before + 1);
+    });
+  });
+
   group('GameSession deck widget synthetic zones', () {
     const game = GameDefinition(
       id: 'g1',

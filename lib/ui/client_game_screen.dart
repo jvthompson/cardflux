@@ -15,7 +15,6 @@ import '../game/seat_utils.dart';
 import '../game/sound_service.dart';
 import '../game/table_controller.dart';
 import '../models/card_definition.dart';
-import '../models/deck_config.dart';
 import '../models/game_definition.dart';
 import '../models/player.dart';
 import '../models/table_state.dart';
@@ -24,16 +23,15 @@ import '../networking/net_message.dart';
 import 'home_screen.dart';
 import 'navigation.dart';
 import 'table_screen.dart';
-import 'widgets/deck_library_screen.dart';
 
-/// Waits for the host's `gameData` (the [GameDefinition] it's dealing from),
-/// shows [LoadDeckScreen] so the local player can pick their own deck file
-/// (sent to the host as `requestDeckChosen`), then waits for the first
-/// `fullState` broadcast to construct the client's [GameSession] (a client
-/// has no local copy of the game until the host sends one -- including
-/// custom, non-bundled games loaded from the host's own disk), applies every
-/// later snapshot to it via [GameSession.applyRemoteState], and renders the
-/// shared [TableScreen] once a session exists.
+/// Waits for the host's `gameData` (the [GameDefinition] it's dealing from)
+/// and the first `fullState` broadcast to construct the client's
+/// [GameSession] (a client has no local copy of the game until the host
+/// sends one -- including custom, non-bundled games loaded from the host's
+/// own disk), applies every later snapshot to it via
+/// [GameSession.applyRemoteState], and renders the shared [TableScreen] once
+/// a session exists. Deck-building zones start empty -- a player loads a
+/// deck into their own zone later by right-clicking it at the table.
 class ClientGameScreen extends StatefulWidget {
   const ClientGameScreen({
     super.key,
@@ -54,12 +52,9 @@ class _ClientGameScreenState extends State<ClientGameScreen> {
   StreamSubscription<NetMessage>? _sub;
   StreamSubscription<ClientConnectionStatus>? _statusSub;
   GameDefinition? _game;
-  DeckConfig? _localDeck;
-  bool _localReady = false;
   bool _navigatedHome = false;
   List<PlayerInfo> _roster = const [];
   int _maxPlayers = 2;
-  Set<String> _readyPlayerIds = const {};
   Map<String, Uint8List> _avatarsByPlayerId = const {};
   String? _localAvatarPath;
 
@@ -125,16 +120,12 @@ class _ClientGameScreenState extends State<ClientGameScreen> {
       });
       return;
     }
-    if (msg.type == NetMessageType.lobbyReadyUpdate) {
-      setState(() => _readyPlayerIds = (msg.payload['readyPlayerIds'] as List).cast<String>().toSet());
-      return;
-    }
     if (msg.type == NetMessageType.gameData) {
       final game = GameDefinition.fromJson(msg.payload);
-      // Triggers a rebuild so `build()` can switch from the waiting spinner
-      // to LoadDeckScreen now that a GameDefinition is available.
+      // Triggers a rebuild once a GameDefinition is available, though the
+      // table itself doesn't render until the first `fullState` arrives.
       setState(() => _game = game);
-      updateScreenChrome(context, title: 'Load Deck -- ${game.name}');
+      updateScreenChrome(context, title: game.name);
       // The host's imagePath/cardBacks path values are absolute paths
       // resolved on ITS machine -- they only happen to work here if this
       // client's game library sits at the identical path. Fire-and-forget:
@@ -197,7 +188,6 @@ class _ClientGameScreenState extends State<ClientGameScreen> {
         );
         _definitionsById = {for (final c in game.cards) c.id: c};
       });
-      updateScreenChrome(context, title: game.name);
     } else {
       _session!.applyRemoteState(remoteState);
     }
@@ -234,24 +224,6 @@ class _ClientGameScreenState extends State<ClientGameScreen> {
     });
   }
 
-  void _chooseDeck(DeckConfig deck) {
-    setState(() => _localDeck = deck);
-    widget.gameClient.send(
-      NetMessage(type: NetMessageType.requestDeckChosen, payload: {'deck': deck.toJson()}),
-    );
-  }
-
-  /// Locks the local player's own deck selection in -- irreversible from
-  /// this screen (mirrors the host's own `_markHostReady` in
-  /// `HostLoadDeckScreen`). The match doesn't actually begin until the host
-  /// also presses Ready and deals -- signaled implicitly by the eventual
-  /// `fullState` broadcast this screen already waits for.
-  void _markReady() {
-    if (_localReady || _localDeck == null) return;
-    setState(() => _localReady = true);
-    widget.gameClient.send(const NetMessage(type: NetMessageType.requestReady));
-  }
-
   @override
   void dispose() {
     _sub?.cancel();
@@ -264,54 +236,6 @@ class _ClientGameScreenState extends State<ClientGameScreen> {
   Widget build(BuildContext context) {
     final session = _session;
     if (session == null) {
-      final game = _game;
-      final zones = game?.deckBuildingZones ?? const [];
-      if (game != null && zones.isNotEmpty) {
-        final localDecksComplete = _localDeck != null;
-        return Scaffold(
-          body: Column(
-            children: [
-              Expanded(
-                child: IgnorePointer(
-                  ignoring: _localReady,
-                  child: Opacity(
-                    opacity: _localReady ? 0.5 : 1,
-                    child: DeckLibraryScreen(game: game, zones: zones, onDeckChosen: _chooseDeck),
-                  ),
-                ),
-              ),
-              if (localDecksComplete && !_localReady)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 32),
-                  child: FilledButton(
-                    onPressed: _markReady,
-                    child: const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 32, vertical: 12),
-                      child: Text('Ready'),
-                    ),
-                  ),
-                ),
-              if (_localReady)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 32),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const CircularProgressIndicator(),
-                      const SizedBox(height: 12),
-                      const Text('Waiting for the other player(s)...'),
-                      for (final p in _roster.where((p) => p.id != widget.localPlayerId))
-                        Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 2),
-                          child: Text(_readyPlayerIds.contains(p.id) ? '${p.name}: Ready' : '${p.name}: not ready'),
-                        ),
-                    ],
-                  ),
-                ),
-            ],
-          ),
-        );
-      }
       return Scaffold(
         body: Center(
           child: Column(

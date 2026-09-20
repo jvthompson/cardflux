@@ -6,7 +6,6 @@ import '../models/player.dart';
 import 'load_saved_game_screen.dart';
 import 'navigation.dart';
 import 'practice_game_screen.dart';
-import 'practice_load_decks_screen.dart';
 import 'widgets/game_picker.dart';
 
 /// Pick a game from the library (or the bundled Standard Deck) for a local
@@ -47,24 +46,18 @@ class PracticeGameSelectScreen extends StatelessWidget {
 
   void _chooseGame(BuildContext context, GameDefinition game) {
     final players = _buildPlayers();
-    if (!game.needsDeckBuilding) {
-      pushScreen(
-        context,
-        title: game.name,
-        showBackButton: false,
-        builder: (_) => PracticeGameScreen(
-          game: game,
-          players: players,
-          deckConfigsByPlayerId: null,
-          localAvatarPath: localAvatarPath,
-        ),
-      );
-      return;
-    }
     pushScreen(
       context,
-      title: 'Load Deck -- ${game.name}',
-      builder: (_) => PracticeLoadDecksScreen(game: game, players: players, localAvatarPath: localAvatarPath),
+      title: game.name,
+      showBackButton: false,
+      builder: (_) => PracticeGameScreen(
+        game: game,
+        players: players,
+        // Empty (not null) per player -- every owned deck-building zone
+        // starts empty; a player loads their own deck at the table later.
+        deckConfigsByPlayerId: const {},
+        localAvatarPath: localAvatarPath,
+      ),
     );
   }
 

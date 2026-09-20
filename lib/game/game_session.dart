@@ -651,6 +651,48 @@ class GameSession extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Mints fresh [CardInstance]s for [deck]'s entries matching zone
+  /// [zoneId]'s own `ZoneDefinition.deckType` (every other subdeck in
+  /// [deck] is ignored -- a multi-zone deck file only fills the one zone
+  /// asked for), landing them in that zone owned by [actingPlayerId] --
+  /// mirrors [dealFromZones]'s own `deal()` closure, just applied outside
+  /// match-start (see `TableScreen`'s "Load Deck..." on an empty
+  /// deck-building zone). An unknown `definitionId` is silently dropped
+  /// (matches [dealFromZones]'s own tolerance for a deck referencing
+  /// content that no longer exists), and no card is minted at all if the
+  /// deck has nothing for this `deckType` -- not an error, just an empty
+  /// result. No "zone must be empty" check here -- the UI only offers this
+  /// action for an empty zone, and there'd be nothing unsafe about a client
+  /// bypassing that and adding more cards to their own zone anyway.
+  void loadDeckIntoZone(String zoneId, DeckConfig deck, {required String actingPlayerId}) {
+    final zone = _zoneDefinition(zoneId);
+    final validIds = {for (final c in game.cards) c.id};
+    final definitionIds = [
+      for (final entry in deck.entriesFor(zone.deckType))
+        if (validIds.contains(entry.definitionId))
+          for (var q = 0; q < entry.quantity; q++) entry.definitionId,
+    ];
+    if (zone.autoShuffle) definitionIds.shuffle();
+    final newCards = [
+      for (final id in definitionIds)
+        CardInstance(
+          instanceId: _uuid.v4(),
+          definitionId: id,
+          x: 0.5,
+          y: 0.5,
+          zIndex: 0,
+          faceUp: zone.faceUp,
+          zone: CardZone.zone,
+          zoneId: zone.id,
+          ownerId: actingPlayerId,
+          unownable: _definitionsById[id]?.unownable ?? false,
+        ),
+    ];
+    _state = _actions.dealNewCards(_state, newCards: newCards);
+    _log(actingPlayerId, 'loaded a deck into the ${zone.name}.');
+    notifyListeners();
+  }
+
   /// Resolves [zoneId] to its declared [ZoneDefinition] -- transparently
   /// unwrapping a DeckWidget synthetic sub-zone id first (see
   /// `deck_widget_zones.dart`) to the *real* zone it was minted from, so

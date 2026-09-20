@@ -36,6 +36,7 @@ import 'widgets/card_back_widget.dart';
 import 'widgets/card_face_widget.dart';
 import 'widgets/color_swatch_row.dart';
 import 'widgets/counter_widget.dart';
+import 'widgets/deck_library_screen.dart';
 import 'widgets/deck_widget.dart';
 import 'widgets/draggable_card.dart';
 import 'widgets/game_menu_overlay.dart';
@@ -2768,10 +2769,7 @@ class _TableScreenState extends State<TableScreen>
   ) {
     final top = cards.isEmpty ? null : _stackUtils.topOf(cards);
     return GestureDetector(
-      onSecondaryTapUp: (details) => _showSearchMenu(
-        details.globalPosition,
-        () => widget.controller.startSearchZone(zone.id),
-      ),
+      onSecondaryTapUp: (details) => _showLocalZoneMenu(details.globalPosition, zone, cards),
       child: ColoredBox(
         key: _zoneKey(zone.id),
         color: backgroundColor,
@@ -2811,6 +2809,61 @@ class _TableScreenState extends State<TableScreen>
         ),
       ),
     );
+  }
+
+  /// Right-clicking the LOCAL player's own owned zone: "Search..." always
+  /// (same as [_showSearchMenu]), plus "Load Deck..." only while [zone] is
+  /// both a deck-building zone and currently empty -- see [_promptLoadDeck].
+  /// Not used for a shared zone (never `dealsBuiltDeck`, see
+  /// `GameDefinition.deckBuildingZones`) or an opponent's zone (read-only,
+  /// no menu at all) -- both keep using [_showSearchMenu] directly.
+  Future<void> _showLocalZoneMenu(
+    Offset globalPosition,
+    ZoneDefinition zone,
+    List<CardInstance> cards,
+  ) async {
+    final canLoadDeck = zone.dealsBuiltDeck && cards.isEmpty;
+    final action = await showMenu<String>(
+      context: context,
+      position: RelativeRect.fromLTRB(
+        globalPosition.dx,
+        globalPosition.dy,
+        globalPosition.dx,
+        globalPosition.dy,
+      ),
+      items: [
+        const PopupMenuItem(value: 'search', child: Text('Search...')),
+        if (canLoadDeck) const PopupMenuItem(value: 'loadDeck', child: Text('Load Deck...')),
+      ],
+    );
+    if (action == 'search') widget.controller.startSearchZone(zone.id);
+    if (action == 'loadDeck') _promptLoadDeck(zone);
+  }
+
+  /// Opens a deck picker (the same [DeckLibraryScreen] the old pre-game Load
+  /// Deck screens used, scoped to just [zone] so its own required/optional
+  /// validation applies to this one slot) in a fixed-size dialog, then deals
+  /// the chosen deck into [zone] -- see `GameSession.loadDeckIntoZone`.
+  Future<void> _promptLoadDeck(ZoneDefinition zone) async {
+    final game = context.read<GameSession>().game;
+    final deck = await _withDialogKeysSuppressed(
+      () => showDialog<DeckConfig>(
+        context: context,
+        builder: (dialogContext) => Dialog(
+          child: SizedBox(
+            width: 480,
+            height: 560,
+            child: DeckLibraryScreen(
+              game: game,
+              zones: [zone],
+              onDeckChosen: (d) => Navigator.of(dialogContext).pop(d),
+            ),
+          ),
+        ),
+      ),
+    );
+    if (deck == null || !mounted) return;
+    widget.controller.loadDeckIntoZone(zone.id, deck);
   }
 
   /// The other player's instance of an owned [zone], read-only. [cards] is

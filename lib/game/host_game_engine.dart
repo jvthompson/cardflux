@@ -2,6 +2,7 @@ import 'dart:async';
 
 import '../models/board_widget_instance.dart';
 import '../models/card_instance.dart';
+import '../models/deck_config.dart';
 import '../models/player.dart';
 import '../networking/host_server.dart';
 import '../networking/net_message.dart';
@@ -363,6 +364,11 @@ class HostGameEngine implements DragPreviewSink {
       case NetMessageType.requestGeneratePack:
         session.generatePack(msg.payload['setId'] as String, actingPlayerId: clientId);
         break;
+      case NetMessageType.requestLoadDeckIntoZone:
+        final zoneId = msg.payload['zoneId'] as String;
+        final deck = DeckConfig.fromJson((msg.payload['deck'] as Map).cast<String, dynamic>());
+        session.loadDeckIntoZone(zoneId, deck, actingPlayerId: clientId);
+        break;
       case NetMessageType.cardDragPreview:
         final rawIds = (msg.payload['instanceIds'] as List).cast<String>();
         if (rawIds.isNotEmpty && _isAllowedToActOn(rawIds.first, clientId)) {
@@ -397,17 +403,13 @@ class HostGameEngine implements DragPreviewSink {
       case NetMessageType.welcome:
       case NetMessageType.gameData:
       case NetMessageType.fullState:
-      case NetMessageType.requestDeckChosen:
-      case NetMessageType.requestReady:
       case NetMessageType.lobbyRosterUpdate:
-      case NetMessageType.lobbyReadyUpdate:
       case NetMessageType.ping:
       case NetMessageType.pong:
       case NetMessageType.disconnect:
-        // requestDeckChosen/requestReady/lobby* are only meaningful before
-        // this engine exists (see HostLoadDeckScreen, which subscribes to
-        // hostServer.incoming directly during deck selection) -- a
-        // late/duplicate one here is a no-op.
+        // lobbyRosterUpdate is host->client only (see HostServer's own
+        // _broadcastRoster) -- never actually arrives here as a client
+        // request; kept for switch exhaustiveness.
         break;
     }
   }

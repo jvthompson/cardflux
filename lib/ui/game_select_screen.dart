@@ -6,17 +6,17 @@ import '../models/deck_config.dart';
 import '../models/game_definition.dart';
 import '../networking/host_server.dart';
 import 'host_game_screen.dart';
-import 'host_load_deck_screen.dart';
 import 'load_saved_game_screen.dart';
 import 'navigation.dart';
 import 'widgets/game_picker.dart';
 
 /// Host-only screen: pick the bundled standard deck, or browse a folder on
-/// disk for custom game JSON files, then proceed to [HostLoadDeckScreen] --
-/// unless [game] is `!needsDeckBuilding` (no owned zone needs a per-player
-/// deck choice), so it goes straight to [HostGameScreen] instead.
-/// The [hostServer]/[hostPlayerId] are only threaded through to the eventual
-/// [HostGameScreen] -- this screen doesn't touch the connection itself.
+/// disk for custom game JSON files, then proceed straight to
+/// [HostGameScreen] -- any owned deck-building zones simply start empty;
+/// a player loads a deck into one later by right-clicking it at the table
+/// (see `TableScreen._promptLoadDeck`). The [hostServer]/[hostPlayerId] are
+/// only threaded through to the eventual [HostGameScreen] -- this screen
+/// doesn't touch the connection itself.
 class GameSelectScreen extends StatelessWidget {
   const GameSelectScreen({super.key, required this.hostServer, required this.hostPlayerId});
 
@@ -45,28 +45,17 @@ class GameSelectScreen extends StatelessWidget {
   Future<void> _chooseGame(BuildContext context, GameDefinition game) async {
     final sharedDeckConfigsByZoneId = await _resolveSharedDeckConfigs(game);
     if (!context.mounted) return;
-    if (!game.needsDeckBuilding) {
-      pushScreen(
-        context,
-        title: game.name,
-        showBackButton: false,
-        builder: (_) => HostGameScreen(
-          hostServer: hostServer,
-          hostPlayerId: hostPlayerId,
-          game: game,
-          deckConfigsByPlayerId: null,
-          sharedDeckConfigsByZoneId: sharedDeckConfigsByZoneId,
-        ),
-      );
-      return;
-    }
     pushScreen(
       context,
-      title: 'Load Deck -- ${game.name}',
-      builder: (_) => HostLoadDeckScreen(
+      title: game.name,
+      showBackButton: false,
+      builder: (_) => HostGameScreen(
         hostServer: hostServer,
         hostPlayerId: hostPlayerId,
         game: game,
+        // Empty (not null) per player -- every owned deck-building zone
+        // starts empty; a player loads their own deck at the table later.
+        deckConfigsByPlayerId: const {},
         sharedDeckConfigsByZoneId: sharedDeckConfigsByZoneId,
       ),
     );

@@ -1,5 +1,6 @@
 import '../models/board_widget_instance.dart';
 import '../models/card_instance.dart';
+import '../models/deck_config.dart';
 import '../networking/game_client.dart';
 import '../networking/net_message.dart';
 import 'deck_widget_zones.dart';
@@ -38,6 +39,12 @@ abstract class TableController {
   void drawFromZone(String zoneId, {int count = 1});
   void returnToZone(String instanceId, String zoneId, {bool toBottom});
   void shuffleZone(String zoneId);
+
+  /// Deals [deck]'s entries for this zone's own `ZoneDefinition.deckType`
+  /// into the calling player's own instance of zone [zoneId] -- see
+  /// `GameSession.loadDeckIntoZone`. Unowned by anyone yet, so no gating:
+  /// always resolves to the caller's own zone, never someone else's.
+  void loadDeckIntoZone(String zoneId, DeckConfig deck);
   void startSearchZone(String zoneId);
   void startSearchPile(String pileRootInstanceId);
   void stopSearch();
@@ -255,6 +262,10 @@ class HostTableController implements TableController {
     zoneOwnerId: _zoneOwnerId(zoneId),
     actingPlayerId: _session.actingPlayerId,
   );
+
+  @override
+  void loadDeckIntoZone(String zoneId, DeckConfig deck) =>
+      _session.loadDeckIntoZone(zoneId, deck, actingPlayerId: _session.actingPlayerId);
 
   @override
   void startSearchZone(String zoneId) => _session.startSearchZone(
@@ -559,6 +570,16 @@ class ClientTableController implements TableController {
       NetMessage(
         type: NetMessageType.requestShuffleZone,
         payload: {'zoneId': zoneId},
+      ),
+    );
+  }
+
+  @override
+  void loadDeckIntoZone(String zoneId, DeckConfig deck) {
+    _client.send(
+      NetMessage(
+        type: NetMessageType.requestLoadDeckIntoZone,
+        payload: {'zoneId': zoneId, 'deck': deck.toJson()},
       ),
     );
   }
