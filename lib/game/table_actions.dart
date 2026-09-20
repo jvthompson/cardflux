@@ -4,6 +4,7 @@ import '../models/active_search.dart';
 import '../models/board_widget_instance.dart';
 import '../models/card_instance.dart';
 import '../models/table_state.dart';
+import 'deck_widget_zones.dart';
 import 'stack_utils.dart';
 
 /// Pure, network-free transformations of a [TableState]. Used directly by
@@ -678,6 +679,7 @@ class TableActions {
     required BoardWidgetKind kind,
     required double x,
     required double y,
+    String? ownerId,
   }) {
     final newWidget = BoardWidgetInstance(
       instanceId: instanceId,
@@ -685,6 +687,7 @@ class TableActions {
       x: x,
       y: y,
       zIndex: _nextWidgetZIndex(state),
+      ownerId: ownerId,
     );
     return state.copyWith(
       widgets: [...state.widgets, newWidget],
@@ -800,11 +803,45 @@ class TableActions {
     return state.copyWith(widgets: widgets, revision: state.revision + 1);
   }
 
+  /// Removes the widget [instanceId]. For a [BoardWidgetKind.deckBuilder],
+  /// first spills every card currently sitting in one of its synthetic
+  /// sub-zones (see `deck_widget_zones.dart`) back onto the free table at
+  /// the widget's own position, so deleting it never orphans cards a player
+  /// was in the middle of building a deck with -- every other kind has no
+  /// such cleanup to do.
   TableState deleteWidget(TableState state, {required String instanceId}) {
+    BoardWidgetInstance? removed;
+    for (final w in state.widgets) {
+      if (w.instanceId == instanceId) {
+        removed = w;
+        break;
+      }
+    }
+    var cards = state.cards;
+    if (removed != null && removed.kind == BoardWidgetKind.deckBuilder) {
+      final baseZ = _nextZIndex(state);
+      var i = 0;
+      cards = state.cards.map((c) {
+        if (c.zone != CardZone.zone) return c;
+        final parsed = parseDeckWidgetZoneId(c.zoneId ?? '');
+        if (parsed == null || parsed.widgetInstanceId != instanceId) return c;
+        final spilled = c.copyWith(
+          zone: CardZone.table,
+          zoneId: null,
+          stackParentId: null,
+          x: removed!.x,
+          y: removed.y,
+          zIndex: baseZ + i,
+          ownerId: c.unownable ? null : c.ownerId,
+        );
+        i++;
+        return spilled;
+      }).toList();
+    }
     final widgets = state.widgets
         .where((w) => w.instanceId != instanceId)
         .toList();
-    return state.copyWith(widgets: widgets, revision: state.revision + 1);
+    return state.copyWith(cards: cards, widgets: widgets, revision: state.revision + 1);
   }
 
   /// Sets a widget's background/text color (ARGB ints) -- always both

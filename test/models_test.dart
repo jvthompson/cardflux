@@ -426,6 +426,36 @@ void main() {
       expect(roundTripped.kind, BoardWidgetKind.packGenerator);
     });
 
+    test('deckBuilder kind round-trips through JSON', () {
+      final instance = BoardWidgetInstance(
+        instanceId: 'w1',
+        kind: BoardWidgetKind.deckBuilder,
+        x: 0.2,
+        y: 0.3,
+        zIndex: 0,
+      );
+      final roundTripped = BoardWidgetInstance.fromJson(instance.toJson());
+      expect(roundTripped.kind, BoardWidgetKind.deckBuilder);
+    });
+
+    test('ownerId set with zoneId null (a free-floating but owned widget) round-trips through JSON', () {
+      final instance = BoardWidgetInstance(
+        instanceId: 'w1',
+        kind: BoardWidgetKind.deckBuilder,
+        x: 0.2,
+        y: 0.3,
+        zIndex: 0,
+        ownerId: 'p1',
+      );
+      expect(instance.zoneId, isNull);
+      final roundTripped = BoardWidgetInstance.fromJson(instance.toJson());
+      expect(roundTripped.ownerId, 'p1');
+      expect(roundTripped.zoneId, isNull);
+      final copy = instance.copyWith();
+      expect(copy.ownerId, 'p1');
+      expect(copy.zoneId, isNull);
+    });
+
     test('x2/y2/creatorId default to null, are omitted from JSON, and round-trip a value', () {
       final instance = BoardWidgetInstance(
         instanceId: 'w1',

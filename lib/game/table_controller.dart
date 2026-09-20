@@ -2,6 +2,7 @@ import '../models/board_widget_instance.dart';
 import '../models/card_instance.dart';
 import '../networking/game_client.dart';
 import '../networking/net_message.dart';
+import 'deck_widget_zones.dart';
 import 'drag_preview.dart';
 import 'game_session.dart';
 import 'stack_utils.dart';
@@ -216,6 +217,13 @@ class HostTableController implements TableController {
   /// seat is currently active in a local practice session -- see
   /// [GameSession.actingPlayerId].
   String? _zoneOwnerId(String zoneId) {
+    final parsed = parseDeckWidgetZoneId(zoneId);
+    if (parsed != null) {
+      for (final w in _session.state.widgets) {
+        if (w.instanceId == parsed.widgetInstanceId) return w.ownerId;
+      }
+      return null;
+    }
     final zone = _session.game.zones.firstWhere((z) => z.id == zoneId);
     return zone.shared ? null : _session.actingPlayerId;
   }
@@ -285,7 +293,7 @@ class HostTableController implements TableController {
     BoardWidgetKind kind,
     double x,
     double y,
-  ) => _session.createWidget(instanceId, kind, x, y);
+  ) => _session.createWidget(instanceId, kind, x, y, actingPlayerId: _session.actingPlayerId);
 
   /// The host's own arrow is attributed to its own player id (or, in a local
   /// practice session, whichever seat is currently active), exactly like

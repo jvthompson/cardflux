@@ -6,6 +6,7 @@ import '../models/player.dart';
 import '../networking/host_server.dart';
 import '../networking/net_message.dart';
 import '../networking/state_filter.dart';
+import 'deck_widget_zones.dart';
 import 'drag_preview.dart';
 import 'game_session.dart';
 import 'stack_utils.dart';
@@ -244,7 +245,8 @@ class HostGameEngine implements DragPreviewSink {
         final instanceId = msg.payload['instanceId'] as String;
         final zoneId = msg.payload['zoneId'] as String;
         final toBottom = msg.payload['toBottom'] as bool? ?? false;
-        if (_isAllowedToActOn(instanceId, clientId)) {
+        if (_isAllowedToActOn(instanceId, clientId) &&
+            _isAllowedToActOnDeckWidgetZone(zoneId, clientId)) {
           session.returnToZone(
             instanceId,
             zoneId,
@@ -264,11 +266,13 @@ class HostGameEngine implements DragPreviewSink {
         break;
       case NetMessageType.requestStartSearchZone:
         final zoneId = msg.payload['zoneId'] as String;
-        session.startSearchZone(
-          zoneId,
-          zoneOwnerId: _zoneOwnerId(zoneId, clientId),
-          searcherId: clientId,
-        );
+        if (_isAllowedToActOnDeckWidgetZone(zoneId, clientId)) {
+          session.startSearchZone(
+            zoneId,
+            zoneOwnerId: _zoneOwnerId(zoneId, clientId),
+            searcherId: clientId,
+          );
+        }
         break;
       case NetMessageType.requestStartSearchPile:
         final pileRootInstanceId = msg.payload['pileRootInstanceId'] as String;
@@ -285,6 +289,7 @@ class HostGameEngine implements DragPreviewSink {
           BoardWidgetKind.fromName(msg.payload['kind'] as String),
           (msg.payload['x'] as num).toDouble(),
           (msg.payload['y'] as num).toDouble(),
+          actingPlayerId: clientId,
         );
         break;
       case NetMessageType.requestCreateArrow:
@@ -302,7 +307,7 @@ class HostGameEngine implements DragPreviewSink {
         break;
       case NetMessageType.requestMoveWidget:
         final instanceId = msg.payload['instanceId'] as String;
-        if (_isMovableWidget(instanceId)) {
+        if (_isMovableWidget(instanceId, clientId)) {
           session.moveWidget(
             instanceId,
             (msg.payload['x'] as num).toDouble(),
@@ -334,7 +339,7 @@ class HostGameEngine implements DragPreviewSink {
         break;
       case NetMessageType.requestDuplicateWidget:
         final sourceInstanceId = msg.payload['sourceInstanceId'] as String;
-        if (_isMovableWidget(sourceInstanceId)) {
+        if (_isMovableWidget(sourceInstanceId, clientId)) {
           session.duplicateWidget(
             sourceInstanceId,
             msg.payload['newInstanceId'] as String,
@@ -345,7 +350,7 @@ class HostGameEngine implements DragPreviewSink {
         break;
       case NetMessageType.requestAttachWidgetToCard:
         final instanceId = msg.payload['instanceId'] as String;
-        if (_isMovableWidget(instanceId)) {
+        if (_isMovableWidget(instanceId, clientId)) {
           session.attachWidgetToCard(
             instanceId,
             msg.payload['cardId'] as String,
@@ -414,9 +419,31 @@ class HostGameEngine implements DragPreviewSink {
   /// requester's own instance of this zone, or the shared one" -- resolved
   /// here from the game's own [ZoneDefinition]s rather than trusted from the
   /// client, so a client can never claim to act on another player's zone.
+  ///
+  /// A DeckWidget synthetic sub-zone id (see `deck_widget_zones.dart`)
+  /// breaks that "always resolves to your own instance" invariant on
+  /// purpose -- it always belongs to whichever player owns that specific
+  /// widget instance, not to the requester -- so
+  /// [_isAllowedToActOnDeckWidgetZone] exists to gate that everywhere this
+  /// is used.
   String? _zoneOwnerId(String zoneId, String requesterPlayerId) {
+    final parsed = parseDeckWidgetZoneId(zoneId);
+    if (parsed != null) return _findWidget(parsed.widgetInstanceId)?.ownerId;
     final zone = session.game.zones.firstWhere((z) => z.id == zoneId);
     return zone.shared ? null : requesterPlayerId;
+  }
+
+  /// True unconditionally for an ordinary zone id (unchanged behavior). For
+  /// a DeckWidget synthetic sub-zone id, true only if that widget still
+  /// exists and [requesterPlayerId] is its owner -- without this, the
+  /// [_zoneOwnerId] override above would let any client drop into or search
+  /// another player's deck widget, since a synthetic id's owner is fixed to
+  /// the widget rather than the requester.
+  bool _isAllowedToActOnDeckWidgetZone(String zoneId, String requesterPlayerId) {
+    final parsed = parseDeckWidgetZoneId(zoneId);
+    if (parsed == null) return true;
+    final w = _findWidget(parsed.widgetInstanceId);
+    return w != null && w.ownerId == requesterPlayerId;
   }
 
   /// Structural + ownership guard: the card must exist, and a client may
@@ -446,19 +473,26 @@ class HostGameEngine implements DragPreviewSink {
   /// `BoardWidgetInstance.zoneId`) -- it's a fixed part of its owner's panel,
   /// never a movable/attachable/duplicable/deletable table object, for any
   /// requester (see `TableScreen`'s `draggable: false` client-side mirror of
-  /// this same rule). True for an ordinary free-table widget (`zoneId`
-  /// null) or an unknown id, unchanged from today's unrestricted behavior.
-  bool _isMovableWidget(String instanceId) =>
-      _findWidget(instanceId)?.zoneId == null;
+  /// this same rule). Otherwise: an unowned free widget (`ownerId` null --
+  /// Counter/Token/PackGenerator) stays fair game for anyone, unchanged from
+  /// before ownership existed; an owned free widget (`ownerId` non-null,
+  /// `zoneId` null -- a DeckWidget) is movable only by its own owner. True
+  /// for an unknown id, unchanged from today's unrestricted behavior.
+  bool _isMovableWidget(String instanceId, String requesterPlayerId) {
+    final w = _findWidget(instanceId);
+    if (w == null) return true;
+    if (w.zoneId != null) return false;
+    return w.ownerId == null || w.ownerId == requesterPlayerId;
+  }
 
-  /// A zone-bound widget's value/colors may only be changed by its own
-  /// owner (mirrors [_isAllowedToActOn]'s card-ownership shape); an ordinary
-  /// free-table widget (`zoneId` null) stays fair game for anyone, exactly
-  /// as before this existed.
+  /// A zone-bound OR owned-free widget's value/colors may only be changed
+  /// by its own owner (mirrors [_isAllowedToActOn]'s card-ownership shape);
+  /// an unowned free-table widget stays fair game for anyone, exactly as
+  /// before this existed.
   bool _isAllowedToActOnWidget(String instanceId, String requesterPlayerId) {
     final w = _findWidget(instanceId);
     if (w == null) return false;
-    return w.zoneId == null || w.ownerId == requesterPlayerId;
+    return w.ownerId == null || w.ownerId == requesterPlayerId;
   }
 
   /// Mirrors [_isAllowedToActOn]'s shape for a widget instead of a card: a
@@ -466,11 +500,11 @@ class HostGameEngine implements DragPreviewSink {
   /// arrow, today) is always fair game -- widgets stay deliberately
   /// ownerless by default (see `table_controller.dart`'s doc comment) --
   /// but an arrow may only be deleted by the player who drew it. A
-  /// zone-bound widget (see [_isMovableWidget]) can never be deleted at all,
-  /// regardless of requester.
+  /// zone-bound widget, or an owned free widget belonging to someone else
+  /// (see [_isMovableWidget]), can never be deleted by this requester.
   bool _isAllowedToDeleteWidget(String instanceId, String requesterPlayerId) {
     final w = _findWidget(instanceId);
-    if (w == null || !_isMovableWidget(instanceId)) return false;
+    if (w == null || !_isMovableWidget(instanceId, requesterPlayerId)) return false;
     return w.creatorId == null || w.creatorId == requesterPlayerId;
   }
 

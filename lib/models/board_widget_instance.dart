@@ -26,7 +26,17 @@ enum BoardWidgetKind {
   /// [value]/colors/attach-to-card concept applies, mirroring [token] --
   /// which set to draw from is chosen at click-time via the menu, not
   /// stored on the instance.
-  packGenerator;
+  packGenerator,
+
+  /// A table-side deck-building station, owned by whoever spawns it (see
+  /// [BoardWidgetInstance.ownerId]'s updated doc) -- one sub-zone per
+  /// `GameDefinition.deckBuildingZones` entry, each a real, private,
+  /// searchable zone scoped to this specific instance (see
+  /// `lib/game/deck_widget_zones.dart`). A Save button on it writes a
+  /// `DeckConfig` built from whatever's currently in those sub-zones to the
+  /// deck library. See `DeckWidget`. No numeric [value]/colors/attach-to-card
+  /// concept applies, mirroring [token].
+  deckBuilder;
 
   static BoardWidgetKind fromName(String name) =>
       BoardWidgetKind.values.byName(name);
@@ -120,14 +130,23 @@ class BoardWidgetInstance {
   /// double-tap-dismiss an arrow (see `HostGameEngine`).
   final String? creatorId;
 
-  /// Non-null only for a widget dealt from a [ZoneKind.widget] `ZoneDefinition`
-  /// (see `GameSession.dealFromZones`) -- the owning player's id, and the
-  /// zone it's permanently docked in ([zoneId]). Both null (the only
-  /// possible state before this feature existed) means a free-floating table
-  /// widget, unchanged from today. A non-null [zoneId] widget is never
-  /// rendered on the free table, and can never be moved/attached/duplicated/
-  /// deleted -- see `TableScreen`'s zone-widget panel rendering and
-  /// `HostGameEngine`'s rejection of those requests for such a widget.
+  /// [ownerId]/[zoneId] together describe one of three states:
+  ///  1. Both null: a free-floating, unowned widget ([BoardWidgetKind.simpleCounter],
+  ///     [BoardWidgetKind.token], [BoardWidgetKind.packGenerator]) -- fair
+  ///     game for any player to move/act on/delete, unchanged since before
+  ///     ownership existed.
+  ///  2. [zoneId] non-null (always paired with a non-null [ownerId]): a
+  ///     widget dealt from a [ZoneKind.widget] `ZoneDefinition` (see
+  ///     `GameSession.dealFromZones`), permanently docked in that owning
+  ///     player's panel slot. Never rendered on the free table, and can
+  ///     never be moved/attached/duplicated/deleted -- see `TableScreen`'s
+  ///     zone-widget panel rendering and `HostGameEngine`'s rejection of
+  ///     those requests for such a widget.
+  ///  3. [ownerId] non-null, [zoneId] null: a free-floating widget that's
+  ///     still owned ([BoardWidgetKind.deckBuilder]) -- rendered on the open
+  ///     table like state 1, but movable/actionable/deletable only by its
+  ///     owner (see `HostGameEngine`'s `_isMovableWidget`/
+  ///     `_isAllowedToActOnWidget`/`_isAllowedToDeleteWidget`).
   final String? ownerId;
   final String? zoneId;
 

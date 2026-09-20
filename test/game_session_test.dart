@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_deck/game/deck_widget_zones.dart';
 import 'package:flutter_deck/game/game_session.dart';
 import 'package:flutter_deck/models/board_widget_instance.dart';
 import 'package:flutter_deck/models/card_definition.dart';
@@ -801,6 +802,17 @@ void main() {
       expect(notified, isTrue);
     });
 
+    test('createWidget stamps ownerId only for deckBuilder, never for other kinds', () {
+      final session = emptySession();
+      session.createWidget('w1', BoardWidgetKind.deckBuilder, 0.5, 0.5, actingPlayerId: 'p1');
+      expect(session.state.widgets.single.ownerId, 'p1');
+      expect(session.state.widgets.single.zoneId, isNull);
+
+      session.createWidget('w2', BoardWidgetKind.simpleCounter, 0.5, 0.5, actingPlayerId: 'p1');
+      final counter = session.state.widgets.firstWhere((w) => w.instanceId == 'w2');
+      expect(counter.ownerId, isNull);
+    });
+
     test('moveWidget repositions and notifies listeners', () {
       final session = emptySession();
       session.createWidget('w1', BoardWidgetKind.simpleCounter, 0.1, 0.1);
@@ -1250,6 +1262,78 @@ void main() {
       final before = session.state.revision;
       session.generatePack('s1', actingPlayerId: 'p1');
       expect(session.state.revision, before + 1);
+    });
+  });
+
+  group('GameSession deck widget synthetic zones', () {
+    const game = GameDefinition(
+      id: 'g1',
+      name: 'G',
+      cards: _cards,
+      zones: [
+        ZoneDefinition(id: 'main_deck', name: 'Main Deck', dealsBuiltDeck: true, visibleToAll: true),
+      ],
+    );
+
+    GameSession sessionWith(List<CardInstance> cards, {List<BoardWidgetInstance> widgets = const []}) {
+      return GameSession(
+        game: game,
+        localPlayerId: 'p1',
+        initialState: TableState(gameId: 'g1', players: _players, cards: cards, revision: 0, widgets: widgets),
+      );
+    }
+
+    test('returnToZone against a synthetic id resolves without throwing, using the real zone', () {
+      final syntheticId = buildDeckWidgetZoneId(widgetInstanceId: 'dw1', realZoneId: 'main_deck');
+      final session = sessionWith([
+        CardInstance(
+          instanceId: 'c1',
+          definitionId: 'a',
+          x: 0,
+          y: 0,
+          zIndex: 0,
+          faceUp: true,
+          zone: CardZone.hand,
+          ownerId: 'p1',
+        ),
+      ], widgets: [
+        BoardWidgetInstance(instanceId: 'dw1', kind: BoardWidgetKind.deckBuilder, x: 0.5, y: 0.5, zIndex: 0, ownerId: 'p1'),
+      ]);
+      expect(
+        () => session.returnToZone('c1', syntheticId, zoneOwnerId: 'p1', actingPlayerId: 'p1'),
+        returnsNormally,
+      );
+      final moved = session.state.cards.single;
+      expect(moved.zone, CardZone.zone);
+      expect(moved.zoneId, syntheticId);
+      expect(moved.ownerId, 'p1');
+    });
+
+    test('startSearchZone against a synthetic id resolves without throwing', () {
+      final syntheticId = buildDeckWidgetZoneId(widgetInstanceId: 'dw1', realZoneId: 'main_deck');
+      final session = sessionWith(const []);
+      expect(
+        () => session.startSearchZone(syntheticId, zoneOwnerId: 'p1', searcherId: 'p1'),
+        returnsNormally,
+      );
+    });
+
+    test('a card moved into a synthetic sub-zone under a visibleToAll real zone still logs generically', () {
+      final syntheticId = buildDeckWidgetZoneId(widgetInstanceId: 'dw1', realZoneId: 'main_deck');
+      final session = sessionWith([
+        CardInstance(
+          instanceId: 'c1',
+          definitionId: 'a',
+          x: 0,
+          y: 0,
+          zIndex: 0,
+          faceUp: true,
+          zone: CardZone.hand,
+          ownerId: 'p1',
+        ),
+      ]);
+      session.returnToZone('c1', syntheticId, zoneOwnerId: 'p1', actingPlayerId: 'p1');
+      expect(session.state.log.single.message, isNot(contains('"A"')));
     });
   });
 }

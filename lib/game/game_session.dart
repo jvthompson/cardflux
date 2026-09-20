@@ -16,6 +16,7 @@ import '../models/player.dart';
 import '../models/standard_deck.dart';
 import '../models/table_state.dart';
 import '../models/zone_definition.dart';
+import 'deck_widget_zones.dart';
 import 'drag_preview.dart';
 import 'pack_generator.dart';
 import 'table_actions.dart';
@@ -358,6 +359,11 @@ class GameSession extends ChangeNotifier {
         return false;
       case CardZone.zone:
         if (card.ownerId == null) return true;
+        // A DeckWidget's own sub-zones stay private to their owner, like a
+        // hand, regardless of the underlying real zone's own visibleToAll --
+        // that flag describes the player's live gameplay zone, not a deck
+        // still being assembled at the table (see deck_widget_zones.dart).
+        if (isDeckWidgetZoneId(card.zoneId!)) return false;
         return _zoneDefinition(card.zoneId!).visibleToAll;
     }
   }
@@ -645,8 +651,16 @@ class GameSession extends ChangeNotifier {
     notifyListeners();
   }
 
-  ZoneDefinition _zoneDefinition(String zoneId) =>
-      game.zones.firstWhere((z) => z.id == zoneId);
+  /// Resolves [zoneId] to its declared [ZoneDefinition] -- transparently
+  /// unwrapping a DeckWidget synthetic sub-zone id first (see
+  /// `deck_widget_zones.dart`) to the *real* zone it was minted from, so
+  /// every caller (name/faceUp/etc. for logging and `returnToZone`'s
+  /// behavior) keeps working unchanged for a synthetic id without needing
+  /// its own special case.
+  ZoneDefinition _zoneDefinition(String zoneId) {
+    final realId = parseDeckWidgetZoneId(zoneId)?.realZoneId ?? zoneId;
+    return game.zones.firstWhere((z) => z.id == realId);
+  }
 
   // --- Search --------------------------------------------------------
 
@@ -702,18 +716,25 @@ class GameSession extends ChangeNotifier {
 
   // --- Board widgets -----------------------------------------------
 
+  /// [actingPlayerId] is only ever applied as the new widget's `ownerId`
+  /// for [BoardWidgetKind.deckBuilder] -- every other kind stays
+  /// deliberately unowned regardless of who's creating it, matching
+  /// `HostGameEngine`'s server-side stamping (never trust a client-supplied
+  /// owner id -- same reasoning as `createArrow`'s `creatorId`).
   void createWidget(
     String instanceId,
     BoardWidgetKind kind,
     double x,
-    double y,
-  ) {
+    double y, {
+    String? actingPlayerId,
+  }) {
     _state = _actions.createWidget(
       _state,
       instanceId: instanceId,
       kind: kind,
       x: x,
       y: y,
+      ownerId: kind == BoardWidgetKind.deckBuilder ? actingPlayerId : null,
     );
     notifyListeners();
   }

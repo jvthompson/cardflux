@@ -8,8 +8,10 @@ import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
 
 import '../app_theme.dart';
+import '../data/decks_directory_settings.dart';
 import '../data/game_log_file_ops.dart';
 import '../data/image_path_resolver.dart';
+import '../game/deck_widget_zones.dart';
 import '../game/drag_preview.dart';
 import '../game/game_session.dart';
 import '../game/geometry_utils.dart';
@@ -22,6 +24,7 @@ import '../models/board_widget_instance.dart';
 import '../models/card_back_definition.dart';
 import '../models/card_definition.dart';
 import '../models/card_instance.dart';
+import '../models/deck_config.dart';
 import '../models/log_entry.dart';
 import '../models/player.dart';
 import '../models/table_state.dart';
@@ -33,6 +36,7 @@ import 'widgets/card_back_widget.dart';
 import 'widgets/card_face_widget.dart';
 import 'widgets/color_swatch_row.dart';
 import 'widgets/counter_widget.dart';
+import 'widgets/deck_widget.dart';
 import 'widgets/draggable_card.dart';
 import 'widgets/game_menu_overlay.dart';
 import 'widgets/hand_zone_widget.dart';
@@ -40,6 +44,7 @@ import 'widgets/opponent_hand_zone_widget.dart';
 import 'widgets/opponent_zone_stack_widget.dart';
 import 'widgets/pack_generator_widget.dart';
 import 'widgets/pile_widget.dart';
+import 'widgets/save_deck_dialog.dart';
 import 'widgets/token_widget.dart';
 import 'widgets/zone_search_overlay.dart';
 import 'widgets/zone_stack_widget.dart';
@@ -281,6 +286,17 @@ class _TableScreenState extends State<TableScreen>
   /// [_handleKeyEvent]); [_toggleGameMenu] force-closes this if it's open,
   /// so the two overlays can never show at once.
   bool _actionLogOpen = false;
+
+  /// True while a modal `showDialog` from this screen (Set Value/Set
+  /// Colors/Set Token Color/Save Deck) is open -- see
+  /// [_withDialogKeysSuppressed]. Unlike [_gameMenuOpen]/[_actionLogOpen]
+  /// (Stack overlays this widget itself draws), a `showDialog` route sits
+  /// entirely outside this widget's own build, so [_handleKeyEvent] -- a
+  /// raw [HardwareKeyboard] handler that runs independently of Flutter's
+  /// focus tree -- would otherwise keep acting on the table underneath it
+  /// (WASD panning the camera, L reopening the log, etc. while the player
+  /// is mid-keystroke typing a deck name).
+  bool _dialogOpen = false;
 
   /// Toggled by F1 -- while true, [ownerBorderColor]-driven card borders are
   /// hidden table-wide (they can get visually busy with 3-4 players' colors
@@ -720,6 +736,7 @@ class _TableScreenState extends State<TableScreen>
   };
 
   bool _handleKeyEvent(KeyEvent event) {
+    if (_dialogOpen) return false;
     if (event.logicalKey == LogicalKeyboardKey.escape) {
       if (event is KeyDownEvent) _toggleGameMenu();
       return false;
@@ -1253,6 +1270,21 @@ class _TableScreenState extends State<TableScreen>
           onSecondaryTapUp: (_) {},
           interactable: false,
         ),
+        // Unreachable in practice -- a DeckWidget is never attached to a
+        // card (see BoardWidgetInstance.attachedCardId), so it can never
+        // ride along in a group-drag ghost. A plain sized box (not a real
+        // DeckWidget, which needs live zone data this static ghost has no
+        // reason to build) satisfies exhaustiveness.
+        BoardWidgetKind.deckBuilder => Builder(
+          builder: (context) {
+            final (w2, h2) = _widgetSize(BoardWidgetKind.deckBuilder);
+            return Container(
+              width: w2,
+              height: h2,
+              decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(8)),
+            );
+          },
+        ),
         BoardWidgetKind.arrow => const SizedBox.shrink(),
       },
     );
@@ -1266,6 +1298,8 @@ class _TableScreenState extends State<TableScreen>
     BoardWidgetKind.simpleCounter => (counterWidgetWidth, counterWidgetHeight),
     BoardWidgetKind.token => (tokenWidgetSize, tokenWidgetSize),
     BoardWidgetKind.packGenerator => (counterWidgetWidth, counterWidgetHeight),
+    BoardWidgetKind.deckBuilder =>
+      deckWidgetSize(context.read<GameSession>().game.deckBuildingZones.length),
     BoardWidgetKind.arrow => (0.0, 0.0),
   };
 
@@ -2068,13 +2102,17 @@ class _TableScreenState extends State<TableScreen>
         globalPosition.dx,
         globalPosition.dy,
       ),
-      items: const [
-        PopupMenuItem(
+      items: [
+        const PopupMenuItem(
           value: BoardWidgetKind.simpleCounter,
           child: Text('Simple Counter'),
         ),
-        PopupMenuItem(value: BoardWidgetKind.token, child: Text('Token')),
-        PopupMenuItem(value: BoardWidgetKind.packGenerator, child: Text('Pack Generator')),
+        const PopupMenuItem(value: BoardWidgetKind.token, child: Text('Token')),
+        const PopupMenuItem(value: BoardWidgetKind.packGenerator, child: Text('Pack Generator')),
+        // Pointless to offer on a game with no deck-building zones -- it'd
+        // spawn a permanently-empty widget with nothing to build.
+        if (context.read<GameSession>().game.deckBuildingZones.isNotEmpty)
+          const PopupMenuItem(value: BoardWidgetKind.deckBuilder, child: Text('Deck Widget')),
       ],
     );
     if (kind == null || !mounted) return;
@@ -2169,6 +2207,187 @@ class _TableScreenState extends State<TableScreen>
     }
   }
 
+  /// "My Deck" for the local player's own [BoardWidgetInstance.ownerId], or
+  /// that other player's name -- falls back to generic "Deck" if the owning
+  /// player can no longer be found (e.g. they've since left).
+  String _deckWidgetOwnerLabel(BoardWidgetInstance w, GameSession session) {
+    if (w.ownerId == session.actingPlayerId) return 'My Deck';
+    for (final p in session.state.players) {
+      if (p.id == w.ownerId) return p.name;
+    }
+    return 'Deck';
+  }
+
+  /// The owner's own interactive view of one [DeckWidget] sub-zone for
+  /// [realZone] -- a real, private, searchable zone scoped to [w]'s own
+  /// synthetic id (see `deck_widget_zones.dart`), registered in [_zoneKeys]
+  /// (via [_zoneKey]) exactly like every other zone panel, so the existing
+  /// generic drag-drop ([_dockedZoneIdAt]/[_handleDragEnd]) and search
+  /// ([_showSearchMenu]/[_buildSearchOverlay]) machinery picks it up with no
+  /// changes of its own.
+  Widget _buildDeckWidgetOwnerZoneFace(
+    BoardWidgetInstance w,
+    ZoneDefinition realZone,
+    TableState state,
+    List<CardInstance> tableTops,
+    List<CardInstance> pickupCandidates,
+    List<CardInstance> localHand,
+    bool Function(String, String?) isZoneSearched,
+  ) {
+    final syntheticId = buildDeckWidgetZoneId(widgetInstanceId: w.instanceId, realZoneId: realZone.id);
+    final cards = state.cards.where((c) => c.zone == CardZone.zone && c.zoneId == syntheticId).toList();
+    final top = cards.isEmpty ? null : _stackUtils.topOf(cards);
+    return GestureDetector(
+      onSecondaryTapUp: (details) => _showSearchMenu(
+        details.globalPosition,
+        () => widget.controller.startSearchZone(syntheticId),
+      ),
+      child: ColoredBox(
+        key: _zoneKey(syntheticId),
+        color: Colors.black38,
+        child: ZoneStackWidget(
+          zoneName: realZone.name,
+          count: cards.length,
+          topInstanceId: top?.instanceId,
+          topFaceUp: top?.faceUp ?? false,
+          topDefinition: top == null ? null : widget.definitionsById[top.definitionId],
+          onDragEnd: top == null
+              ? null
+              : (offset) => _handleDragEnd(tableTops, pickupCandidates, top.instanceId, offset, localHand),
+          onDragUpdate: top == null ? null : (globalPos) => _handleCardDragPreviewUpdate([top], globalPos),
+          onShuffle: null, // reordering a deck mid-build isn't meaningful
+          isBeingSearched: isZoneSearched(syntheticId, w.ownerId),
+          cardBacks: widget.cardBacks,
+        ),
+      ),
+    );
+  }
+
+  /// A non-owner's read-only view of one [DeckWidget] sub-zone -- never a
+  /// drop target (no [_zoneKey] registration at all), backstopped
+  /// server-side regardless by `HostGameEngine._isAllowedToActOnDeckWidgetZone`.
+  /// Privacy filtering already redacts the underlying cards' identity/face
+  /// for anyone but the owner (see `GameSession._isPubliclyVisible`'s
+  /// DeckWidget carve-out and `state_filter.dart`), so this naturally shows
+  /// only a generic back/count with nothing further needed here.
+  Widget _buildDeckWidgetOpponentZoneFace(
+    BoardWidgetInstance w,
+    ZoneDefinition realZone,
+    TableState state,
+    bool Function(String, String?) isZoneSearched,
+  ) {
+    final syntheticId = buildDeckWidgetZoneId(widgetInstanceId: w.instanceId, realZoneId: realZone.id);
+    final cards = state.cards.where((c) => c.zone == CardZone.zone && c.zoneId == syntheticId).toList();
+    final top = cards.isEmpty ? null : _stackUtils.topOf(cards);
+    return OpponentZoneStackWidget(
+      zoneName: realZone.name,
+      count: cards.length,
+      topFaceUp: top?.faceUp ?? false,
+      topDefinition: top == null ? null : widget.definitionsById[top.definitionId],
+      isBeingSearched: isZoneSearched(syntheticId, w.ownerId),
+      cardBacks: widget.cardBacks,
+    );
+  }
+
+  /// Assembles the full [DeckWidget] for [w] -- the owner's fully
+  /// interactive view (draggable header, working sub-zones, Save button) or
+  /// a read-only view for everyone else, gated on whether the local player
+  /// is this widget's owner.
+  Widget _buildDeckWidget(
+    BoardWidgetInstance w,
+    GameSession session,
+    TableState state,
+    List<CardInstance> tableTops,
+    List<CardInstance> pickupCandidates,
+    List<CardInstance> localHand,
+    bool Function(String, String?) isZoneSearched,
+    double widgetWidth,
+    double widgetHeight,
+  ) {
+    final isOwner = w.ownerId == session.actingPlayerId;
+    return DeckWidget(
+      instance: w,
+      isOwner: isOwner,
+      ownerLabel: _deckWidgetOwnerLabel(w, session),
+      zoneFaces: [
+        for (final zone in session.game.deckBuildingZones)
+          isOwner
+              ? _buildDeckWidgetOwnerZoneFace(w, zone, state, tableTops, pickupCandidates, localHand, isZoneSearched)
+              : _buildDeckWidgetOpponentZoneFace(w, zone, state, isZoneSearched),
+      ],
+      onMoveDragEnd: isOwner
+          ? (offset) =>
+              _handleWidgetDragEnd(w.instanceId, offset, widgetWidth: widgetWidth, widgetHeight: widgetHeight)
+          : null,
+      onSave: isOwner ? () => _saveDeckWidget(w) : null,
+      onSecondaryTapUp: isOwner ? (pos) => _showDeckWidgetMenu(pos, w) : null,
+      interactable: !_tabPressed,
+    );
+  }
+
+  /// Right-clicking an owned [DeckWidget]: just a Delete entry -- the
+  /// widget's own sub-zone faces each have their own Search menu (see
+  /// [_buildDeckWidgetOwnerZoneFace]), and there's nothing else to
+  /// configure here.
+  Future<void> _showDeckWidgetMenu(Offset globalPosition, BoardWidgetInstance instance) async {
+    final action = await showMenu<String>(
+      context: context,
+      position: RelativeRect.fromLTRB(
+        globalPosition.dx,
+        globalPosition.dy,
+        globalPosition.dx,
+        globalPosition.dy,
+      ),
+      items: const [PopupMenuItem(value: 'delete', child: Text('Delete'))],
+    );
+    if (action == 'delete') widget.controller.deleteWidget(instance.instanceId);
+  }
+
+  /// Builds a [DeckConfig] from whatever's currently sitting in [w]'s own
+  /// synthetic sub-zones (see `deck_widget_zones.dart`) -- one [SubDeck] per
+  /// `GameDefinition.deckBuildingZones` entry, entries tallied by
+  /// `definitionId` -- then hands off to the same save prompt the
+  /// standalone Deck Editor uses.
+  Future<void> _saveDeckWidget(BoardWidgetInstance w) async {
+    final session = context.read<GameSession>();
+    final subdecks = <SubDeck>[];
+    for (final zone in session.game.deckBuildingZones) {
+      final syntheticId = buildDeckWidgetZoneId(widgetInstanceId: w.instanceId, realZoneId: zone.id);
+      final tally = <String, int>{};
+      for (final c in session.state.cards) {
+        if (c.zone == CardZone.zone && c.zoneId == syntheticId) {
+          tally[c.definitionId] = (tally[c.definitionId] ?? 0) + 1;
+        }
+      }
+      subdecks.add(
+        SubDeck(
+          name: zone.deckType,
+          entries: [for (final e in tally.entries) DeckEntry(definitionId: e.key, quantity: e.value)],
+        ),
+      );
+    }
+    final root = await DecksDirectorySettings().getPath();
+    if (!mounted) return;
+    await _withDialogKeysSuppressed(() => promptSaveDeckToLibrary(
+      context: context,
+      libraryRoot: root,
+      game: session.game,
+      deckConfig: DeckConfig(gameId: session.game.id, subdecks: subdecks),
+    ));
+  }
+
+  /// Wraps [showIt] (a `showDialog` call, or an async flow built around one
+  /// like [promptSaveDeckToLibrary]) so [_handleKeyEvent] suppresses every
+  /// table keyboard shortcut for its duration -- see [_dialogOpen].
+  Future<T> _withDialogKeysSuppressed<T>(Future<T> Function() showIt) async {
+    _dialogOpen = true;
+    try {
+      return await showIt();
+    } finally {
+      _dialogOpen = false;
+    }
+  }
+
   /// A modal numeric prompt for Set Value -- the one deliberate exception to
   /// this app having no other [showDialog] anywhere, since a blocking
   /// numeric prompt has no other natural fit here. Non-numeric input shows
@@ -2179,7 +2398,7 @@ class _TableScreenState extends State<TableScreen>
   /// 0-99999".
   Future<void> _promptSetValue(BoardWidgetInstance instance) async {
     final textController = TextEditingController(text: '${instance.value}');
-    final result = await showDialog<int>(
+    final result = await _withDialogKeysSuppressed(() => showDialog<int>(
       context: context,
       builder: (context) {
         String? error;
@@ -2227,7 +2446,7 @@ class _TableScreenState extends State<TableScreen>
           ),
         );
       },
-    );
+    ));
     textController.dispose();
     if (result != null && mounted)
       widget.controller.setWidgetValue(instance.instanceId, result);
@@ -2240,7 +2459,7 @@ class _TableScreenState extends State<TableScreen>
   Future<void> _promptSetColors(BoardWidgetInstance instance) async {
     int background = instance.backgroundColor;
     int text = instance.textColor;
-    final result = await showDialog<(int, int)>(
+    final result = await _withDialogKeysSuppressed(() => showDialog<(int, int)>(
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setState) => AlertDialog(
@@ -2278,7 +2497,7 @@ class _TableScreenState extends State<TableScreen>
           ],
         ),
       ),
-    );
+    ));
     if (result != null && mounted) {
       widget.controller.setWidgetColors(
         instance.instanceId,
@@ -2324,7 +2543,7 @@ class _TableScreenState extends State<TableScreen>
   /// overwritten in case a future kind change ever wants it back).
   Future<void> _promptSetTokenColor(BoardWidgetInstance instance) async {
     int color = instance.backgroundColor;
-    final result = await showDialog<int>(
+    final result = await _withDialogKeysSuppressed(() => showDialog<int>(
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setState) => AlertDialog(
@@ -2347,7 +2566,7 @@ class _TableScreenState extends State<TableScreen>
           ],
         ),
       ),
-    );
+    ));
     if (result != null && mounted) {
       widget.controller.setWidgetColors(
         instance.instanceId,
@@ -3981,6 +4200,18 @@ class _TableScreenState extends State<TableScreen>
                                                                   ),
                                                           interactable:
                                                               !_tabPressed,
+                                                        ),
+                                                      BoardWidgetKind.deckBuilder =>
+                                                        _buildDeckWidget(
+                                                          w,
+                                                          session,
+                                                          state,
+                                                          tableTops,
+                                                          pickupCandidates,
+                                                          localHand,
+                                                          isZoneSearched,
+                                                          widgetWidth,
+                                                          widgetHeight,
                                                         ),
                                                       // Unreachable -- this loop's iterable already
                                                       // excludes arrows (see the `.where` above); only here

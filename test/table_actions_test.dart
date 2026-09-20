@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_deck/game/deck_widget_zones.dart';
 import 'package:flutter_deck/game/table_actions.dart';
 import 'package:flutter_deck/models/active_search.dart';
 import 'package:flutter_deck/models/board_widget_instance.dart';
@@ -1818,6 +1819,32 @@ void main() {
         greaterThan(w.zIndex),
       );
     });
+
+    test('stamps a passed ownerId', () {
+      const state = TableState(gameId: 'g', players: [], cards: [], revision: 0);
+      final next = _actions.createWidget(
+        state,
+        instanceId: 'w1',
+        kind: BoardWidgetKind.deckBuilder,
+        x: 0.2,
+        y: 0.3,
+        ownerId: 'p1',
+      );
+      expect(next.widgets.single.ownerId, 'p1');
+      expect(next.widgets.single.zoneId, isNull);
+    });
+
+    test('defaults ownerId to null when omitted', () {
+      const state = TableState(gameId: 'g', players: [], cards: [], revision: 0);
+      final next = _actions.createWidget(
+        state,
+        instanceId: 'w1',
+        kind: BoardWidgetKind.simpleCounter,
+        x: 0.2,
+        y: 0.3,
+      );
+      expect(next.widgets.single.ownerId, isNull);
+    });
   });
 
   group('createArrow', () {
@@ -2126,6 +2153,131 @@ void main() {
       );
       final next = _actions.deleteWidget(state, instanceId: 'nonexistent');
       expect(next.widgets, isEmpty);
+    });
+
+    test('deleting a deckBuilder spills its synthetic sub-zone cards back to the table', () {
+      final syntheticId = buildDeckWidgetZoneId(widgetInstanceId: 'dw1', realZoneId: 'main_deck');
+      final state = TableState(
+        gameId: 'g',
+        players: const [],
+        cards: [
+          CardInstance(
+            instanceId: 'c1',
+            definitionId: 'd1',
+            x: 0,
+            y: 0,
+            zIndex: 0,
+            faceUp: true,
+            zone: CardZone.zone,
+            zoneId: syntheticId,
+            ownerId: 'p1',
+          ),
+          CardInstance(
+            instanceId: 'c2',
+            definitionId: 'd2',
+            x: 0,
+            y: 0,
+            zIndex: 1,
+            faceUp: true,
+            zone: CardZone.zone,
+            zoneId: syntheticId,
+            ownerId: 'p1',
+            unownable: true,
+          ),
+        ],
+        revision: 0,
+        widgets: [
+          BoardWidgetInstance(
+            instanceId: 'dw1',
+            kind: BoardWidgetKind.deckBuilder,
+            x: 0.42,
+            y: 0.53,
+            zIndex: 0,
+            ownerId: 'p1',
+          ),
+        ],
+      );
+      final next = _actions.deleteWidget(state, instanceId: 'dw1');
+      expect(next.widgets, isEmpty);
+      expect(next.cards, hasLength(2));
+      final c1 = next.cards.firstWhere((c) => c.instanceId == 'c1');
+      final c2 = next.cards.firstWhere((c) => c.instanceId == 'c2');
+      expect(c1.zone, CardZone.table);
+      expect(c1.zoneId, isNull);
+      expect(c1.x, 0.42);
+      expect(c1.y, 0.53);
+      expect(c1.ownerId, 'p1'); // not unownable -- ownership preserved
+      expect(c2.ownerId, isNull); // unownable -- cleared on landing on the table
+      expect(next.cards.map((c) => c.zIndex).toSet(), hasLength(2)); // fresh, distinct zIndex
+      expect(next.revision, state.revision + 1);
+    });
+
+    test('deleting a deckBuilder with empty sub-zones is a clean no-op removal', () {
+      final state = TableState(
+        gameId: 'g',
+        players: const [],
+        cards: const [],
+        revision: 0,
+        widgets: [
+          BoardWidgetInstance(
+            instanceId: 'dw1',
+            kind: BoardWidgetKind.deckBuilder,
+            x: 0.1,
+            y: 0.1,
+            zIndex: 0,
+            ownerId: 'p1',
+          ),
+        ],
+      );
+      final next = _actions.deleteWidget(state, instanceId: 'dw1');
+      expect(next.widgets, isEmpty);
+      expect(next.cards, isEmpty);
+    });
+
+    test('deleting one deckBuilder does not touch another instance\'s cards', () {
+      final otherSyntheticId = buildDeckWidgetZoneId(widgetInstanceId: 'dw2', realZoneId: 'main_deck');
+      final state = TableState(
+        gameId: 'g',
+        players: const [],
+        cards: [
+          CardInstance(
+            instanceId: 'c1',
+            definitionId: 'd1',
+            x: 0,
+            y: 0,
+            zIndex: 0,
+            faceUp: true,
+            zone: CardZone.zone,
+            zoneId: otherSyntheticId,
+            ownerId: 'p2',
+          ),
+        ],
+        revision: 0,
+        widgets: [
+          BoardWidgetInstance(instanceId: 'dw1', kind: BoardWidgetKind.deckBuilder, x: 0, y: 0, zIndex: 0, ownerId: 'p1'),
+          BoardWidgetInstance(instanceId: 'dw2', kind: BoardWidgetKind.deckBuilder, x: 0, y: 0, zIndex: 1, ownerId: 'p2'),
+        ],
+      );
+      final next = _actions.deleteWidget(state, instanceId: 'dw1');
+      expect(next.widgets.map((w) => w.instanceId), ['dw2']);
+      // dw2's card is untouched -- still in its own synthetic zone.
+      expect(next.cards.single.zone, CardZone.zone);
+      expect(next.cards.single.zoneId, otherSyntheticId);
+    });
+
+    test('deleting a non-deckBuilder widget is unchanged (no card spill logic runs)', () {
+      final state = TableState(
+        gameId: 'g',
+        players: const [],
+        cards: const [],
+        revision: 0,
+        widgets: [
+          BoardWidgetInstance(instanceId: 'w1', kind: BoardWidgetKind.simpleCounter, x: 0, y: 0, zIndex: 0),
+        ],
+      );
+      final next = _actions.deleteWidget(state, instanceId: 'w1');
+      expect(next.widgets, isEmpty);
+      expect(next.cards, isEmpty);
     });
   });
 

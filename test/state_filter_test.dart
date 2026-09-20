@@ -192,5 +192,59 @@ void main() {
       final drawDeck = filtered.cards.firstWhere((c) => c.instanceId == 'theirDrawDeck');
       expect(drawDeck.definitionId, hiddenDefinitionId);
     });
+
+    test(
+      "hides a DeckWidget synthetic sub-zone card even with an empty visibleZoneIds -- "
+      'it can never legitimately appear there (see deck_widget_zones.dart)',
+      () {
+        final trueState = TableState(
+          gameId: 'g1',
+          players: const [],
+          cards: [
+            CardInstance(
+              instanceId: 'inDeckWidget',
+              definitionId: 'hearts_A',
+              x: 0,
+              y: 0,
+              zIndex: 0,
+              faceUp: true,
+              zone: CardZone.zone,
+              zoneId: 'deckWidget:dw1:main_deck',
+              ownerId: 'p2',
+            ),
+          ],
+          revision: 1,
+        );
+        final filtered = filterForRecipient(trueState, 'p1', visibleZoneIds: const {});
+        final card = filtered.cards.single;
+        expect(card.faceUp, isFalse);
+        expect(card.definitionId, hiddenDefinitionId);
+      },
+    );
+
+    test('leaves a DeckWidget synthetic sub-zone card untouched for its own owner', () {
+      final trueState = TableState(
+        gameId: 'g1',
+        players: const [],
+        cards: [
+          CardInstance(
+            instanceId: 'inDeckWidget',
+            definitionId: 'hearts_A',
+            x: 0,
+            y: 0,
+            zIndex: 0,
+            faceUp: true,
+            zone: CardZone.zone,
+            zoneId: 'deckWidget:dw1:main_deck',
+            ownerId: 'p1',
+          ),
+        ],
+        revision: 1,
+      );
+      final filtered = filterForRecipient(trueState, 'p1', visibleZoneIds: const {});
+      final card = filtered.cards.single;
+      expect(card.faceUp, isTrue);
+      expect(card.definitionId, 'hearts_A');
+    });
   });
 }
