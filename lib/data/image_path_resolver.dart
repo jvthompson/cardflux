@@ -113,6 +113,29 @@ String? resolvePackGeneratorImagePath(String? folderPath) {
   return File(candidate).existsSync() ? candidate : null;
 }
 
+/// Filename stem (no extension) every game's optional grid-tile logo is
+/// expected to use, sitting alongside `gamedef.json` -- checked against each
+/// of [_gameLogoExtensions] in turn since the author may save it as any
+/// typical image format (same "optional per-game asset" pattern as
+/// [packGeneratorImageFileName]).
+const String gameLogoFileNameStem = 'gamelogo';
+
+const List<String> _gameLogoExtensions = ['png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp'];
+
+/// Absolute path to [folderPath]'s `gamelogo.<ext>` (first matching
+/// extension in [_gameLogoExtensions] wins), or null if none exists -- same
+/// "does this optional per-game asset exist" pattern as
+/// [resolvePackGeneratorImagePath]. Null [folderPath] (the bundled
+/// standard-52 game, which has no real on-disk folder) always returns null.
+String? resolveGameLogoImagePath(String? folderPath) {
+  if (folderPath == null) return null;
+  for (final ext in _gameLogoExtensions) {
+    final candidate = '$folderPath${Platform.pathSeparator}$gameLogoFileNameStem.$ext';
+    if (File(candidate).existsSync()) return candidate;
+  }
+  return null;
+}
+
 /// Keeps [remote]'s card/zone/rule data (the session's source of truth --
 /// matters if the host is running a customized/homebrew variant) but
 /// substitutes each card's `imagePath`, and every declared card back's own

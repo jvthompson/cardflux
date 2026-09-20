@@ -10,6 +10,7 @@ import '../data/games_directory_settings.dart';
 import '../models/game_definition.dart';
 import 'game_definition_editor_screen.dart';
 import 'navigation.dart';
+import 'widgets/game_grid.dart';
 import 'widgets/move_library_prompt.dart';
 
 const List<XTypeGroup> _gameDefFileTypes = [
@@ -191,9 +192,10 @@ Future<NewOrOpenGameResult?> pickExistingGameDefinitionFile(BuildContext context
 }
 
 /// Entry point for the Game Definition Editor: one-click open any game
-/// already in the games-library folder, create a brand-new game definition
-/// by id, or fall back to opening a `gamedef.json` saved elsewhere -- then
-/// proceed into [GameDefinitionEditorScreen].
+/// already in the games-library folder (shown in the same [GameGridView]
+/// grid `GamePicker` uses to pick a game to play), create a brand-new game
+/// definition by id, or fall back to opening a `gamedef.json` saved
+/// elsewhere -- then proceed into [GameDefinitionEditorScreen].
 class GameDefinitionEditorEntryScreen extends StatefulWidget {
   const GameDefinitionEditorEntryScreen({super.key});
 
@@ -295,85 +297,85 @@ class _GameDefinitionEditorEntryScreenState extends State<GameDefinitionEditorEn
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 480),
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
+      body: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (_libraryRoot == null)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 16),
+                child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+              )
+            else
+              Row(
                 children: [
-                  if (_libraryRoot == null)
-                    const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 16),
-                      child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
-                    )
-                  else
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            _libraryRoot!,
-                            style: TextStyle(color: Theme.of(context).colorScheme.primary, fontSize: 12),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        IconButton(
-                          tooltip: 'Refresh',
-                          icon: const Icon(Icons.refresh),
-                          onPressed: _busy ? null : _refreshLibrary,
-                        ),
-                        IconButton(
-                          tooltip: 'Change Folder...',
-                          icon: const Icon(Icons.folder_open),
-                          onPressed: _busy ? null : _changeLibraryRoot,
-                        ),
-                      ],
-                    ),
-                  const SizedBox(height: 12),
-                  if (_busy)
-                    const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 16),
-                      child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
-                    )
-                  else if (_error != null)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 8),
-                      child: Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
-                    )
-                  else if (_libraryGames != null)
-                    for (final entry in _libraryGames!)
-                      Card(
-                        child: ListTile(
-                          title: Text(entry.game.name),
-                          subtitle: Text('${entry.game.cards.length} card(s)'),
-                          onTap: () => _openLibraryEntry(context, entry),
-                        ),
-                      ),
-                  const SizedBox(height: 8),
-                  FilledButton(
-                    onPressed: () => _newGame(context),
-                    child: const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 12),
-                      child: Text('New Game Definition...'),
+                  Expanded(
+                    child: Text(
+                      _libraryRoot!,
+                      style: TextStyle(color: Theme.of(context).colorScheme.primary, fontSize: 12),
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                  const SizedBox(height: 20),
-                  const Divider(),
-                  const SizedBox(height: 8),
-                  OutlinedButton(
-                    onPressed: () => _openGame(context),
-                    child: const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 12),
-                      child: Text('Open Existing...'),
-                    ),
+                  IconButton(
+                    tooltip: 'Refresh',
+                    icon: const Icon(Icons.refresh),
+                    onPressed: _busy ? null : _refreshLibrary,
+                  ),
+                  IconButton(
+                    tooltip: 'Change Folder...',
+                    icon: const Icon(Icons.folder_open),
+                    onPressed: _busy ? null : _changeLibraryRoot,
                   ),
                 ],
               ),
+            if (_busy)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 4),
+                child: LinearProgressIndicator(minHeight: 2),
+              ),
+            const SizedBox(height: 12),
+            Expanded(
+              child: _libraryGames == null
+                  ? const Center(child: CircularProgressIndicator(strokeWidth: 2))
+                  : _libraryGames!.isEmpty
+                      ? Center(
+                          child: Text(
+                            _error ?? 'No games found in this folder.',
+                            style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+                          ),
+                        )
+                      : GameGridView(
+                          entries: [
+                            for (final entry in _libraryGames!)
+                              GameGridEntry(
+                                name: entry.game.name,
+                                cardCount: entry.game.cards.length,
+                                folderPath: entry.folderPath,
+                                onTap: () => _openLibraryEntry(context, entry),
+                              ),
+                          ],
+                        ),
             ),
-          ),
+            const SizedBox(height: 8),
+            FilledButton(
+              onPressed: () => _newGame(context),
+              child: const Padding(
+                padding: EdgeInsets.symmetric(vertical: 12),
+                child: Text('New Game Definition...'),
+              ),
+            ),
+            const SizedBox(height: 20),
+            const Divider(),
+            const SizedBox(height: 8),
+            OutlinedButton(
+              onPressed: () => _openGame(context),
+              child: const Padding(
+                padding: EdgeInsets.symmetric(vertical: 12),
+                child: Text('Open Existing...'),
+              ),
+            ),
+          ],
         ),
       ),
     );

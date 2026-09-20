@@ -4,6 +4,7 @@ import '../../data/directory_picker.dart';
 import '../../data/game_loader.dart';
 import '../../data/games_directory_settings.dart';
 import '../../models/game_definition.dart';
+import 'game_grid.dart';
 import 'move_library_prompt.dart';
 
 /// Lets the user pick a game: the bundled Standard 52-Card Deck (always
@@ -11,10 +12,13 @@ import 'move_library_prompt.dart';
 /// uses) plus whatever's in their configured games directory, remembered
 /// across launches via [GamesDirectorySettings] and rescanned on open (or on
 /// demand via Refresh) so a game folder dropped in after the app was built
-/// shows up with no rebuild -- then calls [onGameChosen]. Shared by
-/// `GameSelectScreen` (host flow, proceeds into `DeckBuildScreen`) and
-/// `DeckEditorGameSelectScreen` (proceeds into `DeckEditorScreen`), since
-/// picking a game has no dependency on what happens with it afterward.
+/// shows up with no rebuild -- then calls [onGameChosen]. Every game --
+/// including the standard deck, always sorted last -- renders as one tile in
+/// [GameGridView], the same grid UI `GameDefinitionEditorEntryScreen` uses to
+/// pick a game to edit. Shared by `GameSelectScreen` (host flow, proceeds
+/// into `DeckBuildScreen`) and `DeckEditorGameSelectScreen` (proceeds into
+/// `DeckEditorScreen`), since picking a game has no dependency on what
+/// happens with it afterward.
 class GamePicker extends StatefulWidget {
   const GamePicker({super.key, required this.onGameChosen});
 
@@ -100,83 +104,73 @@ class _GamePickerState extends State<GamePicker> {
     final directoryGames = (_directoryGames ?? const <GameDefinition>[])
         .where((g) => g.id != _standardDeck?.id)
         .toList();
+    // Standard 52 always sorts last, after every custom game.
+    final tiles = [...directoryGames, ?_standardDeck];
 
-    return ConstrainedBox(
-      constraints: const BoxConstraints(maxWidth: 420),
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const Text('Games', style: TextStyle(fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
-            if (_standardDeck == null)
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 12),
-                child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
-              )
-            else
-              Card(
-                child: ListTile(
-                  title: Text(_standardDeck!.name),
-                  subtitle: Text('${_standardDeck!.cards.length} card(s)'),
-                  onTap: () => widget.onGameChosen(_standardDeck!),
+    return Padding(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Text('Games', style: TextStyle(fontWeight: FontWeight.bold)),
+          const SizedBox(height: 8),
+          if (_directoryPath == null)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 12),
+              child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+            )
+          else
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    _directoryPath!,
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      fontSize: 12,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
-              ),
-            const SizedBox(height: 16),
-            if (_directoryPath == null) ...[
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 12),
-                child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
-              ),
-            ] else ...[
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      _directoryPath!,
-                      style: TextStyle(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        fontSize: 12,
-                      ),
-                      overflow: TextOverflow.ellipsis,
-                    ),
+                IconButton(
+                  tooltip: 'Refresh',
+                  icon: const Icon(Icons.refresh),
+                  onPressed: _busy ? null : () => _refresh(_directoryPath!),
+                ),
+                IconButton(
+                  tooltip: 'Change Folder...',
+                  icon: const Icon(Icons.folder_open),
+                  onPressed: _busy ? null : _chooseDirectory,
+                ),
+              ],
+            ),
+          if (_busy)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 4),
+              child: LinearProgressIndicator(minHeight: 2),
+            )
+          else if (_error != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text(_error!, style: const TextStyle(color: Colors.red)),
+            ),
+          const SizedBox(height: 12),
+          Expanded(
+            child: _standardDeck == null
+                ? const Center(child: CircularProgressIndicator(strokeWidth: 2))
+                : GameGridView(
+                    entries: [
+                      for (final game in tiles)
+                        GameGridEntry(
+                          name: game.name,
+                          cardCount: game.cards.length,
+                          folderPath: game.folderPath,
+                          onTap: () => widget.onGameChosen(game),
+                        ),
+                    ],
                   ),
-                  IconButton(
-                    tooltip: 'Refresh',
-                    icon: const Icon(Icons.refresh),
-                    onPressed: _busy ? null : () => _refresh(_directoryPath!),
-                  ),
-                  IconButton(
-                    tooltip: 'Change Folder...',
-                    icon: const Icon(Icons.folder_open),
-                    onPressed: _busy ? null : _chooseDirectory,
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              if (_busy)
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 12),
-                  child: Center(
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  ),
-                )
-              else if (_error != null)
-                Text(_error!, style: const TextStyle(color: Colors.red))
-              else
-                for (final game in directoryGames)
-                  Card(
-                    child: ListTile(
-                      title: Text(game.name),
-                      subtitle: Text('${game.cards.length} card(s)'),
-                      onTap: () => widget.onGameChosen(game),
-                    ),
-                  ),
-            ],
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
