@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'host_setup_screen.dart';
+import 'navigation.dart';
 
 /// Shown right after "Host Game": how many total players (including the
 /// host) this match will have -- [HostSetupScreen] then waits for exactly
@@ -19,20 +20,21 @@ class PlayerCountScreen extends StatelessWidget {
   final String? localAvatarPath;
 
   void _choose(BuildContext context, int maxPlayers) {
-    Navigator.of(context).push(MaterialPageRoute(
+    pushScreen(
+      context,
+      title: 'Host Game',
       builder: (_) => HostSetupScreen(
         localPlayerName: localPlayerName,
         localPlayerColor: localPlayerColor,
         localAvatarPath: localAvatarPath,
         maxPlayers: maxPlayers,
       ),
-    ));
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Host Game')),
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 360),

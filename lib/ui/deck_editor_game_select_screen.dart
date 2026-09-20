@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'deck_editor_screen.dart';
+import 'navigation.dart';
 import 'widgets/game_picker.dart';
 
 /// Entry point for the standalone Deck Editor: pick the bundled standard
@@ -13,12 +14,13 @@ class DeckEditorGameSelectScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Choose a Game to Edit')),
       body: Center(
         child: GamePicker(
-          onGameChosen: (game) => Navigator.of(context).push(MaterialPageRoute(
+          onGameChosen: (game) => pushScreen(
+            context,
+            title: 'Deck Editor',
             builder: (_) => DeckEditorScreen(game: game),
-          )),
+          ),
         ),
       ),
     );

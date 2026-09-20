@@ -8,6 +8,7 @@ import '../networking/host_server.dart';
 import 'host_game_screen.dart';
 import 'host_load_deck_screen.dart';
 import 'load_saved_game_screen.dart';
+import 'navigation.dart';
 import 'widgets/game_picker.dart';
 
 /// Host-only screen: pick the bundled standard deck, or browse a folder on
@@ -45,7 +46,10 @@ class GameSelectScreen extends StatelessWidget {
     final sharedDeckConfigsByZoneId = await _resolveSharedDeckConfigs(game);
     if (!context.mounted) return;
     if (!game.needsDeckBuilding) {
-      Navigator.of(context).push(MaterialPageRoute(
+      pushScreen(
+        context,
+        title: game.name,
+        showBackButton: false,
         builder: (_) => HostGameScreen(
           hostServer: hostServer,
           hostPlayerId: hostPlayerId,
@@ -53,24 +57,31 @@ class GameSelectScreen extends StatelessWidget {
           deckConfigsByPlayerId: null,
           sharedDeckConfigsByZoneId: sharedDeckConfigsByZoneId,
         ),
-      ));
+      );
       return;
     }
-    Navigator.of(context).push(MaterialPageRoute(
+    pushScreen(
+      context,
+      title: 'Load Deck -- ${game.name}',
       builder: (_) => HostLoadDeckScreen(
         hostServer: hostServer,
         hostPlayerId: hostPlayerId,
         game: game,
         sharedDeckConfigsByZoneId: sharedDeckConfigsByZoneId,
       ),
-    ));
+    );
   }
 
   void _loadSavedGame(BuildContext context) {
-    Navigator.of(context).push(MaterialPageRoute(
+    pushScreen(
+      context,
+      title: 'Load a Saved Game',
       builder: (_) => LoadSavedGameScreen(
         currentPlayers: hostServer.roster,
-        onLoaded: (game, state) => Navigator.of(context).push(MaterialPageRoute(
+        onLoaded: (game, state) => pushScreen(
+          context,
+          title: game.name,
+          showBackButton: false,
           builder: (_) => HostGameScreen(
             hostServer: hostServer,
             hostPlayerId: hostPlayerId,
@@ -78,15 +89,14 @@ class GameSelectScreen extends StatelessWidget {
             deckConfigsByPlayerId: null,
             loadedState: state,
           ),
-        )),
+        ),
       ),
-    ));
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Choose a Game')),
       body: Column(
         children: [
           Padding(

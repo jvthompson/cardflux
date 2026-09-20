@@ -54,7 +54,6 @@ class _SeatMatchScreenState extends State<SeatMatchScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Match Returning Players')),
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 480),

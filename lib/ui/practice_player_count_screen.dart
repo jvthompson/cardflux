@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'navigation.dart';
 import 'practice_game_select_screen.dart';
 
 /// Shown right after "Practice Offline": how many decks (1-4) to simulate at
@@ -21,20 +22,21 @@ class PracticePlayerCountScreen extends StatelessWidget {
   final String? localAvatarPath;
 
   void _choose(BuildContext context, int playerCount) {
-    Navigator.of(context).push(MaterialPageRoute(
+    pushScreen(
+      context,
+      title: 'Choose a Game',
       builder: (_) => PracticeGameSelectScreen(
         playerCount: playerCount,
         localPlayerName: localPlayerName,
         localPlayerColor: localPlayerColor,
         localAvatarPath: localAvatarPath,
       ),
-    ));
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Practice Offline')),
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 360),

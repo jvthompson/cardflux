@@ -6,6 +6,8 @@ import 'package:window_manager/window_manager.dart';
 import 'app_theme.dart';
 import 'data/theme_mode_settings.dart';
 import 'ui/home_screen.dart';
+import 'ui/navigation.dart';
+import 'ui/widgets/app_title_bar.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -68,6 +70,19 @@ class _MainAppState extends State<MainApp> with WindowListener {
   bool _isChromeHidden = true;
   bool _isTogglingChrome = false;
 
+  /// Lets [AppTitleBar] (built inside [MaterialApp]'s `builder`, whose
+  /// `context` is an ANCESTOR of the Navigator since `child` there already
+  /// *is* the built Navigator) call `.pop()` without a descendant context
+  /// to find it through `Navigator.of(context)`.
+  final navigatorKey = GlobalKey<NavigatorState>();
+
+  /// What [AppTitleBar] renders -- provided app-wide (alongside
+  /// [ThemeModeController]) and kept in sync with the current route by
+  /// [_chromeObserver]. Not recreated per [build] so the observer registered
+  /// on [MaterialApp] stays the same instance across rebuilds.
+  final _chromeController = ChromeController();
+  late final _chromeObserver = ChromeRouteObserver(_chromeController);
+
   // main() maximizes the window before the first frame, so this starts in
   // sync with that; onWindowMaximize/onWindowUnmaximize below keep it in
   // sync after that, including when HomeScreen's maximize button changes it.
@@ -109,10 +124,15 @@ class _MainAppState extends State<MainApp> with WindowListener {
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (_) => ThemeModeController(),
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => ThemeModeController()),
+        ChangeNotifierProvider.value(value: _chromeController),
+      ],
       child: Consumer<ThemeModeController>(
         builder: (context, controller, _) => MaterialApp(
+          navigatorKey: navigatorKey,
+          navigatorObservers: [_chromeObserver],
           title: 'Cardflux',
           theme: AppTheme.light,
           darkTheme: AppTheme.dark,
@@ -122,10 +142,31 @@ class _MainAppState extends State<MainApp> with WindowListener {
           // edge-drag resize handles of its own. DragToResizeArea adds
           // invisible hit regions along the edges that call
           // windowManager.startResizing() -- only useful once the window
-          // isn't maximized/filling the screen.
+          // isn't maximized/filling the screen. AppTitleBar sits above the
+          // Navigator's routed content, so it appears identically on every
+          // screen (see its own doc comment) -- child already shrinks to
+          // fit whatever height Expanded leaves it, no per-screen changes
+          // needed.
           builder: (context, child) => DragToResizeArea(
             enableResizeEdges: _isMaximized ? const [] : null,
-            child: child!,
+            // AppTitleBar sits outside the Navigator's own subtree (it's a
+            // sibling of `child`, which already *is* the built Navigator),
+            // so it has no ancestor Overlay of its own -- its IconButtons'
+            // tooltips need one to render (Tooltip uses Overlay.of(context)
+            // internally). This Overlay supplies that, wrapping both the
+            // bar and the routed content underneath it.
+            child: Overlay(
+              initialEntries: [
+                OverlayEntry(
+                  builder: (context) => Column(
+                    children: [
+                      AppTitleBar(isMaximized: _isMaximized, navigatorKey: navigatorKey),
+                      Expanded(child: child!),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

@@ -9,6 +9,7 @@ import '../data/game_definition_file_ops.dart';
 import '../data/games_directory_settings.dart';
 import '../models/game_definition.dart';
 import 'game_definition_editor_screen.dart';
+import 'navigation.dart';
 import 'widgets/move_library_prompt.dart';
 
 const List<XTypeGroup> _gameDefFileTypes = [
@@ -259,9 +260,11 @@ class _GameDefinitionEditorEntryScreenState extends State<GameDefinitionEditorEn
   Future<void> _newGame(BuildContext context) async {
     final result = await pickNewGameDefinitionFolder(context);
     if (result == null || !context.mounted) return;
-    await Navigator.of(context).push(MaterialPageRoute(
+    await pushScreen(
+      context,
+      title: 'Game Definition Editor',
       builder: (_) => GameDefinitionEditorScreen(folderPath: result.folderPath, initialGame: result.game),
-    ));
+    );
     if (!mounted) return;
     final root = await GamesDirectorySettings().getPath();
     if (!mounted) return;
@@ -272,23 +275,26 @@ class _GameDefinitionEditorEntryScreenState extends State<GameDefinitionEditorEn
   Future<void> _openGame(BuildContext context) async {
     final result = await pickExistingGameDefinitionFile(context);
     if (result == null || !context.mounted) return;
-    await Navigator.of(context).push(MaterialPageRoute(
+    await pushScreen(
+      context,
+      title: 'Game Definition Editor',
       builder: (_) => GameDefinitionEditorScreen(folderPath: result.folderPath, initialGame: result.game),
-    ));
+    );
     await _refreshLibrary();
   }
 
   Future<void> _openLibraryEntry(BuildContext context, LibraryGameEntry entry) async {
-    await Navigator.of(context).push(MaterialPageRoute(
+    await pushScreen(
+      context,
+      title: 'Game Definition Editor',
       builder: (_) => GameDefinitionEditorScreen(folderPath: entry.folderPath, initialGame: entry.game),
-    ));
+    );
     await _refreshLibrary();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Game Definition Editor')),
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 480),

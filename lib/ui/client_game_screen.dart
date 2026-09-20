@@ -22,6 +22,7 @@ import '../models/table_state.dart';
 import '../networking/game_client.dart';
 import '../networking/net_message.dart';
 import 'home_screen.dart';
+import 'navigation.dart';
 import 'table_screen.dart';
 import 'widgets/deck_library_screen.dart';
 
@@ -106,10 +107,7 @@ class _ClientGameScreenState extends State<ClientGameScreen> {
     // This connection is over either way -- release the socket so a fresh
     // "Join Game" attempt from HomeScreen can open a new one.
     widget.gameClient.disconnect();
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => HomeScreen(message: message)),
-      (route) => false,
-    );
+    pushAndRemoveUntilHome(context, (_) => HomeScreen(message: message));
   }
 
   void _handleMessage(NetMessage msg) {
@@ -136,6 +134,7 @@ class _ClientGameScreenState extends State<ClientGameScreen> {
       // Triggers a rebuild so `build()` can switch from the waiting spinner
       // to LoadDeckScreen now that a GameDefinition is available.
       setState(() => _game = game);
+      updateScreenChrome(context, title: 'Load Deck -- ${game.name}');
       // The host's imagePath/cardBacks path values are absolute paths
       // resolved on ITS machine -- they only happen to work here if this
       // client's game library sits at the identical path. Fire-and-forget:
@@ -198,6 +197,7 @@ class _ClientGameScreenState extends State<ClientGameScreen> {
         );
         _definitionsById = {for (final c in game.cards) c.id: c};
       });
+      updateScreenChrome(context, title: game.name);
     } else {
       _session!.applyRemoteState(remoteState);
     }
@@ -269,7 +269,6 @@ class _ClientGameScreenState extends State<ClientGameScreen> {
       if (game != null && zones.isNotEmpty) {
         final localDecksComplete = _localDeck != null;
         return Scaffold(
-          appBar: AppBar(title: Text('Load Deck -- ${game.name}')),
           body: Column(
             children: [
               Expanded(

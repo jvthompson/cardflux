@@ -8,6 +8,7 @@ import '../data/reconnect_settings.dart';
 import '../networking/game_client.dart';
 import '../networking/net_message.dart';
 import 'client_game_screen.dart';
+import 'navigation.dart';
 
 /// Lets the joining player enter the host's IP address and port, connects a
 /// [GameClient], and once connected navigates to [ClientGameScreen] to
@@ -93,15 +94,17 @@ class _JoinScreenState extends State<JoinScreen> {
     if (playerId == null) return;
     _navigated = true;
     unawaited(ReconnectSettings().save(hostKey: hostKey, playerId: playerId));
-    Navigator.of(context).pushReplacement(MaterialPageRoute(
+    pushReplacementScreen(
+      context,
+      title: 'Game',
+      showBackButton: false,
       builder: (_) => ClientGameScreen(gameClient: _client, localPlayerId: playerId),
-    ));
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Join Game')),
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 360),

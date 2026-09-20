@@ -4,6 +4,7 @@ import '../models/color_palette.dart';
 import '../models/game_definition.dart';
 import '../models/player.dart';
 import 'load_saved_game_screen.dart';
+import 'navigation.dart';
 import 'practice_game_screen.dart';
 import 'practice_load_decks_screen.dart';
 import 'widgets/game_picker.dart';
@@ -47,27 +48,37 @@ class PracticeGameSelectScreen extends StatelessWidget {
   void _chooseGame(BuildContext context, GameDefinition game) {
     final players = _buildPlayers();
     if (!game.needsDeckBuilding) {
-      Navigator.of(context).push(MaterialPageRoute(
+      pushScreen(
+        context,
+        title: game.name,
+        showBackButton: false,
         builder: (_) => PracticeGameScreen(
           game: game,
           players: players,
           deckConfigsByPlayerId: null,
           localAvatarPath: localAvatarPath,
         ),
-      ));
+      );
       return;
     }
-    Navigator.of(context).push(MaterialPageRoute(
+    pushScreen(
+      context,
+      title: 'Load Deck -- ${game.name}',
       builder: (_) => PracticeLoadDecksScreen(game: game, players: players, localAvatarPath: localAvatarPath),
-    ));
+    );
   }
 
   void _loadSavedGame(BuildContext context) {
     final players = _buildPlayers();
-    Navigator.of(context).push(MaterialPageRoute(
+    pushScreen(
+      context,
+      title: 'Load a Saved Game',
       builder: (_) => LoadSavedGameScreen(
         currentPlayers: players,
-        onLoaded: (game, state) => Navigator.of(context).push(MaterialPageRoute(
+        onLoaded: (game, state) => pushScreen(
+          context,
+          title: game.name,
+          showBackButton: false,
           builder: (_) => PracticeGameScreen(
             game: game,
             players: players,
@@ -75,15 +86,14 @@ class PracticeGameSelectScreen extends StatelessWidget {
             loadedState: state,
             localAvatarPath: localAvatarPath,
           ),
-        )),
+        ),
       ),
-    ));
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Choose a Game')),
       body: Column(
         children: [
           Padding(

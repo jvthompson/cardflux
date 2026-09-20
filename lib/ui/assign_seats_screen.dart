@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/player.dart';
 import '../networking/host_server.dart';
 import 'game_select_screen.dart';
+import 'navigation.dart';
 
 /// Shown once the lobby is full, for 3-4 player matches only (a 2-player
 /// match has exactly one sensible arrangement -- host bottom, client top --
@@ -58,9 +59,11 @@ class _AssignSeatsScreenState extends State<AssignSeatsScreen> {
 
   void _start() {
     widget.hostServer.setSeatOrder(_order.map((p) => p.id).toList());
-    Navigator.of(context).pushReplacement(MaterialPageRoute(
+    pushReplacementScreen(
+      context,
+      title: 'Choose a Game',
       builder: (_) => GameSelectScreen(hostServer: widget.hostServer, hostPlayerId: widget.hostPlayerId),
-    ));
+    );
   }
 
   /// A quick top-down text mockup of the resulting arrangement -- purely
@@ -102,7 +105,6 @@ class _AssignSeatsScreenState extends State<AssignSeatsScreen> {
   Widget build(BuildContext context) {
     final labels = _slotLabels;
     return Scaffold(
-      appBar: AppBar(title: const Text('Assign Seats')),
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 480),

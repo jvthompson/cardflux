@@ -15,6 +15,7 @@ import '../models/tag_group.dart';
 import 'widgets/card_back_widget.dart';
 import 'widgets/card_face_widget.dart';
 import 'widgets/card_sort_menu.dart';
+import 'widgets/editor_toolbar.dart';
 import 'widgets/move_library_prompt.dart';
 import 'widgets/multi_select_filter_menu.dart';
 import 'widgets/save_deck_dialog.dart';
@@ -709,14 +710,17 @@ class _DeckEditorScreenState extends State<DeckEditorScreen> {
   Widget build(BuildContext context) {
     final visibleCards = _visibleCards;
     return Scaffold(
-      appBar: AppBar(
-        title: Text('Edit Deck -- ${widget.game.name}'),
-        actions: [
-          IconButton(icon: const Icon(Icons.folder_open), tooltip: 'Open Deck...', onPressed: _openDeck),
-          IconButton(icon: const Icon(Icons.save), tooltip: 'Save Deck...', onPressed: _saveDeck),
-        ],
-      ),
-      body: Row(
+      body: Column(
+        children: [
+          EditorToolbar(
+            title: 'Edit Deck -- ${widget.game.name}',
+            actions: [
+              IconButton(icon: const Icon(Icons.folder_open), tooltip: 'Open Deck...', onPressed: _openDeck),
+              IconButton(icon: const Icon(Icons.save), tooltip: 'Save Deck...', onPressed: _saveDeck),
+            ],
+          ),
+          Expanded(
+            child: Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Expanded(
@@ -752,6 +756,9 @@ class _DeckEditorScreenState extends State<DeckEditorScreen> {
           ),
           const VerticalDivider(width: 1),
           Expanded(child: _buildPreviewPanel()),
+        ],
+      ),
+          ),
         ],
       ),
     );

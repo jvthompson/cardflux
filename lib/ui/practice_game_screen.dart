@@ -11,6 +11,7 @@ import '../models/player.dart';
 import '../models/saved_game.dart';
 import '../models/table_state.dart';
 import 'home_screen.dart';
+import 'navigation.dart';
 import 'table_screen.dart';
 import 'widgets/save_game_dialog.dart';
 
@@ -78,10 +79,7 @@ class _PracticeGameScreenState extends State<PracticeGameScreen> {
   }
 
   void _leaveGame() {
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => const HomeScreen()),
-      (route) => false,
-    );
+    pushAndRemoveUntilHome(context, (_) => const HomeScreen());
   }
 
   /// The Game Menu's "Save Game..." action -- see `HostGameScreen._saveGame`,

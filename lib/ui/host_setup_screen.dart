@@ -10,6 +10,7 @@ import '../networking/host_server.dart';
 import '../networking/network_info.dart';
 import 'assign_seats_screen.dart';
 import 'game_select_screen.dart';
+import 'navigation.dart';
 
 const _uuid = Uuid();
 
@@ -105,11 +106,13 @@ class _HostSetupScreenState extends State<HostSetupScreen> {
     // A 2-player match has exactly one sensible seating (host bottom,
     // client top) -- skip straight to game selection, same as before
     // AssignSeatsScreen existed.
-    Navigator.of(context).pushReplacement(MaterialPageRoute(
+    pushReplacementScreen(
+      context,
+      title: widget.maxPlayers > 2 ? 'Assign Seats' : 'Choose a Game',
       builder: (_) => widget.maxPlayers > 2
           ? AssignSeatsScreen(hostServer: _server, hostPlayerId: _hostPlayerId)
           : GameSelectScreen(hostServer: _server, hostPlayerId: _hostPlayerId),
-    ));
+    );
   }
 
   @override
@@ -125,7 +128,6 @@ class _HostSetupScreenState extends State<HostSetupScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Host Game')),
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 420),

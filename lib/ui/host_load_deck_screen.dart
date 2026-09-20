@@ -10,6 +10,7 @@ import '../networking/host_server.dart';
 import '../networking/net_message.dart';
 import 'home_screen.dart';
 import 'host_game_screen.dart';
+import 'navigation.dart';
 import 'widgets/deck_library_screen.dart';
 
 /// Shown right after the host picks [game]: sends every connected client the
@@ -125,7 +126,10 @@ class _HostLoadDeckScreenState extends State<HostLoadDeckScreen> {
     _navigatedAway = true;
     _sub?.cancel();
     _rosterSub?.cancel();
-    Navigator.of(context).pushReplacement(MaterialPageRoute(
+    pushReplacementScreen(
+      context,
+      title: widget.game.name,
+      showBackButton: false,
       builder: (_) => HostGameScreen(
         hostServer: widget.hostServer,
         hostPlayerId: widget.hostPlayerId,
@@ -133,7 +137,7 @@ class _HostLoadDeckScreenState extends State<HostLoadDeckScreen> {
         deckConfigsByPlayerId: _decksByPlayerId,
         sharedDeckConfigsByZoneId: widget.sharedDeckConfigsByZoneId,
       ),
-    ));
+    );
   }
 
   void _returnHome() {
@@ -141,10 +145,7 @@ class _HostLoadDeckScreenState extends State<HostLoadDeckScreen> {
     _navigatedAway = true;
     SoundService.instance.play(SoundEffect.error);
     widget.hostServer.stop();
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => const HomeScreen(message: 'Opponent disconnected.')),
-      (route) => false,
-    );
+    pushAndRemoveUntilHome(context, (_) => const HomeScreen(message: 'Opponent disconnected.'));
   }
 
   @override
@@ -161,7 +162,6 @@ class _HostLoadDeckScreenState extends State<HostLoadDeckScreen> {
     final hostReady = _readyPlayerIds.contains(widget.hostPlayerId);
     final others = _roster.where((p) => p.id != widget.hostPlayerId).toList();
     return Scaffold(
-      appBar: AppBar(title: Text('Load Deck -- ${widget.game.name}')),
       body: Column(
         children: [
           Expanded(

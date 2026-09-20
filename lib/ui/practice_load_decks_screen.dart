@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/deck_config.dart';
 import '../models/game_definition.dart';
 import '../models/player.dart';
+import 'navigation.dart';
 import 'practice_game_screen.dart';
 import 'widgets/deck_library_screen.dart';
 
@@ -35,6 +36,19 @@ class _PracticeLoadDecksScreenState extends State<PracticeLoadDecksScreen> {
 
   PlayerInfo get _currentPlayer => widget.players[_seatIndex];
 
+  @override
+  void initState() {
+    super.initState();
+    // The push site already sets a title matching the single-seat case; for
+    // more than one seat, override it to include the per-seat progress
+    // (kept current in _continue as the seat advances).
+    if (widget.players.length > 1) _updateTitle();
+  }
+
+  void _updateTitle() {
+    updateScreenChrome(context, title: 'Load Deck -- ${_currentPlayer.name} (${_seatIndex + 1}/${widget.players.length})');
+  }
+
   void _chooseDeck(DeckConfig deck) {
     setState(() => _decksByPlayerId[_currentPlayer.id] = deck);
   }
@@ -45,16 +59,20 @@ class _PracticeLoadDecksScreenState extends State<PracticeLoadDecksScreen> {
     if (!_currentSeatComplete) return;
     if (_seatIndex < widget.players.length - 1) {
       setState(() => _seatIndex++);
+      _updateTitle();
       return;
     }
-    Navigator.of(context).pushReplacement(MaterialPageRoute(
+    pushReplacementScreen(
+      context,
+      title: widget.game.name,
+      showBackButton: false,
       builder: (_) => PracticeGameScreen(
         game: widget.game,
         players: widget.players,
         deckConfigsByPlayerId: _decksByPlayerId,
         localAvatarPath: widget.localAvatarPath,
       ),
-    ));
+    );
   }
 
   @override
@@ -62,13 +80,6 @@ class _PracticeLoadDecksScreenState extends State<PracticeLoadDecksScreen> {
     final player = _currentPlayer;
     final isLastSeat = _seatIndex == widget.players.length - 1;
     return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          widget.players.length == 1
-              ? 'Load Deck -- ${widget.game.name}'
-              : 'Load Deck -- ${player.name} (${_seatIndex + 1}/${widget.players.length})',
-        ),
-      ),
       body: Column(
         children: [
           Expanded(

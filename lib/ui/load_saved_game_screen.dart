@@ -7,6 +7,7 @@ import '../models/game_definition.dart';
 import '../models/player.dart';
 import '../models/standard_deck.dart';
 import '../models/table_state.dart';
+import 'navigation.dart';
 import 'seat_match_screen.dart';
 import 'widgets/game_picker.dart';
 
@@ -55,9 +56,25 @@ class _LoadSavedGameScreenState extends State<LoadSavedGameScreen> {
       _chosenGame = game;
       _entries = null;
     });
+    // Back from here should return to the game picker, not pop this whole
+    // screen -- see the global title bar's onBack override.
+    updateScreenChrome(
+      context,
+      title: 'Load a Saved Game -- ${game.name}',
+      showBackButton: true,
+      onBack: _backToGamePicker,
+    );
     _fileOps.listSaveGames(game.folderPath!).then((entries) {
       if (mounted) setState(() => _entries = entries);
     });
+  }
+
+  void _backToGamePicker() {
+    setState(() {
+      _chosenGame = null;
+      _entries = null;
+    });
+    updateScreenChrome(context, title: 'Load a Saved Game', showBackButton: true, onBack: null);
   }
 
   /// Every [CardDefinition.id] a card can legally reference in [game] --
@@ -81,14 +98,19 @@ class _LoadSavedGameScreenState extends State<LoadSavedGameScreen> {
     final match = matchPlayersByName(savedPlayers: save.state.players, currentPlayers: widget.currentPlayers);
     var idMap = match.matchedSavedIdToCurrentId;
     if (match.unmatchedSavedPlayers.isNotEmpty) {
-      final manual = await Navigator.of(context).push<Map<String, String>>(
-        MaterialPageRoute(
-          builder: (_) => SeatMatchScreen(
-            unmatchedSavedPlayers: match.unmatchedSavedPlayers,
-            unmatchedCurrentPlayers: match.unmatchedCurrentPlayers,
-          ),
+      final manual = await pushScreen<Map<String, String>>(
+        context,
+        title: 'Match Returning Players',
+        builder: (_) => SeatMatchScreen(
+          unmatchedSavedPlayers: match.unmatchedSavedPlayers,
+          unmatchedCurrentPlayers: match.unmatchedCurrentPlayers,
         ),
       );
+      // Popping back from SeatMatchScreen resets the global title bar to
+      // this route's *static* push-time chrome (see ChromeRouteObserver) --
+      // reapply the dynamic "game chosen" chrome _chooseGame set, since
+      // we're still showing that state underneath.
+      if (mounted) updateScreenChrome(context, title: 'Load a Saved Game -- ${game.name}', onBack: _backToGamePicker);
       if (manual == null) {
         if (mounted) setState(() => _busy = false);
         return;
@@ -133,18 +155,6 @@ class _LoadSavedGameScreenState extends State<LoadSavedGameScreen> {
   Widget build(BuildContext context) {
     final game = _chosenGame;
     return Scaffold(
-      appBar: AppBar(
-        title: Text(game == null ? 'Load a Saved Game' : 'Load a Saved Game -- ${game.name}'),
-        leading: game == null
-            ? null
-            : IconButton(
-                icon: const Icon(Icons.arrow_back),
-                onPressed: () => setState(() {
-                  _chosenGame = null;
-                  _entries = null;
-                }),
-              ),
-      ),
       body: game == null
           ? Center(child: GamePicker(onGameChosen: _chooseGame))
           : AbsorbPointer(

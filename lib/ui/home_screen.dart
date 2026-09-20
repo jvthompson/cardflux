@@ -1,17 +1,15 @@
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
-import 'package:provider/provider.dart';
-import 'package:window_manager/window_manager.dart';
 
 import '../data/game_definition_file_ops.dart' show imageFileTypes;
 import '../data/player_avatar_file_ops.dart';
 import '../data/player_profile_settings.dart';
-import '../main.dart';
 import '../models/color_palette.dart';
 import 'deck_editor_game_select_screen.dart';
 import 'game_definition_editor_entry_screen.dart';
 import 'join_screen.dart';
+import 'navigation.dart';
 import 'player_count_screen.dart';
 import 'practice_player_count_screen.dart';
 import 'widgets/avatar_widget.dart';
@@ -126,31 +124,20 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> with WindowListener {
+class _HomeScreenState extends State<HomeScreen> {
   final _nameController = TextEditingController(text: 'Player');
   int _playerColor = boardWidgetColorPalette.first;
   String? _avatarPath;
   final _profileSettings = PlayerProfileSettings();
   final _avatarFileOps = PlayerAvatarFileOps();
   String? _buildNumber;
-  bool _isMaximized = true;
 
   @override
   void initState() {
     super.initState();
     _loadProfile();
     _loadBuildNumber();
-    windowManager.addListener(this);
-    windowManager.isMaximized().then((value) {
-      if (mounted) setState(() => _isMaximized = value);
-    });
   }
-
-  @override
-  void onWindowMaximize() => setState(() => _isMaximized = true);
-
-  @override
-  void onWindowUnmaximize() => setState(() => _isMaximized = false);
 
   Future<void> _loadBuildNumber() async {
     final info = await PackageInfo.fromPlatform();
@@ -206,7 +193,6 @@ class _HomeScreenState extends State<HomeScreen> with WindowListener {
 
   @override
   void dispose() {
-    windowManager.removeListener(this);
     _nameController.dispose();
     super.dispose();
   }
@@ -219,37 +205,6 @@ class _HomeScreenState extends State<HomeScreen> with WindowListener {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Cardflux'),
-        // The window is frameless (see main.dart) with no native title bar,
-        // so give the app bar itself drag-to-move (and double-tap-to-maximize)
-        // behavior. It sits behind the title/actions in the AppBar's stack,
-        // so it only catches drags on the bar's empty space.
-        flexibleSpace: const DragToMoveArea(child: SizedBox.expand()),
-        actions: [
-          Consumer<ThemeModeController>(
-            builder: (context, controller, _) => IconButton(
-              icon: Icon(controller.isDarkMode ? Icons.light_mode : Icons.dark_mode),
-              tooltip: controller.isDarkMode ? 'Switch to light mode' : 'Switch to dark mode',
-              onPressed: () => controller.setDarkMode(!controller.isDarkMode),
-            ),
-          ),
-          // The window is frameless with no native maximize/restore control.
-          IconButton(
-            icon: Icon(_isMaximized ? Icons.filter_none : Icons.crop_square),
-            tooltip: _isMaximized ? 'Restore' : 'Maximize',
-            onPressed: () =>
-                _isMaximized ? windowManager.unmaximize() : windowManager.maximize(),
-          ),
-          // The app runs with no native window chrome, so there's otherwise
-          // no way to quit it.
-          IconButton(
-            icon: const Icon(Icons.close),
-            tooltip: 'Close Cardflux',
-            onPressed: () => windowManager.close(),
-          ),
-        ],
-      ),
       body: Stack(
         children: [
           Center(
@@ -290,13 +245,15 @@ class _HomeScreenState extends State<HomeScreen> with WindowListener {
                     ),
                     const SizedBox(height: 24),
                     FilledButton(
-                      onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+                      onPressed: () => pushScreen(
+                        context,
+                        title: 'Host Game',
                         builder: (_) => PlayerCountScreen(
                           localPlayerName: _playerName,
                           localPlayerColor: _playerColor,
                           localAvatarPath: _avatarPath,
                         ),
-                      )),
+                      ),
                       child: const Padding(
                         padding: EdgeInsets.symmetric(vertical: 12),
                         child: Text('Host Game'),
@@ -304,13 +261,15 @@ class _HomeScreenState extends State<HomeScreen> with WindowListener {
                     ),
                     const SizedBox(height: 12),
                     OutlinedButton(
-                      onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+                      onPressed: () => pushScreen(
+                        context,
+                        title: 'Join Game',
                         builder: (_) => JoinScreen(
                           localPlayerName: _playerName,
                           localPlayerColor: _playerColor,
                           localAvatarPath: _avatarPath,
                         ),
-                      )),
+                      ),
                       child: const Padding(
                         padding: EdgeInsets.symmetric(vertical: 12),
                         child: Text('Join Game'),
@@ -318,25 +277,31 @@ class _HomeScreenState extends State<HomeScreen> with WindowListener {
                     ),
                     const SizedBox(height: 24),
                     TextButton(
-                      onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+                      onPressed: () => pushScreen(
+                        context,
+                        title: 'Practice Offline',
                         builder: (_) => PracticePlayerCountScreen(
                           localPlayerName: _playerName,
                           localPlayerColor: _playerColor,
                           localAvatarPath: _avatarPath,
                         ),
-                      )),
+                      ),
                       child: const Text('Practice Offline'),
                     ),
                     TextButton(
-                      onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+                      onPressed: () => pushScreen(
+                        context,
+                        title: 'Deck Editor',
                         builder: (_) => const DeckEditorGameSelectScreen(),
-                      )),
+                      ),
                       child: const Text('Deck Editor'),
                     ),
                     TextButton(
-                      onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+                      onPressed: () => pushScreen(
+                        context,
+                        title: 'Game Definition Editor',
                         builder: (_) => const GameDefinitionEditorEntryScreen(),
-                      )),
+                      ),
                       child: const Text('Game Definition Editor'),
                     ),
                   ],

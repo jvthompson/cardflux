@@ -15,6 +15,7 @@ import '../models/table_state.dart';
 import '../networking/host_server.dart';
 import '../networking/net_message.dart';
 import 'home_screen.dart';
+import 'navigation.dart';
 import 'table_screen.dart';
 import 'widgets/save_game_dialog.dart';
 
@@ -140,10 +141,7 @@ class _HostGameScreenState extends State<HostGameScreen> {
         payload: {'reason': 'hostLeft'},
       ),
     );
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => const HomeScreen(message: 'You ended the game.')),
-      (route) => false,
-    );
+    pushAndRemoveUntilHome(context, (_) => const HomeScreen(message: 'You ended the game.'));
   }
 
   /// The Game Menu's "Save Game..." action -- writes the host's own

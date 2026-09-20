@@ -9,6 +9,7 @@ import '../models/tag_group.dart';
 import '../models/zone_definition.dart';
 import 'game_definition_editor_entry_screen.dart';
 import 'widgets/card_view_tab.dart';
+import 'widgets/editor_toolbar.dart';
 import 'widgets/game_settings_tab.dart';
 import 'widgets/sets_tab.dart';
 import 'widgets/zones_tab.dart';
@@ -104,29 +105,32 @@ class _GameDefinitionEditorScreenState extends State<GameDefinitionEditorScreen>
     return DefaultTabController(
       length: 4,
       child: Scaffold(
-        appBar: AppBar(
-          title: Text(_name.isEmpty ? 'Game Definition Editor' : _name),
-          bottom: const TabBar(tabs: [
-            Tab(text: 'Game Settings'),
-            Tab(text: 'Zones'),
-            Tab(text: 'Sets'),
-            Tab(text: 'Card View'),
-          ]),
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.note_add_outlined),
-              tooltip: 'New Game Definition...',
-              onPressed: _busy ? null : _newGameDefinition,
+        body: Column(
+          children: [
+            EditorToolbar(
+              title: _name.isEmpty ? 'Game Definition Editor' : _name,
+              actions: [
+                IconButton(
+                  icon: const Icon(Icons.note_add_outlined),
+                  tooltip: 'New Game Definition...',
+                  onPressed: _busy ? null : _newGameDefinition,
+                ),
+                IconButton(
+                  icon: const Icon(Icons.folder_open),
+                  tooltip: 'Open Existing...',
+                  onPressed: _busy ? null : _openGameDefinition,
+                ),
+                IconButton(icon: const Icon(Icons.save), tooltip: 'Save', onPressed: _busy ? null : _save),
+              ],
+              bottom: const TabBar(tabs: [
+                Tab(text: 'Game Settings'),
+                Tab(text: 'Zones'),
+                Tab(text: 'Sets'),
+                Tab(text: 'Card View'),
+              ]),
             ),
-            IconButton(
-              icon: const Icon(Icons.folder_open),
-              tooltip: 'Open Existing...',
-              onPressed: _busy ? null : _openGameDefinition,
-            ),
-            IconButton(icon: const Icon(Icons.save), tooltip: 'Save', onPressed: _busy ? null : _save),
-          ],
-        ),
-        body: TabBarView(
+            Expanded(
+              child: TabBarView(
           children: [
             GameSettingsTab(
               folderPath: _folderPath,
@@ -163,6 +167,9 @@ class _GameDefinitionEditorScreenState extends State<GameDefinitionEditorScreen>
               cardBacks: _cardBacks,
               fileOps: _fileOps,
               onCardsChanged: (v) => setState(() => _cards = v),
+            ),
+          ],
+              ),
             ),
           ],
         ),
