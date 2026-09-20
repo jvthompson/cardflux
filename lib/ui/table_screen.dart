@@ -34,6 +34,7 @@ import 'widgets/arrow_widget.dart';
 import 'widgets/avatar_widget.dart';
 import 'widgets/card_back_widget.dart';
 import 'widgets/card_face_widget.dart';
+import 'widgets/card_library_overlay.dart';
 import 'widgets/color_picker_field.dart';
 import 'widgets/counter_widget.dart';
 import 'widgets/deck_library_screen.dart';
@@ -243,6 +244,13 @@ class _TableScreenState extends State<TableScreen>
   /// because the card is face-down at rest in the pile.
   bool _hoveredForceFaceUp = false;
 
+  /// Definition id of the Card Library tile currently under the mouse, or
+  /// null -- mirrors [_hoveredInstanceId] but keyed by [CardDefinition] since
+  /// a library card has no [CardInstance] yet to hover. Mutually exclusive
+  /// with it in practice (only one hover source is ever active), enforced at
+  /// the [build] call site rather than here.
+  String? _hoveredLibraryDefinitionId;
+
   /// Latest raw mouse position (window-global coordinates), updated on every
   /// hover event without triggering a rebuild -- only read at the moment a
   /// rebuild already has to happen (hover target or Space state changing) to
@@ -287,6 +295,14 @@ class _TableScreenState extends State<TableScreen>
   /// [_handleKeyEvent]); [_toggleGameMenu] force-closes this if it's open,
   /// so the two overlays can never show at once.
   bool _actionLogOpen = false;
+
+  /// Whether the table's Card Library window (right-click the empty table ->
+  /// Card Library) is open -- purely local UI state, unlike
+  /// [_gameMenuOpen]/[_actionLogOpen]'s neighbors in spirit but never synced
+  /// via [TableState]: browsing the game's own card catalog isn't something
+  /// other players need to see (unlike a zone search, which is shared state,
+  /// see [ActiveSearch]).
+  bool _cardLibraryOpen = false;
 
   /// True while a modal `showDialog` from this screen (Set Value/Set
   /// Colors/Set Token Color/Save Deck) is open -- see
@@ -1403,6 +1419,12 @@ class _TableScreenState extends State<TableScreen>
     }
   }
 
+  void _setHoveredLibraryId(String? definitionId) {
+    if (_hoveredLibraryDefinitionId != definitionId) {
+      setState(() => _hoveredLibraryDefinitionId = definitionId);
+    }
+  }
+
   /// [box]'s true on-screen rect, accounting for any rotation applied by an
   /// ancestor -- e.g. a seat 3/4 top-row panel, 180°-rotated in place by
   /// [_buildPlayerRow]'s `maybeRotate` whenever that seat is the active one
@@ -1714,6 +1736,34 @@ class _TableScreenState extends State<TableScreen>
     }
   }
 
+  /// Handles a Card Library tile's drag release at [globalTopLeft] -- mints
+  /// a fresh copy of [definitionId] on the table there (see
+  /// `TableController.createCardFromLibrary`), or does nothing if the drop
+  /// isn't over the pannable table itself. Unlike [_handleDragEnd], a
+  /// library card has nowhere else valid to land -- the user can only drag
+  /// it onto the table, never into a hand or zone (there's no existing
+  /// `CardInstance` yet for those flows to move).
+  void _handleLibraryCardDragEnd(String definitionId, Offset globalTopLeft) {
+    final globalCenter = globalTopLeft + const Offset(cardWidth / 2, cardHeight / 2);
+    if (!_isOverPannableTable(globalCenter)) return;
+
+    final local = _globalToTableLocal(globalTopLeft);
+    final rawCenter = Offset(local.dx + cardWidth / 2, local.dy + cardHeight / 2);
+    final clampedY = clampCardCenterY(
+      proposedCenterY: rawCenter.dy,
+      tableHeight: kWorldSize.height,
+      cardHeight: cardHeight,
+    );
+    final (fx, fy) = localPixelToCanonical(
+      pixelX: rawCenter.dx,
+      pixelY: clampedY,
+      tableWidth: kWorldSize.width,
+      tableHeight: kWorldSize.height,
+      isMirrored: widget.isMirrored,
+    );
+    widget.controller.createCardFromLibrary(definitionId, fx, fy);
+  }
+
   /// Handles an Alt+drag release on an entire [PileWidget] (as opposed to a
   /// plain drag, which pulls just its top card out via [_handleDragEnd]) --
   /// dropped onto the local hand zone, every card in [pileCards] is dealt
@@ -1919,6 +1969,24 @@ class _TableScreenState extends State<TableScreen>
   /// category or widget type is just one more [PopupMenuItem] in the
   /// relevant list. The same click position anchors both menus and becomes
   /// the new widget's canonical position.
+  /// Every `showMenu` call in this file anchors on [globalPosition], but
+  /// `showMenu`'s own `position` is documented as relative to the ambient
+  /// Navigator's Overlay box, not the window -- this app's frameless custom
+  /// title bar (see `AppTitleBar`, added in `main.dart`) sits above the
+  /// Navigator's routed content, so its Overlay starts below the title bar
+  /// while `globalPosition` is measured from the true window origin. Using
+  /// `globalPosition` directly (the old behavior here) displaced every menu
+  /// downward by roughly the title bar's height; converting it into the
+  /// Overlay's own local coordinate space first fixes that for every call
+  /// site below. (Cards' own right-click menu never had this problem -- see
+  /// [_wrapWithCardContextMenu]'s doc -- since `MenuAnchor.open`'s
+  /// `position` is already local to its anchor widget, not Overlay-relative.)
+  RelativeRect _menuPositionFor(Offset globalPosition) {
+    final overlayBox = Navigator.of(context).overlay!.context.findRenderObject() as RenderBox;
+    final local = overlayBox.globalToLocal(globalPosition);
+    return RelativeRect.fromLTRB(local.dx, local.dy, local.dx, local.dy);
+  }
+
   /// Right-clicking a zone/pile the local player is allowed to search --
   /// a single-item menu (room for more later, matching the style of every
   /// other context menu here) that opens a Search window via [onSearch].
@@ -1928,12 +1996,7 @@ class _TableScreenState extends State<TableScreen>
   ) async {
     final action = await showMenu<String>(
       context: context,
-      position: RelativeRect.fromLTRB(
-        globalPosition.dx,
-        globalPosition.dy,
-        globalPosition.dx,
-        globalPosition.dy,
-      ),
+      position: _menuPositionFor(globalPosition),
       items: const [PopupMenuItem(value: 'search', child: Text('Search...'))],
     );
     if (action == 'search') onSearch();
@@ -2085,24 +2148,21 @@ class _TableScreenState extends State<TableScreen>
   Future<void> _showBoardContextMenu(Offset globalPosition) async {
     final category = await showMenu<String>(
       context: context,
-      position: RelativeRect.fromLTRB(
-        globalPosition.dx,
-        globalPosition.dy,
-        globalPosition.dx,
-        globalPosition.dy,
-      ),
-      items: const [PopupMenuItem(value: 'widgets', child: Text('Widgets'))],
+      position: _menuPositionFor(globalPosition),
+      items: const [
+        PopupMenuItem(value: 'widgets', child: Text('Widgets')),
+        PopupMenuItem(value: 'cardLibrary', child: Text('Card Library')),
+      ],
     );
+    if (category == 'cardLibrary') {
+      if (mounted) setState(() => _cardLibraryOpen = true);
+      return;
+    }
     if (category != 'widgets' || !mounted) return;
 
     final kind = await showMenu<BoardWidgetKind>(
       context: context,
-      position: RelativeRect.fromLTRB(
-        globalPosition.dx,
-        globalPosition.dy,
-        globalPosition.dx,
-        globalPosition.dy,
-      ),
+      position: _menuPositionFor(globalPosition),
       items: [
         const PopupMenuItem(
           value: BoardWidgetKind.simpleCounter,
@@ -2143,12 +2203,7 @@ class _TableScreenState extends State<TableScreen>
   }) async {
     final action = await showMenu<String>(
       context: context,
-      position: RelativeRect.fromLTRB(
-        globalPosition.dx,
-        globalPosition.dy,
-        globalPosition.dx,
-        globalPosition.dy,
-      ),
+      position: _menuPositionFor(globalPosition),
       items: [
         const PopupMenuItem(value: 'increment', child: Text('Increment')),
         const PopupMenuItem(value: 'decrement', child: Text('Decrement')),
@@ -2189,12 +2244,7 @@ class _TableScreenState extends State<TableScreen>
     final game = context.read<GameSession>().game;
     final setId = await showMenu<String>(
       context: context,
-      position: RelativeRect.fromLTRB(
-        globalPosition.dx,
-        globalPosition.dy,
-        globalPosition.dx,
-        globalPosition.dy,
-      ),
+      position: _menuPositionFor(globalPosition),
       items: [
         for (final set in game.sets) PopupMenuItem(value: set.id, child: Text(set.name)),
         const PopupMenuItem(value: 'delete', child: Text('Delete')),
@@ -2333,12 +2383,7 @@ class _TableScreenState extends State<TableScreen>
   Future<void> _showDeckWidgetMenu(Offset globalPosition, BoardWidgetInstance instance) async {
     final action = await showMenu<String>(
       context: context,
-      position: RelativeRect.fromLTRB(
-        globalPosition.dx,
-        globalPosition.dy,
-        globalPosition.dx,
-        globalPosition.dy,
-      ),
+      position: _menuPositionFor(globalPosition),
       items: const [PopupMenuItem(value: 'delete', child: Text('Delete'))],
     );
     if (action == 'delete') widget.controller.deleteWidget(instance.instanceId);
@@ -2518,12 +2563,7 @@ class _TableScreenState extends State<TableScreen>
   ) async {
     final action = await showMenu<String>(
       context: context,
-      position: RelativeRect.fromLTRB(
-        globalPosition.dx,
-        globalPosition.dy,
-        globalPosition.dx,
-        globalPosition.dy,
-      ),
+      position: _menuPositionFor(globalPosition),
       items: const [
         PopupMenuItem(value: 'setColor', child: Text('Set Color')),
         PopupMenuItem(value: 'delete', child: Text('Delete')),
@@ -2676,6 +2716,59 @@ class _TableScreenState extends State<TableScreen>
     );
   }
 
+  /// The table's Card Library window (right-click the empty table -> Card
+  /// Library), if [_cardLibraryOpen]. Lives as a `Stack` sibling of the
+  /// board, same reasoning as [_buildSearchOverlay]: its `Draggable` tiles
+  /// need to be released onto the table via [_handleLibraryCardDragEnd], and
+  /// its hover needs to reach [_setHoveredLibraryId] for the Space preview.
+  Widget? _buildCardLibraryOverlay(Size screenSize) {
+    if (!_cardLibraryOpen) return null;
+    final game = context.read<GameSession>().game;
+    return CardLibraryOverlay(
+      cards: game.cards,
+      sets: game.sets,
+      tagGroups: game.tagGroups,
+      screenSize: screenSize,
+      onClose: () => setState(() => _cardLibraryOpen = false),
+      onCardDragEnd: _handleLibraryCardDragEnd,
+      onCardHover: (definitionId, hovering) => _setHoveredLibraryId(hovering ? definitionId : null),
+    );
+  }
+
+  /// Shared sizing/positioning math for both [_buildHoverPreview] (a
+  /// [CardInstance]'s preview) and [_buildLibraryHoverPreview] (a Card
+  /// Library [CardDefinition]'s preview): fits a [boxWidth]x[boxHeight] box
+  /// to 70% of [screenSize]'s height (capped at 42% of its width), centered
+  /// in whichever half of the screen the cursor ([_lastMousePos]) isn't in,
+  /// clamped to stay fully on screen.
+  ({double width, double height, double left, double top}) _previewGeometry(
+    double boxWidth,
+    double boxHeight,
+    Size screenSize,
+  ) {
+    double previewHeight = screenSize.height * 0.7;
+    double previewWidth = previewHeight * (boxWidth / boxHeight);
+    final maxWidth = screenSize.width * 0.42;
+    if (previewWidth > maxWidth) {
+      previewWidth = maxWidth;
+      previewHeight = previewWidth * (boxHeight / boxWidth);
+    }
+
+    final onLeftHalf = _lastMousePos.dx < screenSize.width / 2;
+    final targetCenterX = onLeftHalf
+        ? screenSize.width * 0.75
+        : screenSize.width * 0.25;
+    final left = (targetCenterX - previewWidth / 2).clamp(
+      0.0,
+      screenSize.width - previewWidth,
+    );
+    final top = (screenSize.height / 2 - previewHeight / 2).clamp(
+      0.0,
+      screenSize.height - previewHeight,
+    );
+    return (width: previewWidth, height: previewHeight, left: left, top: top);
+  }
+
   /// A large, always-upright rendering of exactly what [instance] currently
   /// shows (real face if face-up, a back otherwise) positioned in the center
   /// of whichever half of [screenSize] the cursor isn't in, clamped to stay
@@ -2705,39 +2798,19 @@ class _TableScreenState extends State<TableScreen>
     final rotated = orientation != CardOrientation.portrait;
     final boxWidth = rotated ? cardHeight : cardWidth;
     final boxHeight = rotated ? cardWidth : cardHeight;
-
-    double previewHeight = screenSize.height * 0.7;
-    double previewWidth = previewHeight * (boxWidth / boxHeight);
-    final maxWidth = screenSize.width * 0.42;
-    if (previewWidth > maxWidth) {
-      previewWidth = maxWidth;
-      previewHeight = previewWidth * (boxHeight / boxWidth);
-    }
-
-    final onLeftHalf = _lastMousePos.dx < screenSize.width / 2;
-    final targetCenterX = onLeftHalf
-        ? screenSize.width * 0.75
-        : screenSize.width * 0.25;
-    final left = (targetCenterX - previewWidth / 2).clamp(
-      0.0,
-      screenSize.width - previewWidth,
-    );
-    final top = (screenSize.height / 2 - previewHeight / 2).clamp(
-      0.0,
-      screenSize.height - previewHeight,
-    );
+    final geo = _previewGeometry(boxWidth, boxHeight, screenSize);
 
     final content = showingBack
         ? CardBackWidget(cardBacks: widget.cardBacks, card: definition)
         : CardFaceWidget(definition: definition);
 
     return Positioned(
-      left: left,
-      top: top,
+      left: geo.left,
+      top: geo.top,
       child: IgnorePointer(
         child: SizedBox(
-          width: previewWidth,
-          height: previewHeight,
+          width: geo.width,
+          height: geo.height,
           child: FittedBox(
             fit: BoxFit.contain,
             child: RotatedBox(
@@ -2746,6 +2819,40 @@ class _TableScreenState extends State<TableScreen>
                 width: cardWidth,
                 height: cardHeight,
                 child: content,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Like [_buildHoverPreview] but for a Card Library tile -- there's no
+  /// [CardInstance] yet to have its own face-up/orientation state, so this
+  /// always shows [definition]'s own front face at its own declared
+  /// [CardDefinition.orientation].
+  Widget _buildLibraryHoverPreview(CardDefinition definition, Size screenSize) {
+    final orientation = definition.orientation;
+    final rotated = orientation != CardOrientation.portrait;
+    final boxWidth = rotated ? cardHeight : cardWidth;
+    final boxHeight = rotated ? cardWidth : cardHeight;
+    final geo = _previewGeometry(boxWidth, boxHeight, screenSize);
+
+    return Positioned(
+      left: geo.left,
+      top: geo.top,
+      child: IgnorePointer(
+        child: SizedBox(
+          width: geo.width,
+          height: geo.height,
+          child: FittedBox(
+            fit: BoxFit.contain,
+            child: RotatedBox(
+              quarterTurns: orientationQuarterTurns(orientation),
+              child: SizedBox(
+                width: cardWidth,
+                height: cardHeight,
+                child: CardFaceWidget(definition: definition),
               ),
             ),
           ),
@@ -2825,12 +2932,7 @@ class _TableScreenState extends State<TableScreen>
     final canLoadDeck = zone.dealsBuiltDeck && cards.isEmpty;
     final action = await showMenu<String>(
       context: context,
-      position: RelativeRect.fromLTRB(
-        globalPosition.dx,
-        globalPosition.dy,
-        globalPosition.dx,
-        globalPosition.dy,
-      ),
+      position: _menuPositionFor(globalPosition),
       items: [
         const PopupMenuItem(value: 'search', child: Text('Search...')),
         if (canLoadDeck) const PopupMenuItem(value: 'loadDeck', child: Text('Load Deck...')),
@@ -3596,6 +3698,14 @@ class _TableScreenState extends State<TableScreen>
                   ? null
                   : widget.definitionsById[hoveredInstance.definitionId];
               final showPreview = hoveredInstance != null && _spacePressed;
+              // Only when no CardInstance is hovered -- an instance (e.g. a
+              // library card already dragged onto the table) always wins,
+              // same precedence ZoneSearchOverlay's forceFaceUp hover has
+              // over a plain table hover.
+              final hoveredLibraryDefinition = hoveredInstance == null && _hoveredLibraryDefinitionId != null
+                  ? widget.definitionsById[_hoveredLibraryDefinitionId]
+                  : null;
+              final showLibraryPreview = hoveredLibraryDefinition != null && _spacePressed;
               // Every owned card's border is its owner's own chosen color --
               // including the local player's own cards, so every seat (not
               // just "the opponent") is visually distinguishable at a glance.
@@ -3665,6 +3775,7 @@ class _TableScreenState extends State<TableScreen>
                     pickupCandidates,
                     localHand,
                   );
+                  final cardLibraryOverlay = _buildCardLibraryOverlay(screenSize);
                   final gameMenuOverlay = _buildGameMenuOverlay(session);
                   final actionLogOverlay = _buildActionLogOverlay(state);
                   // Solid black rather than the translucent zoneBackgroundColor
@@ -4467,10 +4578,11 @@ class _TableScreenState extends State<TableScreen>
                           ],
                         ),
                         ?searchOverlay,
-                        // Painted after (on top of) the search window itself,
-                        // so holding Space over a searched card's tile still
-                        // shows its preview instead of it being hidden behind
-                        // the window.
+                        ?cardLibraryOverlay,
+                        // Painted after (on top of) the search window/Card
+                        // Library itself, so holding Space over a tile in
+                        // either still shows its preview instead of it being
+                        // hidden behind the window.
                         if (showPreview)
                           _buildHoverPreview(
                             hoveredInstance!,
@@ -4478,6 +4590,8 @@ class _TableScreenState extends State<TableScreen>
                             screenSize,
                             _hoveredForceFaceUp,
                           ),
+                        if (showLibraryPreview)
+                          _buildLibraryHoverPreview(hoveredLibraryDefinition, screenSize),
                         // Below the Game Menu -- [_toggleGameMenu] force-
                         // closes this one, so the two never actually stack,
                         // but this keeps the (harmless) order intentional.

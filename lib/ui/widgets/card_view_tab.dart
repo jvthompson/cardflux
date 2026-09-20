@@ -87,7 +87,7 @@ class _CardViewTabState extends State<CardViewTab> with AutomaticKeepAliveClient
 
   /// Per-group set of which of that group's tags are actively selected to
   /// narrow the pool, keyed by [TagGroup.id] -- every group starts empty
-  /// ("no restriction from this group"; see [_isTagVisible]). Unlike the Deck
+  /// ("no restriction from this group"; see [_isVisible]). Unlike the Deck
   /// Editor's equivalent, this can't be `late final` assigned once and left
   /// alone: tag groups are editable live in the Game Settings tab while this
   /// tab's `State` stays alive in the background, so stale entries for
@@ -106,7 +106,7 @@ class _CardViewTabState extends State<CardViewTab> with AutomaticKeepAliveClient
   };
 
   /// Which of [CardViewTab.sets] are actively selected to narrow the pool --
-  /// starts empty ("no restriction"; see [_isSetVisible]), same rationale/
+  /// starts empty ("no restriction"; see [_isVisible]), same rationale/
   /// sync as [_selectedTagsByGroup].
   late final Set<String> _selectedSetIds = {};
 
@@ -142,36 +142,19 @@ class _CardViewTabState extends State<CardViewTab> with AutomaticKeepAliveClient
     }
   }
 
-  /// Every currently-excluded tag across every group, combined -- a card
-  /// with *any* one of these is hidden outright, regardless of any group's
-  /// selection (see [_isTagVisible]).
-  Set<String> get _allExcludedTags => {for (final s in _excludedTagsByGroup.values) ...s};
-
-  /// A card is tag-visible unless some group's active selection excludes it.
-  /// Within a group, a non-empty selection means OR: the card must have at
-  /// least one of that group's selected tags -- *unless* the card has none of
-  /// that group's tags at all, in which case that group doesn't apply to it
-  /// (mirrors [CardDefinition.types]' own "a card with no tags in a given
-  /// group is never hidden by that group's filter" contract). Across groups
-  /// this is AND: every group with an active selection must independently be
-  /// satisfied. An empty selection in every group means no filtering at all.
-  bool _isTagVisible(CardDefinition card) {
-    if (card.types.any(_allExcludedTags.contains)) return false;
-    for (final group in widget.tagGroups) {
-      final selected = _selectedTagsByGroup[group.id];
-      if (selected == null || selected.isEmpty) continue;
-      final cardTagsInGroup = card.types.where(group.tags.contains);
-      if (cardTagsInGroup.isEmpty) continue;
-      if (!cardTagsInGroup.any(selected.contains)) return false;
-    }
-    return true;
-  }
-
-  bool _isSetVisible(CardDefinition card) =>
-      _selectedSetIds.isEmpty || card.setId == null || _selectedSetIds.contains(card.setId);
+  /// See [cardMatchesFilters] -- the shared predicate every filterable card
+  /// list in the app uses, so this pool filters identically to the Deck
+  /// Editor's pool and the table's Card Library.
+  bool _isVisible(CardDefinition card) => cardMatchesFilters(
+        card,
+        tagGroups: widget.tagGroups,
+        selectedTagsByGroup: _selectedTagsByGroup,
+        excludedTagsByGroup: _excludedTagsByGroup,
+        selectedSetIds: _selectedSetIds,
+      );
 
   List<CardDefinition> get _visibleCards => sortCardDefinitions(
-        widget.cards.where((c) => _isSetVisible(c) && _isTagVisible(c)).toList(),
+        widget.cards.where(_isVisible).toList(),
         sortKey: _sortKey,
         sets: widget.sets,
         tagGroups: widget.tagGroups,
@@ -247,9 +230,8 @@ class _CardViewTabState extends State<CardViewTab> with AutomaticKeepAliveClient
   }
 
   /// Resets every Set/Type filter to fully permissive -- nothing selected,
-  /// nothing excluded, i.e. "no filtering in effect" (see [_isTagVisible],
-  /// [_isSetVisible]). Doesn't touch [_sortKey]: sorting is independent of
-  /// filtering.
+  /// nothing excluded, i.e. "no filtering in effect" (see [_isVisible]).
+  /// Doesn't touch [_sortKey]: sorting is independent of filtering.
   void _clearFilters() {
     setState(() {
       _selectedSetIds.clear();

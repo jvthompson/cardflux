@@ -940,6 +940,34 @@ class GameSession extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Mints a brand-new [CardInstance] of [definitionId] straight onto the
+  /// table at canonical position ([x], [y]), owned by [actingPlayerId] and
+  /// face up -- dragging a card out of the table's Card Library (see
+  /// `CardLibraryOverlay`) creates a fresh copy this way without touching
+  /// the library itself, the same "mint, don't move" shape as [generatePack].
+  /// Unowned/neutral action: any player may call this. A no-op if
+  /// [definitionId] isn't a card in this game.
+  void createCardFromLibrary(String definitionId, double x, double y, {required String actingPlayerId}) {
+    final def = _definitionsById[definitionId];
+    if (def == null) return;
+
+    final newCard = CardInstance(
+      instanceId: _uuid.v4(),
+      definitionId: definitionId,
+      x: x,
+      y: y,
+      zIndex: 0,
+      faceUp: true,
+      zone: CardZone.table,
+      ownerId: actingPlayerId,
+      unownable: def.unownable,
+    );
+    _state = _actions.dealNewCards(_state, newCards: [newCard]);
+
+    _log(actingPlayerId, 'created "${def.cardTitle}" from the card library.');
+    notifyListeners();
+  }
+
   /// Replaces the entire state wholesale — used once networking lands (M4)
   /// to apply an incoming `fullState` snapshot from the host.
   void applyRemoteState(TableState newState) {

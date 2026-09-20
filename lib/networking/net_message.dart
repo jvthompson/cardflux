@@ -48,6 +48,7 @@ enum NetMessageType {
   requestDuplicateWidget,
   requestAttachWidgetToCard,
   requestGeneratePack,
+  requestCreateCardFromLibrary,
   requestLoadDeckIntoZone,
 
   /// The four types below are a third message category, distinct from both

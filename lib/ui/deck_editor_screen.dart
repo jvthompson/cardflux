@@ -289,39 +289,17 @@ class _DeckEditorScreenState extends State<DeckEditorScreen> {
 
   int get _totalCards => _activeQuantities.values.fold(0, (a, b) => a + b);
 
-  /// Every currently-excluded tag across every group, combined -- a card
-  /// with *any* one of these is hidden outright, regardless of any group's
-  /// selection (see [_isVisible]).
-  Set<String> get _allExcludedTags => {for (final s in _excludedTagsByGroup.values) ...s};
-
-  /// A card is tag-visible unless some group's active selection excludes it.
-  /// Within a group, a non-empty selection means OR: the card must have at
-  /// least one of that group's selected tags -- *unless* the card has none of
-  /// that group's tags at all, in which case that group doesn't apply to it
-  /// (mirrors [CardDefinition.types]' own "a card with no tags in a given
-  /// group is never hidden by that group's filter" contract). Across groups
-  /// this is AND: every group with an active selection must independently be
-  /// satisfied. An empty selection in every group means no filtering at all,
-  /// and a card with no set is never hidden by the set filter.
-  bool _isVisible(CardDefinition card) {
-    if (card.types.any(_allExcludedTags.contains)) return false;
-    var tagsOk = true;
-    for (final group in widget.game.tagGroups) {
-      final selected = _selectedTagsByGroup[group.id];
-      if (selected == null || selected.isEmpty) continue;
-      final cardTagsInGroup = card.types.where(group.tags.contains);
-      if (cardTagsInGroup.isEmpty) continue;
-      if (!cardTagsInGroup.any(selected.contains)) {
-        tagsOk = false;
-        break;
-      }
-    }
-    final setOk = _selectedSetIds.isEmpty || card.setId == null || _selectedSetIds.contains(card.setId);
-    final query = _searchQuery.trim().toLowerCase();
-    final searchOk =
-        query.isEmpty || card.cardTitle.toLowerCase().contains(query) || card.id.toLowerCase().contains(query);
-    return tagsOk && setOk && searchOk;
-  }
+  /// See [cardMatchesFilters] -- the shared predicate every filterable card
+  /// list in the app uses, so this pool filters identically to the Card View
+  /// tab and the table's Card Library.
+  bool _isVisible(CardDefinition card) => cardMatchesFilters(
+        card,
+        tagGroups: widget.game.tagGroups,
+        selectedTagsByGroup: _selectedTagsByGroup,
+        excludedTagsByGroup: _excludedTagsByGroup,
+        selectedSetIds: _selectedSetIds,
+        searchQuery: _searchQuery,
+      );
 
   List<CardDefinition> get _visibleCards => sortCardDefinitions(
         widget.game.cards.where(_isVisible).toList(),

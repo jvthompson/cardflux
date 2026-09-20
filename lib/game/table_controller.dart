@@ -72,6 +72,11 @@ abstract class TableController {
   /// call this regardless of who placed the `PackGeneratorWidget`.
   void generatePack(String setId);
 
+  /// Mints a fresh copy of card [definitionId] onto the table at canonical
+  /// position ([x],[y]) -- see [GameSession.createCardFromLibrary]. Unowned/
+  /// neutral action: any player may drag a card out of the Card Library.
+  void createCardFromLibrary(String definitionId, double x, double y);
+
   /// Reports that [primaryInstanceId] (plus any [passengerRootInstanceIds]
   /// riding along, see `TableScreen._buildGroupFeedback`) is currently being
   /// dragged toward canonical position ([fx],[fy]) -- purely cosmetic, never
@@ -366,6 +371,10 @@ class HostTableController implements TableController {
 
   @override
   void generatePack(String setId) => _session.generatePack(setId, actingPlayerId: _session.actingPlayerId);
+
+  @override
+  void createCardFromLibrary(String definitionId, double x, double y) =>
+      _session.createCardFromLibrary(definitionId, x, y, actingPlayerId: _session.actingPlayerId);
 
   @override
   void previewCardDrag(
@@ -726,6 +735,16 @@ class ClientTableController implements TableController {
   void generatePack(String setId) {
     _client.send(
       NetMessage(type: NetMessageType.requestGeneratePack, payload: {'setId': setId}),
+    );
+  }
+
+  @override
+  void createCardFromLibrary(String definitionId, double x, double y) {
+    _client.send(
+      NetMessage(
+        type: NetMessageType.requestCreateCardFromLibrary,
+        payload: {'definitionId': definitionId, 'x': x, 'y': y},
+      ),
     );
   }
 

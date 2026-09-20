@@ -364,6 +364,14 @@ class HostGameEngine implements DragPreviewSink {
       case NetMessageType.requestGeneratePack:
         session.generatePack(msg.payload['setId'] as String, actingPlayerId: clientId);
         break;
+      case NetMessageType.requestCreateCardFromLibrary:
+        session.createCardFromLibrary(
+          msg.payload['definitionId'] as String,
+          (msg.payload['x'] as num).toDouble(),
+          (msg.payload['y'] as num).toDouble(),
+          actingPlayerId: clientId,
+        );
+        break;
       case NetMessageType.requestLoadDeckIntoZone:
         final zoneId = msg.payload['zoneId'] as String;
         final deck = DeckConfig.fromJson((msg.payload['deck'] as Map).cast<String, dynamic>());

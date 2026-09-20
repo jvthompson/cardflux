@@ -65,6 +65,47 @@ List<CardDefinition> sortCardDefinitions(
   return sorted;
 }
 
+/// Whether [card] passes every active filter -- shared by the Deck Editor's
+/// pool, the Game Definition Editor's Card View tab, and the table's Card
+/// Library, so all three filter identically rather than each maintaining
+/// their own copy. A card is tag-visible unless some group's active
+/// selection excludes it. Within a group, a non-empty selection means OR:
+/// the card must have at least one of that group's selected tags -- *unless*
+/// the card has none of that group's tags at all, in which case that group
+/// doesn't apply to it (mirrors [CardDefinition.types]' own "a card with no
+/// tags in a given group is never hidden by that group's filter" contract).
+/// Across groups this is AND: every group with an active [selectedTagsByGroup]
+/// entry must independently be satisfied. A card with any tag in
+/// [excludedTagsByGroup] (combined across every group) is hidden outright,
+/// regardless of any group's selection. An empty [selectedSetIds] means no
+/// set filtering, and a card with no set is never hidden by it. [searchQuery]
+/// (default: no search filter) does a case-insensitive substring match
+/// against the card's title and id.
+bool cardMatchesFilters(
+  CardDefinition card, {
+  required List<TagGroup> tagGroups,
+  required Map<String, Set<String>> selectedTagsByGroup,
+  required Map<String, Set<String>> excludedTagsByGroup,
+  required Set<String> selectedSetIds,
+  String searchQuery = '',
+}) {
+  final allExcludedTags = {for (final s in excludedTagsByGroup.values) ...s};
+  if (card.types.any(allExcludedTags.contains)) return false;
+  for (final group in tagGroups) {
+    final selected = selectedTagsByGroup[group.id];
+    if (selected == null || selected.isEmpty) continue;
+    final cardTagsInGroup = card.types.where(group.tags.contains);
+    if (cardTagsInGroup.isEmpty) continue;
+    if (!cardTagsInGroup.any(selected.contains)) return false;
+  }
+  if (selectedSetIds.isNotEmpty && card.setId != null && !selectedSetIds.contains(card.setId)) {
+    return false;
+  }
+  final query = searchQuery.trim().toLowerCase();
+  if (query.isEmpty) return true;
+  return card.cardTitle.toLowerCase().contains(query) || card.id.toLowerCase().contains(query);
+}
+
 /// A trigger button ("Sort" / "Sort: Name (A-Z)") that opens a single-select
 /// dropdown of [options] plus a leading "Default order" entry (`null` id) --
 /// styled to match [MultiSelectFilterMenu]'s trigger button. Shared by the
