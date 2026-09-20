@@ -13,8 +13,13 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await windowManager.ensureInitialized();
   await windowManager.waitUntilReadyToShow(null, () async {
-    await windowManager.maximize();
+    // setAsFrameless() changes the window's style flags, which can make
+    // Windows drop a maximized state back to its restored bounds (the
+    // native runner's fixed 1280x720 creation size, windows/runner/main.cpp)
+    // -- so it must run BEFORE maximize(), leaving maximize() as the last
+    // window-affecting call before show().
     await windowManager.setAsFrameless();
+    await windowManager.maximize();
     await windowManager.show();
   });
   runApp(const MainApp());
