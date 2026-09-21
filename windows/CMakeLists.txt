@@ -93,6 +93,14 @@ if(PLUGIN_BUNDLED_LIBRARIES)
     COMPONENT Runtime)
 endif()
 
+# Discord Rich Presence: discord_partner_sdk.dll is loaded at runtime via
+# dart:ffi (DynamicLibrary.open), not linked as a Flutter plugin, so it
+# isn't picked up by generated_plugins.cmake/PLUGIN_BUNDLED_LIBRARIES above.
+# Vendored from Discord Social SDK 1.10.19337 (windows/discord/).
+install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/discord/discord_partner_sdk.dll"
+  DESTINATION "${INSTALL_BUNDLE_LIB_DIR}"
+  COMPONENT Runtime)
+
 # Copy the native assets provided by the build.dart from all packages.
 set(NATIVE_ASSETS_DIR "${PROJECT_BUILD_DIR}native_assets/windows/")
 install(DIRECTORY "${NATIVE_ASSETS_DIR}"

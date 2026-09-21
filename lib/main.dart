@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -5,12 +7,14 @@ import 'package:window_manager/window_manager.dart';
 
 import 'app_theme.dart';
 import 'data/theme_mode_settings.dart';
+import 'services/discord/discord_presence_service.dart';
 import 'ui/home_screen.dart';
 import 'ui/navigation.dart';
 import 'ui/widgets/app_title_bar.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  unawaited(DiscordPresenceService.instance.initialize());
   await windowManager.ensureInitialized();
   await windowManager.waitUntilReadyToShow(null, () async {
     // setAsFrameless() changes the window's style flags, which can make
@@ -67,6 +71,11 @@ class _MainAppState extends State<MainApp> with WindowListener {
 
   @override
   void dispose() {
+    // Best-effort only: normal window close goes through
+    // windowManager.close() (app_title_bar.dart), which doesn't route
+    // through this widget's dispose. Discord clears presence on its own
+    // once the process disconnects, so this isn't required for correctness.
+    DiscordPresenceService.instance.dispose();
     windowManager.removeListener(this);
     HardwareKeyboard.instance.removeHandler(_handleKeyEvent);
     super.dispose();

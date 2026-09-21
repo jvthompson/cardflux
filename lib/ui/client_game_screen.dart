@@ -20,6 +20,7 @@ import '../models/player.dart';
 import '../models/table_state.dart';
 import '../networking/game_client.dart';
 import '../networking/net_message.dart';
+import '../services/discord/discord_presence_service.dart';
 import 'home_screen.dart';
 import 'navigation.dart';
 import 'table_screen.dart';
@@ -188,9 +189,21 @@ class _ClientGameScreenState extends State<ClientGameScreen> {
         );
         _definitionsById = {for (final c in game.cards) c.id: c};
       });
+      _session!.addListener(_onSessionChangedForPresence);
+      _onSessionChangedForPresence();
     } else {
       _session!.applyRemoteState(remoteState);
     }
+  }
+
+  void _onSessionChangedForPresence() {
+    final s = _session;
+    if (s == null) return;
+    DiscordPresenceService.instance.setPlaying(
+      gameName: s.game.name,
+      playerCount: s.state.players.where((p) => p.connected).length,
+      maxPlayers: s.state.players.length,
+    );
   }
 
   /// Looks up [remoteGame]'s id in this machine's own configured game
@@ -228,6 +241,8 @@ class _ClientGameScreenState extends State<ClientGameScreen> {
   void dispose() {
     _sub?.cancel();
     _statusSub?.cancel();
+    _session?.removeListener(_onSessionChangedForPresence);
+    DiscordPresenceService.instance.setIdle();
     if (!_navigatedHome) widget.gameClient.disconnect();
     super.dispose();
   }

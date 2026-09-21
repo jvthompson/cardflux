@@ -14,6 +14,7 @@ import '../models/saved_game.dart';
 import '../models/table_state.dart';
 import '../networking/host_server.dart';
 import '../networking/net_message.dart';
+import '../services/discord/discord_presence_service.dart';
 import 'home_screen.dart';
 import 'navigation.dart';
 import 'table_screen.dart';
@@ -120,10 +121,24 @@ class _HostGameScreenState extends State<HostGameScreen> {
       _engine = engine;
       _definitionsById = {for (final c in widget.game.cards) c.id: c};
     });
+    session.addListener(_onSessionChangedForPresence);
+    _onSessionChangedForPresence();
+  }
+
+  void _onSessionChangedForPresence() {
+    final s = _session;
+    if (s == null) return;
+    DiscordPresenceService.instance.setPlaying(
+      gameName: s.game.name,
+      playerCount: s.state.players.where((p) => p.connected).length,
+      maxPlayers: s.state.players.length,
+    );
   }
 
   @override
   void dispose() {
+    _session?.removeListener(_onSessionChangedForPresence);
+    DiscordPresenceService.instance.setIdle();
     _engine?.dispose();
     widget.hostServer.stop();
     super.dispose();

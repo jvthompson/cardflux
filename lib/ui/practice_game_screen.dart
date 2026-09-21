@@ -10,6 +10,7 @@ import '../models/game_definition.dart';
 import '../models/player.dart';
 import '../models/saved_game.dart';
 import '../models/table_state.dart';
+import '../services/discord/discord_presence_service.dart';
 import 'home_screen.dart';
 import 'navigation.dart';
 import 'table_screen.dart';
@@ -76,6 +77,25 @@ class _PracticeGameScreenState extends State<PracticeGameScreen> {
             deckConfigsByPlayerId: widget.deckConfigsByPlayerId,
           );
     _definitionsById = {for (final c in widget.game.cards) c.id: c};
+    _session!.addListener(_onSessionChangedForPresence);
+    _onSessionChangedForPresence();
+  }
+
+  void _onSessionChangedForPresence() {
+    final s = _session;
+    if (s == null) return;
+    DiscordPresenceService.instance.setPlaying(
+      gameName: s.game.name,
+      playerCount: s.state.players.where((p) => p.connected).length,
+      maxPlayers: s.state.players.length,
+    );
+  }
+
+  @override
+  void dispose() {
+    _session?.removeListener(_onSessionChangedForPresence);
+    DiscordPresenceService.instance.setIdle();
+    super.dispose();
   }
 
   void _leaveGame() {
