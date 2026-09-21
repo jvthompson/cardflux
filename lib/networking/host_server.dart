@@ -44,6 +44,11 @@ class HostServer {
   Stream<IncomingMessage> get incoming => _incomingController.stream;
   Stream<List<PlayerInfo>> get rosterStream => _rosterController.stream;
 
+  /// The bound port, once [start] has resolved -- e.g. for `HostGameScreen`
+  /// to republish the Discord invite join secret across a hosted session
+  /// without needing it threaded through as a constructor parameter.
+  int? get port => _serverSocket?.port;
+
   late final PlayerInfo hostPlayer;
   late final int maxPlayers;
   Uint8List? _hostAvatarBytes;

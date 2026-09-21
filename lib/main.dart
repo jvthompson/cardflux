@@ -8,6 +8,8 @@ import 'package:window_manager/window_manager.dart';
 import 'app_theme.dart';
 import 'data/theme_mode_settings.dart';
 import 'services/discord/discord_presence_service.dart';
+import 'services/discord/discord_social_service.dart';
+import 'ui/discord_join_prompt_dialog.dart';
 import 'ui/home_screen.dart';
 import 'ui/navigation.dart';
 import 'ui/widgets/app_title_bar.dart';
@@ -62,15 +64,31 @@ class MainApp extends StatefulWidget {
 }
 
 class _MainAppState extends State<MainApp> with WindowListener {
+  StreamSubscription<String>? _joinSecretSub;
+
   @override
   void initState() {
     super.initState();
     HardwareKeyboard.instance.addHandler(_handleKeyEvent);
     windowManager.addListener(this);
+    // Fires whenever a friend accepts a Discord game invite (or clicks
+    // Join on the host's Rich Presence) -- can happen at any time,
+    // including right at cold start, so this listener lives here rather
+    // than in any particular screen.
+    _joinSecretSub = DiscordSocialService.instance.joinSecretReceived.listen((secret) {
+      final context = navigatorKey.currentContext;
+      if (context == null) return;
+      // navigatorKey.currentContext is fetched fresh above, not carried
+      // across an awaited gap -- the standard safe pattern for reaching a
+      // BuildContext from outside the widget tree (see navigatorKey's doc).
+      // ignore: use_build_context_synchronously
+      showDiscordJoinPrompt(context, secret);
+    });
   }
 
   @override
   void dispose() {
+    _joinSecretSub?.cancel();
     // Best-effort only: normal window close goes through
     // windowManager.close() (app_title_bar.dart), which doesn't route
     // through this widget's dispose. Discord clears presence on its own

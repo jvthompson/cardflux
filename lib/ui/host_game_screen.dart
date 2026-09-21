@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:uuid/uuid.dart';
 
 import '../data/player_profile_settings.dart';
 import '../data/save_game_file_ops.dart';
@@ -14,11 +15,15 @@ import '../models/saved_game.dart';
 import '../models/table_state.dart';
 import '../networking/host_server.dart';
 import '../networking/net_message.dart';
+import '../networking/network_info.dart';
 import '../services/discord/discord_presence_service.dart';
+import '../services/discord/discord_social_service.dart';
 import 'home_screen.dart';
 import 'navigation.dart';
 import 'table_screen.dart';
 import 'widgets/save_game_dialog.dart';
+
+const _uuid = Uuid();
 
 /// Deals [game]/[deckConfigsByPlayerId] into the host's authoritative
 /// [GameSession], starts the [HostGameEngine] broadcast loop, and renders
@@ -73,6 +78,13 @@ class _HostGameScreenState extends State<HostGameScreen> {
   Map<String, CardDefinition> _definitionsById = {};
   String? _localAvatarPath;
 
+  /// Own party id for this hosted match's Discord Rich Presence -- distinct
+  /// from whatever `HostSetupScreen`'s lobby used, which is harmless: only
+  /// the join secret (`ip:port`) below is functionally load-bearing, the
+  /// party id is just Discord's own grouping label.
+  final String _partyId = _uuid.v4();
+  String? _publicIP;
+
   @override
   void initState() {
     super.initState();
@@ -80,6 +92,11 @@ class _HostGameScreenState extends State<HostGameScreen> {
     PlayerProfileSettings().getAvatarPath().then((path) {
       if (!mounted) return;
       setState(() => _localAvatarPath = path);
+    });
+    fetchPublicIPv4().then((ip) {
+      if (!mounted) return;
+      _publicIP = ip;
+      _onSessionChangedForPresence();
     });
   }
 
@@ -128,10 +145,21 @@ class _HostGameScreenState extends State<HostGameScreen> {
   void _onSessionChangedForPresence() {
     final s = _session;
     if (s == null) return;
+    final connectedCount = s.state.players.where((p) => p.connected).length;
+    final port = widget.hostServer.port;
+    final ip = _publicIP;
     DiscordPresenceService.instance.setPlaying(
       gameName: s.game.name,
-      playerCount: s.state.players.where((p) => p.connected).length,
+      playerCount: connectedCount,
       maxPlayers: s.state.players.length,
+      party: port == null || ip == null
+          ? null
+          : DiscordPartyInfo(
+              partyId: _partyId,
+              currentSize: connectedCount,
+              maxSize: s.state.players.length,
+              joinSecret: '$ip:$port',
+            ),
     );
   }
 
