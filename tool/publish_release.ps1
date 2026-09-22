@@ -32,7 +32,7 @@ if (-not $SkipBump) {
   git -C $repoRoot push
 }
 
-flutter build windows --release
+& "C:\Dev\SDK\Flutter\flutter\bin\flutter.bat" build windows --release
 
 $releaseDir = Join-Path $repoRoot 'build\windows\x64\runner\Release'
 if (-not (Test-Path (Join-Path $releaseDir 'Cardflux.exe'))) {
