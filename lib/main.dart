@@ -9,6 +9,7 @@ import 'app_theme.dart';
 import 'data/theme_mode_settings.dart';
 import 'services/discord/discord_presence_service.dart';
 import 'services/discord/discord_social_service.dart';
+import 'services/update/update_checker.dart';
 import 'ui/discord_join_prompt_dialog.dart';
 import 'ui/home_screen.dart';
 import 'ui/navigation.dart';
@@ -159,6 +160,7 @@ class _MainAppState extends State<MainApp> with WindowListener {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => ThemeModeController()),
+        ChangeNotifierProvider(create: (_) => UpdateChecker()..checkForUpdate()),
         ChangeNotifierProvider.value(value: _chromeController),
       ],
       child: Consumer<ThemeModeController>(

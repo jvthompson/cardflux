@@ -1,17 +1,22 @@
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:provider/provider.dart';
 
 import '../data/game_definition_file_ops.dart' show imageFileTypes;
 import '../data/player_avatar_file_ops.dart';
 import '../data/player_profile_settings.dart';
 import '../models/color_palette.dart';
+import '../services/update/update_checker.dart';
 import 'deck_editor_game_select_screen.dart';
 import 'game_definition_editor_entry_screen.dart';
 import 'join_screen.dart';
 import 'navigation.dart';
 import 'player_count_screen.dart';
 import 'practice_player_count_screen.dart';
+import 'update_banner.dart';
+import 'update_confirm_dialog.dart';
+import 'update_progress_dialog.dart';
 import 'widgets/avatar_widget.dart';
 import 'widgets/color_picker_field.dart';
 
@@ -197,6 +202,18 @@ class _HomeScreenState extends State<HomeScreen> {
     super.dispose();
   }
 
+  /// Confirms with the user, then downloads and applies the update -- see
+  /// [showUpdateProgressDialog] for why this never needs to handle a normal
+  /// "success" return (the app exits itself partway through that flow).
+  Future<void> _handleUpdateTap(UpdateChecker checker) async {
+    final latestTag = checker.latestTag;
+    final downloadUrl = checker.downloadUrl;
+    if (latestTag == null || downloadUrl == null) return;
+    final confirmed = await showUpdateConfirmDialog(context, latestTag: latestTag);
+    if (confirmed != true || !mounted) return;
+    await showUpdateProgressDialog(context, downloadUrl: downloadUrl);
+  }
+
   String get _playerName {
     final trimmed = _nameController.text.trim();
     return trimmed.isEmpty ? 'Player' : trimmed;
@@ -204,6 +221,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final updateChecker = context.watch<UpdateChecker>();
     return Scaffold(
       body: Stack(
         children: [
@@ -215,6 +233,13 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
+                    if (updateChecker.updateAvailable) ...[
+                      UpdateBanner(
+                        latestTag: updateChecker.latestTag!,
+                        onTap: () => _handleUpdateTap(updateChecker),
+                      ),
+                      const SizedBox(height: 24),
+                    ],
                     if (widget.message != null) ...[
                       Container(
                         width: double.infinity,
