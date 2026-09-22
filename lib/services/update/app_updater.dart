@@ -50,11 +50,32 @@ class AppUpdater {
     );
 
     onProgress(UpdatePhase.launchingInstaller, null);
-    await Process.start(
-      'powershell.exe',
-      ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-WindowStyle', 'Hidden', '-File', scriptPath, '-TargetPid', '$pid'],
-      mode: ProcessStartMode.detached,
-    );
+    await _launchHelper(scriptPath);
+  }
+
+  /// Launches the helper script via WMI's `Win32_Process.Create` rather than
+  /// `Process.start(..., mode: ProcessStartMode.detached)`. Confirmed by
+  /// testing: a plain detached child of this process does not reliably
+  /// survive `exit(0)` -- the helper never got to run a single line, even
+  /// though process creation itself reported success, consistent with
+  /// Windows tearing the child down alongside this process's group/job when
+  /// it exits. Spawning through WMI makes the new process a child of the WMI
+  /// provider host (a separate system service) instead of this process, so
+  /// it's fully independent of whatever process tree/job this app belongs
+  /// to. This also gives a real success/failure signal (WMI's `ReturnValue`)
+  /// where `Process.start` gave none.
+  Future<void> _launchHelper(String scriptPath) async {
+    final commandLine =
+        'powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "$scriptPath" -TargetPid $pid';
+    final escaped = commandLine.replaceAll("'", "''");
+    final wmiCommand =
+        '\$r = Invoke-CimMethod -ClassName Win32_Process -MethodName Create -Arguments @{ CommandLine = \'$escaped\' }; '
+        'Write-Output \$r.ReturnValue';
+    final result = await Process.run('powershell.exe', ['-NoProfile', '-Command', wmiCommand]);
+    final returnValue = result.stdout.toString().trim();
+    if (result.exitCode != 0 || returnValue != '0') {
+      throw StateError('Failed to launch update helper (WMI ReturnValue=$returnValue): ${result.stderr}');
+    }
   }
 
   Future<void> _download(String url, String destPath, void Function(UpdatePhase, double?) onProgress) async {
@@ -131,7 +152,10 @@ robocopy ${_psQuote(stagedDir)} ${_psQuote(installDir)} /MIR /XD @excludeDirs /N
 # Robocopy exit codes 0-7 are all success states (bit flags); only >=8 is a
 # real failure -- do NOT check `-eq 0`.
 if (\$rc -ge 8) {
-  Add-Content -Path ${_psQuote(logPath)} -Value "robocopy failed with exit code \$rc"
+  # Write-Host (not Add-Content) -- the transcript already has this file
+  # open for writing, so a second writer here would fail with a sharing
+  # violation. Write-Host's output is captured by the transcript itself.
+  Write-Host "robocopy failed with exit code \$rc"
   Stop-Transcript | Out-Null
   exit 1
 }
