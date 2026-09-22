@@ -43,6 +43,6 @@ $zipPath = Join-Path $repoRoot 'build\cardflux-windows.zip'
 if (Test-Path $zipPath) { Remove-Item $zipPath -Force }
 Compress-Archive -Path "$releaseDir\*" -DestinationPath $zipPath
 
-gh release create $tag $zipPath --repo jvthompson/cardflux --title $tag --generate-notes
+& "C:\Program Files\GitHub CLI\gh.exe" release create $tag $zipPath --repo jvthompson/cardflux --title $tag --generate-notes
 
 Write-Host "Published $tag"
