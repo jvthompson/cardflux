@@ -41,10 +41,11 @@ class CardDefinition {
 
   /// This card's tags (e.g. "Character", "Item") -- one flat list regardless
   /// of which [GameDefinition.tagGroups] group each tag belongs to; matched
-  /// against each group's tags to drive its own filter button. A card with
-  /// no tags in a given group is never hidden by that group's filter. Not
-  /// validated against the game's declared taxonomy -- an unrecognized tag
-  /// just never matches a chip.
+  /// against each group's tags to drive its own filter button. Selecting a
+  /// tag in a group hides any card that doesn't have one of that group's
+  /// selected tags, even a card with no tags from that group at all -- see
+  /// `cardMatchesFilters`. Not validated against the game's declared
+  /// taxonomy -- an unrecognized tag just never matches a chip.
   final List<String> types;
 
   /// Which of [GameDefinition.sets] this card belongs to, stamped on by

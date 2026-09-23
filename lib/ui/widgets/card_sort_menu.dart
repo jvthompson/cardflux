@@ -70,17 +70,17 @@ List<CardDefinition> sortCardDefinitions(
 /// Library, so all three filter identically rather than each maintaining
 /// their own copy. A card is tag-visible unless some group's active
 /// selection excludes it. Within a group, a non-empty selection means OR:
-/// the card must have at least one of that group's selected tags -- *unless*
-/// the card has none of that group's tags at all, in which case that group
-/// doesn't apply to it (mirrors [CardDefinition.types]' own "a card with no
-/// tags in a given group is never hidden by that group's filter" contract).
-/// Across groups this is AND: every group with an active [selectedTagsByGroup]
-/// entry must independently be satisfied. A card with any tag in
-/// [excludedTagsByGroup] (combined across every group) is hidden outright,
-/// regardless of any group's selection. An empty [selectedSetIds] means no
-/// set filtering, and a card with no set is never hidden by it. [searchQuery]
-/// (default: no search filter) does a case-insensitive substring match
-/// against the card's title and id.
+/// the card must have at least one of that group's selected tags, *including*
+/// when the card has none of that group's tags at all -- a card that belongs
+/// to a mutually-exclusive taxonomy (e.g. a "Clan" card with no "Inner
+/// Sphere" tag) is correctly hidden by an Inner Sphere selection, the same as
+/// any other non-match. Across groups this is AND: every group with an
+/// active [selectedTagsByGroup] entry must independently be satisfied. A
+/// card with any tag in [excludedTagsByGroup] (combined across every group)
+/// is hidden outright, regardless of any group's selection. An empty
+/// [selectedSetIds] means no set filtering, and a card with no set is never
+/// hidden by it. [searchQuery] (default: no search filter) does a
+/// case-insensitive substring match against the card's title and id.
 bool cardMatchesFilters(
   CardDefinition card, {
   required List<TagGroup> tagGroups,
@@ -94,9 +94,7 @@ bool cardMatchesFilters(
   for (final group in tagGroups) {
     final selected = selectedTagsByGroup[group.id];
     if (selected == null || selected.isEmpty) continue;
-    final cardTagsInGroup = card.types.where(group.tags.contains);
-    if (cardTagsInGroup.isEmpty) continue;
-    if (!cardTagsInGroup.any(selected.contains)) return false;
+    if (!card.types.any(selected.contains)) return false;
   }
   if (selectedSetIds.isNotEmpty && card.setId != null && !selectedSetIds.contains(card.setId)) {
     return false;

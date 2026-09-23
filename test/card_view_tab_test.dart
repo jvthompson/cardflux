@@ -9,8 +9,8 @@ void main() {
   // Filters start cleared (nothing selected anywhere) and show everything.
   // Selecting a tag in one group narrows the pool to cards having a tag from
   // that group (OR within the group); selecting a tag in a *different* group
-  // narrows further (AND across groups) -- except for a card that has none
-  // of that group's tags at all, which that group's filter doesn't apply to.
+  // narrows further (AND across groups) -- a card with none of that group's
+  // tags at all is hidden too, the same as any other non-match.
   testWidgets('tag filters start cleared, OR within a group, AND across groups', (tester) async {
     const cardTypeGroup = TagGroup(id: 'card_type', name: 'Card Type', tags: ['Character', 'Resource']);
     const raceGroup = TagGroup(id: 'race', name: 'Race', tags: ['Dunadan', 'Elf']);
@@ -43,9 +43,9 @@ void main() {
     expect(find.text('Merry'), findsWidgets);
     expect(find.text('Untagged Card'), findsWidgets);
 
-    // Select "Dunadan" in Race -- only cards with a Race tag are now subject
-    // to this filter; Adrazar (Dunadan) stays, Merry (Elf) is hidden, and the
-    // untagged card (no Race tag at all) is exempt from this group's filter.
+    // Select "Dunadan" in Race -- Adrazar (Dunadan) stays, Merry (Elf) is
+    // hidden, and the untagged card (no Race tag at all) is hidden too, since
+    // it has none of the selected tags.
     await tester.tap(find.text('Race (0)'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Dunadan'));
@@ -56,7 +56,7 @@ void main() {
     expect(tester.takeException(), isNull);
     expect(find.text('Adrazar'), findsWidgets);
     expect(find.text('Merry'), findsNothing);
-    expect(find.text('Untagged Card'), findsWidgets);
+    expect(find.text('Untagged Card'), findsNothing);
 
     // Also select "Elf" in Race (OR within the group) -- Merry comes back.
     await tester.tap(find.text('Race (1)'));
@@ -72,7 +72,7 @@ void main() {
 
     // Now also select "Resource" in Card Type (AND across groups) -- neither
     // Adrazar nor Merry has a Resource tag, so both drop out even though
-    // Race still matches; the untagged card is exempt from both groups.
+    // Race still matches; the untagged card stays hidden too.
     await tester.tap(find.text('Card Type (0)'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Resource'));
@@ -83,7 +83,7 @@ void main() {
     expect(tester.takeException(), isNull);
     expect(find.text('Adrazar'), findsNothing);
     expect(find.text('Merry'), findsNothing);
-    expect(find.text('Untagged Card'), findsWidgets);
+    expect(find.text('Untagged Card'), findsNothing);
 
     // "Clear Filters" restores the cleared, show-everything state.
     await tester.tap(find.text('Clear Filters'));
