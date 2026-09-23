@@ -135,6 +135,7 @@ class _PracticeGameScreenState extends State<PracticeGameScreen> {
         // near/anchor seat, since we assign seats ourselves rather than a
         // host picking a seat via AssignSeatsScreen.
         isMirrored: false,
+        game: widget.game,
         zones: widget.game.zones,
         cardBacks: widget.game.cardBacks,
         gameFolderPath: widget.game.folderPath,

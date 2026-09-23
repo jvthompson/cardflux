@@ -8,6 +8,7 @@ import 'package:uuid/uuid.dart';
 import '../models/color_palette.dart';
 import '../models/player.dart';
 import 'net_message.dart';
+import 'upnp_port_mapper.dart';
 
 const _uuid = Uuid();
 
@@ -34,7 +35,11 @@ class _ConnectedClient {
 /// (M6) so a silently-dead connection (as opposed to a clean process exit,
 /// which the socket's own `onDone`/`onError` already reports immediately) is
 /// detected within [heartbeatTimeout] instead of relying on the OS's TCP
-/// timeout.
+/// timeout. Also kicks off a best-effort [UpnpPortMapper] attempt (see
+/// [upnpMapped]) to forward the bound port on the LAN's router automatically
+/// -- unlike a manually-configured router rule, this lets more than one PC
+/// on the same LAN host a game over the internet at the same time, since
+/// each one maps its own port rather than sharing a single fixed rule.
 class HostServer {
   ServerSocket? _serverSocket;
   final Map<String, _ConnectedClient> _clients = {};
@@ -48,6 +53,22 @@ class HostServer {
   /// to republish the Discord invite join secret across a hosted session
   /// without needing it threaded through as a constructor parameter.
   int? get port => _serverSocket?.port;
+
+  final UpnpPortMapper _upnpMapper = UpnpPortMapper();
+
+  /// Resolves once the automatic UPnP port-forwarding attempt kicked off by
+  /// [start] has settled: true if the LAN's router accepted a mapping of
+  /// this session's port straight to this machine, false if there's no
+  /// UPnP-capable gateway or it refused (UPnP disabled, an unmanageable
+  /// double-NAT, etc). Never awaited by [start] itself -- gateway discovery
+  /// can take a couple of seconds and hosting on the LAN works regardless
+  /// -- so `HostSetupScreen` shows this as a background status update
+  /// rather than blocking the lobby on it. Either way the host's public
+  /// `ip:port` (already shown for manual forwarding) stays correct: a
+  /// successful mapping just means that port-forward now also happens to
+  /// already be in place.
+  Future<bool> get upnpMapped => _upnpMappedCompleter.future;
+  final _upnpMappedCompleter = Completer<bool>();
 
   late final PlayerInfo hostPlayer;
   late final int maxPlayers;
@@ -134,7 +155,9 @@ class HostServer {
     _hostAvatarBytes = hostAvatarBytes;
     _serverSocket = await ServerSocket.bind(InternetAddress.anyIPv4, port);
     _serverSocket!.listen(_handleClient);
-    return _serverSocket!.port;
+    final boundPort = _serverSocket!.port;
+    _upnpMapper.requestMapping(port: boundPort).then(_upnpMappedCompleter.complete);
+    return boundPort;
   }
 
   /// If [requested] is unclaimed by the host or any currently-connected
@@ -313,8 +336,18 @@ class HostServer {
       client.socket.destroy();
     }
     _clients.clear();
+    // Best-effort and not awaited: if the mapping attempt is still in
+    // flight (discovery/SOAP round-trips can take several seconds), don't
+    // hold up whatever navigated away and triggered this stop -- an
+    // orphaned mapping just gets silently overwritten the next time this
+    // machine hosts on the same port.
+    unawaited(_releaseUpnpMappingIfActive());
     await _serverSocket?.close();
     await _incomingController.close();
     await _rosterController.close();
+  }
+
+  Future<void> _releaseUpnpMappingIfActive() async {
+    if (await upnpMapped) await _upnpMapper.releaseMapping();
   }
 }

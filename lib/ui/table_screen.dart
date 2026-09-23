@@ -26,6 +26,7 @@ import '../models/card_back_definition.dart';
 import '../models/card_definition.dart';
 import '../models/card_instance.dart';
 import '../models/deck_config.dart';
+import '../models/game_definition.dart';
 import '../models/log_entry.dart';
 import '../models/player.dart';
 import '../models/table_state.dart';
@@ -100,6 +101,7 @@ class TableScreen extends StatefulWidget {
     required this.controller,
     required this.isMirrored,
     required this.zones,
+    required this.game,
     required this.onLeaveGame,
     required this.leaveButtonLabel,
     required this.leaveConfirmationMessage,
@@ -119,6 +121,18 @@ class TableScreen extends StatefulWidget {
   /// clustered next to each player's hand, shared ones render on the open
   /// table like any other pile.
   final List<ZoneDefinition> zones;
+
+  /// This machine's own copy of the game being played -- deliberately NOT
+  /// read from `GameSession.game` (which stays frozen at whatever
+  /// `GameDefinition` the session was first built from) so that
+  /// [_TableScreenState._promptLoadDeck]'s deck-picker always sees this
+  /// client's locally-resolved image paths (see `mergeLocalImagePaths`)
+  /// rather than the host's, which only resolve on this machine by
+  /// coincidence. The host passes its own already-local `GameDefinition`;
+  /// a client passes whatever `ClientGameScreen` has re-resolved it to,
+  /// which starts out host-relative and self-corrects shortly after -- see
+  /// `ClientGameScreen._resolveLocalImagePaths`.
+  final GameDefinition game;
 
   final List<CardBackDefinition> cardBacks;
 
@@ -3138,7 +3152,6 @@ class _TableScreenState extends State<TableScreen>
   /// validation applies to this one slot) in a fixed-size dialog, then deals
   /// the chosen deck into [zone] -- see `GameSession.loadDeckIntoZone`.
   Future<void> _promptLoadDeck(ZoneDefinition zone) async {
-    final game = context.read<GameSession>().game;
     final deck = await _withDialogKeysSuppressed(
       () => showDialog<DeckConfig>(
         context: context,
@@ -3147,7 +3160,7 @@ class _TableScreenState extends State<TableScreen>
             width: 480,
             height: 560,
             child: DeckLibraryScreen(
-              game: game,
+              game: widget.game,
               zones: [zone],
               onDeckChosen: (d) => Navigator.of(dialogContext).pop(d),
             ),

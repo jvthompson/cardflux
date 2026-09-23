@@ -274,6 +274,10 @@ class _ClientGameScreenState extends State<ClientGameScreen> {
         definitionsById: _definitionsById,
         controller: ClientTableController(widget.gameClient),
         isMirrored: _isMirrored,
+        // Non-null here: build() only reaches TableScreen once `_session`
+        // exists, and `_session` is only ever built (above, in
+        // _handleMessage's fullState branch) once `_game` is already set.
+        game: _game!,
         zones: _game?.zones ?? const [],
         cardBacks: _game?.cardBacks ?? const [],
         gameFolderPath: _game?.folderPath,

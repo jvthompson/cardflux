@@ -51,6 +51,7 @@ class _HostSetupScreenState extends State<HostSetupScreen> {
   String? _startError;
   String? _publicIP;
   bool _publicIPLoading = true;
+  bool? _upnpMapped;
   StreamSubscription<List<PlayerInfo>>? _rosterSub;
   bool _navigated = false;
 
@@ -110,6 +111,10 @@ class _HostSetupScreenState extends State<HostSetupScreen> {
         _port = port;
       });
       _publishHostingPresence();
+      _server.upnpMapped.then((mapped) {
+        if (!mounted) return;
+        setState(() => _upnpMapped = mapped);
+      });
       _rosterSub = _server.rosterStream.listen((roster) {
         _publishHostingPresence();
         if (roster.length >= widget.maxPlayers) _navigateToGame();
@@ -290,14 +295,23 @@ class _HostSetupScreenState extends State<HostSetupScreen> {
         else ...[
           SelectableText('$_publicIP : $_port', style: const TextStyle(fontSize: 16)),
           const SizedBox(height: 4),
-          const Text(
-            "Requires port-forwarding this port to this PC on your router.",
-            style: TextStyle(fontSize: 12, color: Colors.grey),
-          ),
+          Text(_upnpStatusMessage(), style: const TextStyle(fontSize: 12, color: Colors.grey)),
         ],
       ],
     );
   }
+
+  /// Reflects [_upnpMapped]: null while the router's still being asked,
+  /// true once it accepted an automatic forwarding rule for this port
+  /// (nothing left for the host to do), false if there's no UPnP-capable
+  /// gateway or it refused -- the host still needs a manual router rule
+  /// for the same port in that case.
+  String _upnpStatusMessage() => switch (_upnpMapped) {
+    null => 'Setting up automatic port-forwarding (UPnP)...',
+    true => 'Port automatically forwarded on your router (UPnP).',
+    false => "Couldn't automatically forward this port (UPnP unavailable) -- "
+        'forward it to this PC on your router.',
+  };
 
   Widget _buildDiscordPanel() {
     if (_discordConnecting) {
