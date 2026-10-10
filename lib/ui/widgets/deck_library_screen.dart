@@ -80,7 +80,7 @@ class _DeckLibraryScreenState extends State<DeckLibraryScreen> {
     DeckLibraryScanResult scan = const DeckLibraryScanResult(entries: [], incompatible: []);
     String? error;
     try {
-      scan = await _loader.loadDecksForGame(path, widget.game);
+      scan = await _loader.loadAllDecksForGame(path, widget.game);
       if (scan.entries.isEmpty && scan.incompatible.isEmpty) {
         error = 'No decks found for ${widget.game.name} in that folder.';
       }
@@ -199,7 +199,7 @@ class _DeckLibraryScreenState extends State<DeckLibraryScreen> {
     );
   }
 
-  Widget _buildDeckTileContent(String displayName, int cardCount, {bool incompatible = false}) {
+  Widget _buildDeckTileContent(String displayName, int cardCount, {bool incompatible = false, bool builtIn = false}) {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -229,6 +229,11 @@ class _DeckLibraryScreenState extends State<DeckLibraryScreen> {
             color: incompatible ? Colors.red : Theme.of(context).colorScheme.onSurfaceVariant,
           ),
         ),
+        if (builtIn)
+          Text(
+            'Built-in',
+            style: TextStyle(fontSize: 10, fontStyle: FontStyle.italic, color: Theme.of(context).colorScheme.primary),
+          ),
       ],
     );
   }
@@ -246,7 +251,7 @@ class _DeckLibraryScreenState extends State<DeckLibraryScreen> {
             width: 2,
           ),
         ),
-        child: _buildDeckTileContent(entry.displayName, entry.cardCount),
+        child: _buildDeckTileContent(entry.displayName, entry.cardCount, builtIn: entry.isBuiltIn),
       ),
     );
   }

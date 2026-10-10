@@ -67,7 +67,7 @@ class _DeckLibraryPickerDialogState extends State<_DeckLibraryPickerDialog> {
       _error = null;
     });
     try {
-      final scan = await _loader.loadDecksForGame(_libraryRoot, widget.game);
+      final scan = await _loader.loadAllDecksForGame(_libraryRoot, widget.game);
       if (!mounted) return;
       setState(() => _scan = scan);
     } catch (e) {
@@ -158,6 +158,7 @@ class _DeckLibraryPickerDialogState extends State<_DeckLibraryPickerDialog> {
                                   ListTile(
                                     dense: true,
                                     title: Text(entry.displayName),
+                                    subtitle: entry.isBuiltIn ? const Text('Built-in') : null,
                                     trailing: Text('${entry.cardCount} card(s)'),
                                     onTap: () => Navigator.of(context).pop(entry.deck),
                                   ),
